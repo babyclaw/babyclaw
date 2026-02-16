@@ -43,6 +43,76 @@ describe("loadConfig", () => {
     }
   });
 
+  it("defaults shell config to allowlist mode with default commands", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-shell-default-"));
+
+    try {
+      const configPath = join(tempDir, "runtime.json");
+      await writeFile(configPath, JSON.stringify(createValidConfig()), "utf8");
+      vi.stubEnv(CONFIG_PATH_ENV_VAR, configPath);
+
+      const config = await loadConfig();
+
+      expect(config.tools.shell.mode).toBe("allowlist");
+      expect(config.tools.shell.allowedCommands).toBeInstanceOf(Array);
+      expect(config.tools.shell.allowedCommands.length).toBeGreaterThan(0);
+      expect(config.tools.shell.allowedCommands).toContain("ls");
+      expect(config.tools.shell.allowedCommands).toContain("git");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts full-access shell mode from config", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-shell-full-"));
+
+    try {
+      const configPath = join(tempDir, "runtime.json");
+      const withFullAccess = {
+        ...createValidConfig(),
+        tools: {
+          shell: {
+            mode: "full-access",
+          },
+        },
+      };
+      await writeFile(configPath, JSON.stringify(withFullAccess), "utf8");
+      vi.stubEnv(CONFIG_PATH_ENV_VAR, configPath);
+
+      const config = await loadConfig();
+
+      expect(config.tools.shell.mode).toBe("full-access");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts a custom shell allowedCommands list", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-shell-custom-"));
+
+    try {
+      const configPath = join(tempDir, "runtime.json");
+      const withCustomCommands = {
+        ...createValidConfig(),
+        tools: {
+          shell: {
+            mode: "allowlist",
+            allowedCommands: ["docker", "kubectl"],
+          },
+        },
+      };
+      await writeFile(configPath, JSON.stringify(withCustomCommands), "utf8");
+      vi.stubEnv(CONFIG_PATH_ENV_VAR, configPath);
+
+      const config = await loadConfig();
+
+      expect(config.tools.shell.mode).toBe("allowlist");
+      expect(config.tools.shell.allowedCommands).toEqual(["docker", "kubectl"]);
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("loads from the default home config path when override is unset", async () => {
     const tempHome = await mkdtemp(join(tmpdir(), "simpleclaw-home-"));
 
