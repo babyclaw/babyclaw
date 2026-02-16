@@ -2,6 +2,7 @@ import { exec } from "node:child_process";
 import { basename } from "node:path";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
+import type { ShellConfig } from "../config/shell-defaults.js";
 import { resolveWorkspacePath } from "../utils/path.js";
 import { MAX_TOOL_PAYLOAD_BYTES } from "../utils/payload.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
@@ -9,73 +10,42 @@ import { ToolExecutionError, withToolLogging } from "./errors.js";
 
 type CreateShellToolsInput = {
   context: ToolExecutionContext;
+  shellConfig: ShellConfig;
 };
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 120_000;
 const MAX_OUTPUT_BYTES = MAX_TOOL_PAYLOAD_BYTES;
 
-const ALLOWED_COMMANDS = new Set([
-  "ls",
-  "cat",
-  "head",
-  "tail",
-  "wc",
-  "grep",
-  "rg",
-  "find",
-  "file",
-  "du",
-  "df",
-  "date",
-  "echo",
-  "env",
-  "pwd",
-  "sort",
-  "uniq",
-  "cut",
-  "awk",
-  "sed",
-  "tr",
-  "xargs",
-  "tee",
-  "diff",
-  "which",
-  "basename",
-  "dirname",
-  "realpath",
-  "mkdir",
-  "cp",
-  "mv",
-  "rm",
-  "touch",
-  "chmod",
-  "git",
-  "node",
-  "npm",
-  "npx",
-  "pnpm",
-  "yarn",
-  "python",
-  "python3",
-  "pip",
-  "pip3",
-  "curl",
-  "wget",
-  "jq",
-  "tar",
-  "zip",
-  "unzip",
-  "remindctl"
-]);
-
 const SHELL_OPERATORS = /\|{1,2}|&&|;/;
 
-export function createShellTools({ context }: CreateShellToolsInput): ToolSet {
+export function normalizeAllowedCommands({ commands }: { commands: string[] }): Set<string> {
+  const normalized = new Set<string>();
+
+  for (const raw of commands) {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    normalized.add(basename(trimmed));
+  }
+
+  return normalized;
+}
+
+export function createShellTools({ context, shellConfig }: CreateShellToolsInput): ToolSet {
+  const isFullAccess = shellConfig.mode === "full-access";
+  const allowedCommands = isFullAccess
+    ? null
+    : normalizeAllowedCommands({ commands: shellConfig.allowedCommands });
+
+  const description = isFullAccess
+    ? "Run a shell command in the workspace directory. Full access mode: any command is allowed. Supports pipes and chaining."
+    : "Run a shell command in the workspace directory. Commands are restricted to an allowlist of common dev tools (git, node, npm, pnpm, curl, grep, etc.). Supports pipes and chaining.";
+
   return {
     shell_exec: tool({
-      description:
-        "Run a shell command in the workspace directory. Commands are restricted to an allowlist of common dev tools (git, node, npm, pnpm, curl, grep, etc.). Supports pipes and chaining.",
+      description,
       inputSchema: z.object({
         command: z.string().trim().min(1),
         timeout_ms: z
@@ -93,7 +63,9 @@ export function createShellTools({ context }: CreateShellToolsInput): ToolSet {
           toolName: "shell_exec",
           defaultCode: "SHELL_EXEC_FAILED",
           action: async () => {
-            validateCommandAllowlist({ command });
+            if (allowedCommands) {
+              validateCommandAllowlist({ command, allowedCommands });
+            }
 
             const cwd = working_directory
               ? resolveWorkspacePath({
@@ -153,7 +125,6 @@ export function extractCommandNames({ command }: { command: string }): string[] 
       firstToken += char;
     }
 
-    // Skip env var assignments like FOO=bar before the actual command
     const withoutEnvVars = skipEnvAssignments({ segment: trimmed });
     if (withoutEnvVars !== trimmed) {
       const reassigned = extractCommandNames({ command: withoutEnvVars });
@@ -180,7 +151,13 @@ function skipEnvAssignments({ segment }: { segment: string }): string {
   return remaining;
 }
 
-export function validateCommandAllowlist({ command }: { command: string }): void {
+export function validateCommandAllowlist({
+  command,
+  allowedCommands,
+}: {
+  command: string;
+  allowedCommands: Set<string>;
+}): void {
   const names = extractCommandNames({ command });
 
   if (names.length === 0) {
@@ -192,11 +169,11 @@ export function validateCommandAllowlist({ command }: { command: string }): void
   }
 
   for (const name of names) {
-    if (!ALLOWED_COMMANDS.has(name)) {
+    if (!allowedCommands.has(name)) {
       throw new ToolExecutionError({
         code: "COMMAND_NOT_ALLOWED",
         message: `Command not in allowlist: ${name}`,
-        hint: `Allowed commands: ${[...ALLOWED_COMMANDS].sort().join(", ")}`,
+        hint: `Allowed commands: ${[...allowedCommands].sort().join(", ")}`,
       });
     }
   }
