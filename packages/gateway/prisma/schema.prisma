@@ -1,0 +1,118 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum MessageRole {
+  system
+  user
+  assistant
+}
+
+enum ScheduleType {
+  one_off
+  recurring
+}
+
+enum ScheduleStatus {
+  active
+  canceled
+  completed
+}
+
+enum ScheduleRunStatus {
+  pending
+  running
+  succeeded
+  failed
+  skipped_overlap
+  skipped_downtime
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  key       String    @unique
+  chatId    BigInt
+  threadId  BigInt?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      MessageRole
+  content   String
+  metadata  String?
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+model Schedule {
+  id                   String               @id @default(cuid())
+  chatId               BigInt
+  createdByUserId      BigInt
+  threadId             BigInt?
+  directMessagesTopicId BigInt?
+  title                String?
+  taskPrompt           String
+  sourceText           String
+  type                 ScheduleType
+  cronExpression       String?
+  runAt                DateTime?
+  timezone             String
+  status               ScheduleStatus       @default(active)
+  nextRunAt            DateTime?
+  lastRunAt            DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  canceledAt           DateTime?
+  runs                 ScheduleRun[]
+  links                TelegramMessageLink[]
+
+  @@index([chatId, status, nextRunAt])
+}
+
+model ScheduleRun {
+  id               String            @id @default(cuid())
+  scheduleId       String
+  schedule         Schedule          @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduledFor     DateTime
+  status           ScheduleRunStatus @default(pending)
+  attempt          Int               @default(1)
+  sessionKey       String?
+  assistantMessageId BigInt?
+  error            String?
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  links            TelegramMessageLink[]
+
+  @@index([scheduleId, createdAt])
+  @@index([status, createdAt])
+  @@index([sessionKey])
+}
+
+model TelegramMessageLink {
+  id          String      @id @default(cuid())
+  chatId      BigInt
+  messageId   BigInt
+  sessionKey  String
+  scheduleId  String?
+  schedule    Schedule?   @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduleRunId String?
+  scheduleRun ScheduleRun? @relation(fields: [scheduleRunId], references: [id], onDelete: SetNull)
+  createdAt   DateTime    @default(now())
+
+  @@unique([chatId, messageId])
+  @@index([sessionKey])
+  @@index([scheduleId])
+  @@index([scheduleRunId])
+}
