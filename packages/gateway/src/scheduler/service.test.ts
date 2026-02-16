@@ -2,7 +2,7 @@ import { ScheduleStatus, ScheduleType } from "@prisma/client";
 import { describe, expect, it, vi } from "vitest";
 import { SchedulerService } from "./service.js";
 
-function createMockPrisma() {
+function createMockPrisma(): any {
   return {
     schedule: {
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
@@ -25,9 +25,7 @@ function createMockPrisma() {
       deleteMany: vi.fn(),
     },
     $transaction: vi.fn(),
-  } as unknown as Parameters<typeof SchedulerService.prototype.constructor>[0] extends never
-    ? never
-    : any;
+  };
 }
 
 const BASE_INPUT = {

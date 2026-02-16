@@ -1,0 +1,236 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Simpleclaw Runtime Configuration",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "telegram": {
+      "type": "object",
+      "properties": {
+        "botToken": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "botToken"
+      ],
+      "additionalProperties": false
+    },
+    "ai": {
+      "type": "object",
+      "properties": {
+        "gatewayApiKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseUrl": {
+          "default": "https://ai-gateway.vercel.sh/v1",
+          "type": "string",
+          "format": "uri"
+        },
+        "models": {
+          "default": {
+            "chat": "anthropic/claude-sonnet-4-20250514",
+            "browser": "anthropic/claude-opus-4.6"
+          },
+          "type": "object",
+          "properties": {
+            "chat": {
+              "default": "anthropic/claude-sonnet-4-20250514",
+              "type": "string",
+              "minLength": 1
+            },
+            "browser": {
+              "default": "anthropic/claude-opus-4.6",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "chat",
+            "browser"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "gatewayApiKey",
+        "baseUrl",
+        "models"
+      ],
+      "additionalProperties": false
+    },
+    "database": {
+      "default": {
+        "url": "file:../data/simpleclaw.db"
+      },
+      "type": "object",
+      "properties": {
+        "url": {
+          "default": "file:../data/simpleclaw.db",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "scheduler": {
+      "default": {
+        "timezone": "UTC"
+      },
+      "type": "object",
+      "properties": {
+        "timezone": {
+          "default": "UTC",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "timezone"
+      ],
+      "additionalProperties": false
+    },
+    "workspace": {
+      "default": {
+        "root": "."
+      },
+      "type": "object",
+      "properties": {
+        "root": {
+          "default": ".",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "root"
+      ],
+      "additionalProperties": false
+    },
+    "session": {
+      "default": {
+        "maxMessagesPerSession": 120,
+        "historyLimit": 40,
+        "replyChainMode": "default"
+      },
+      "type": "object",
+      "properties": {
+        "maxMessagesPerSession": {
+          "default": 120,
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "historyLimit": {
+          "default": 40,
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "replyChainMode": {
+          "default": "default",
+          "type": "string",
+          "enum": [
+            "default",
+            "reply-chain"
+          ]
+        }
+      },
+      "required": [
+        "maxMessagesPerSession",
+        "historyLimit",
+        "replyChainMode"
+      ],
+      "additionalProperties": false
+    },
+    "tools": {
+      "default": {
+        "enableGenericTools": true,
+        "enableBrowserTools": false,
+        "browser": {
+          "headless": true
+        },
+        "webSearch": {
+          "braveApiKey": null
+        }
+      },
+      "type": "object",
+      "properties": {
+        "enableGenericTools": {
+          "default": true,
+          "type": "boolean"
+        },
+        "enableBrowserTools": {
+          "default": false,
+          "type": "boolean"
+        },
+        "browser": {
+          "default": {
+            "headless": true
+          },
+          "type": "object",
+          "properties": {
+            "headless": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "headless"
+          ],
+          "additionalProperties": false
+        },
+        "webSearch": {
+          "default": {
+            "braveApiKey": null
+          },
+          "type": "object",
+          "properties": {
+            "braveApiKey": {
+              "default": null,
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "braveApiKey"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "enableGenericTools",
+        "enableBrowserTools",
+        "browser",
+        "webSearch"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "version",
+    "telegram",
+    "ai",
+    "database",
+    "scheduler",
+    "workspace",
+    "session",
+    "tools"
+  ],
+  "additionalProperties": false
+}

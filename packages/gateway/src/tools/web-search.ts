@@ -6,6 +6,7 @@ import { ToolExecutionError, withToolLogging } from "./errors.js";
 
 type CreateWebSearchToolsInput = {
   context: ToolExecutionContext;
+  braveApiKey: string | null;
 };
 
 const BRAVE_SEARCH_ENDPOINT =
@@ -32,6 +33,7 @@ type BraveSearchResponse = {
 
 export function createWebSearchTools({
   context,
+  braveApiKey,
 }: CreateWebSearchToolsInput): ToolSet {
   return {
     web_search: tool({
@@ -60,13 +62,12 @@ export function createWebSearchTools({
           toolName: "web_search",
           defaultCode: "WEB_SEARCH_FAILED",
           action: async () => {
-            const apiKey = process.env.BRAVE_SEARCH_API_KEY;
-            if (!apiKey) {
+            if (!braveApiKey) {
               throw new ToolExecutionError({
                 code: "BRAVE_API_KEY_MISSING",
-                message:
-                  "BRAVE_SEARCH_API_KEY environment variable is not set.",
-                hint: "Set the BRAVE_SEARCH_API_KEY environment variable with a valid Brave Search API key.",
+                message: "Brave Search API key is not configured.",
+                hint:
+                  "Set tools.webSearch.braveApiKey in the Simpleclaw JSON config file.",
               });
             }
 
@@ -77,7 +78,7 @@ export function createWebSearchTools({
               headers: {
                 Accept: "application/json",
                 "Accept-Encoding": "gzip",
-                "X-Subscription-Token": apiKey,
+                "X-Subscription-Token": braveApiKey,
               },
             });
 

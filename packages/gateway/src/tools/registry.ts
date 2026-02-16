@@ -1,5 +1,6 @@
 import type { ToolSet } from "ai";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
+import type { ShellConfig } from "../config/shell-defaults.js";
 import { SchedulerService } from "../scheduler/service.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { createBrowserTools } from "./browser.js";
@@ -16,6 +17,8 @@ type CreateUnifiedToolsInput = {
   sourceText: string;
   createdByUserId: bigint;
   enableGenericTools: boolean;
+  braveSearchApiKey: string | null;
+  shellConfig: ShellConfig;
   browserMcpClient?: BrowserMcpClient;
 };
 
@@ -26,6 +29,8 @@ export function createUnifiedTools({
   sourceText,
   createdByUserId,
   enableGenericTools,
+  braveSearchApiKey,
+  shellConfig,
   browserMcpClient,
 }: CreateUnifiedToolsInput): ToolSet {
   if (!executionContext.chatId) {
@@ -64,9 +69,11 @@ export function createUnifiedTools({
     }),
     ...createShellTools({
       context: executionContext,
+      shellConfig,
     }),
     ...createWebSearchTools({
       context: executionContext,
+      braveApiKey: braveSearchApiKey,
     }),
     ...browserTools,
   };

@@ -1,6 +1,7 @@
 import { MessageRole, ScheduleRunStatus, ScheduleType } from "@prisma/client";
 import type { Api } from "grammy";
 import { AiAgent } from "../ai/agent.js";
+import type { ShellConfig } from "../config/shell-defaults.js";
 import {
   buildScheduledTaskUserContent,
   getScheduledExecutionSystemMessage,
@@ -32,6 +33,8 @@ type SchedulerExecutorInput = {
   messageLinkRepository: MessageLinkRepository;
   syncSchedule: (args: { scheduleId: string }) => Promise<void>;
   enableGenericTools: boolean;
+  braveSearchApiKey: string | null;
+  shellConfig: ShellConfig;
   browserMcpClient?: import("../browser/mcp-client.js").BrowserMcpClient;
 };
 
@@ -44,6 +47,8 @@ export class SchedulerExecutor {
   private readonly messageLinkRepository: MessageLinkRepository;
   private readonly syncSchedule: (args: { scheduleId: string }) => Promise<void>;
   private readonly enableGenericTools: boolean;
+  private readonly braveSearchApiKey: string | null;
+  private readonly shellConfig: ShellConfig;
   private readonly browserMcpClient?: import("../browser/mcp-client.js").BrowserMcpClient;
   private readonly runningScheduleIds = new Set<string>();
 
@@ -56,6 +61,8 @@ export class SchedulerExecutor {
     messageLinkRepository,
     syncSchedule,
     enableGenericTools,
+    braveSearchApiKey,
+    shellConfig,
     browserMcpClient,
   }: SchedulerExecutorInput) {
     this.api = api;
@@ -66,6 +73,8 @@ export class SchedulerExecutor {
     this.messageLinkRepository = messageLinkRepository;
     this.syncSchedule = syncSchedule;
     this.enableGenericTools = enableGenericTools;
+    this.braveSearchApiKey = braveSearchApiKey;
+    this.shellConfig = shellConfig;
     this.browserMcpClient = browserMcpClient;
   }
 
@@ -281,6 +290,8 @@ export class SchedulerExecutor {
       createdByUserId: chatId,
       sourceText: taskPrompt,
       enableGenericTools: this.enableGenericTools,
+      braveSearchApiKey: this.braveSearchApiKey,
+      shellConfig: this.shellConfig,
       browserMcpClient: this.browserMcpClient,
     });
 

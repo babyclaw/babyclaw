@@ -12,6 +12,7 @@ import {
   readToolsIndex,
 } from "./ai/prompts.js";
 import type { BrowserMcpClient } from "./browser/mcp-client.js";
+import type { ShellConfig } from "./config/shell-defaults.js";
 import {
   hasCompletePersonalityFiles,
   readPersonalityFiles,
@@ -53,6 +54,8 @@ type CreateBotInput = {
   messageLinkRepository: MessageLinkRepository;
   syncSchedule: (args: { scheduleId: string }) => Promise<void>;
   enableGenericTools: boolean;
+  braveSearchApiKey: string | null;
+  shellConfig: ShellConfig;
   browserMcpClient?: BrowserMcpClient;
   useReplyChainKey?: boolean;
   historyLimit?: number;
@@ -75,6 +78,8 @@ export function createBot({
   messageLinkRepository,
   syncSchedule,
   enableGenericTools,
+  braveSearchApiKey,
+  shellConfig,
   browserMcpClient,
   useReplyChainKey = false,
   historyLimit = 40,
@@ -208,6 +213,8 @@ export function createBot({
       createdByUserId: BigInt(ctx.from?.id ?? ctx.chat!.id),
       sourceText: userMessage,
       enableGenericTools,
+      braveSearchApiKey,
+      shellConfig,
       browserMcpClient,
     });
 

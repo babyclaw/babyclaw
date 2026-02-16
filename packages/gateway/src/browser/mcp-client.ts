@@ -6,6 +6,8 @@ type BrowserMcpClientConfig = {
   llmApiKey: string;
   /** Base URL for OpenAI-compatible endpoint (e.g. AI Gateway) */
   llmBaseUrl?: string;
+  /** LLM model passed to browser-use */
+  llmModel: string;
   /** Run browser in headless mode (default: true) */
   headless?: boolean;
 };
@@ -22,6 +24,32 @@ type McpToolResult = {
 
 const MCP_CLIENT_NAME = "simpleclaw";
 const MCP_CLIENT_VERSION = "1.0.0";
+
+export function buildBrowserMcpEnv({
+  baseEnv,
+  config,
+}: {
+  baseEnv: Record<string, string>;
+  config: BrowserMcpClientConfig;
+}): Record<string, string> {
+  const env: Record<string, string> = {
+    ...baseEnv,
+    OPENAI_API_KEY: config.llmApiKey,
+    OPENAI_MODEL: config.llmModel,
+    BROWSER_USE_LLM_MODEL: config.llmModel,
+  };
+
+  if (config.llmBaseUrl) {
+    env.OPENAI_API_BASE = config.llmBaseUrl;
+    env.OPENAI_BASE_URL = config.llmBaseUrl;
+  }
+
+  if (config.headless !== false) {
+    env.BROWSER_USE_HEADLESS = "true";
+  }
+
+  return env;
+}
 
 export class BrowserMcpClient {
   private client: Client | null = null;
@@ -87,21 +115,10 @@ export class BrowserMcpClient {
   private async connect(): Promise<Client> {
     console.log("[browser-mcp] Spawning browser-use MCP server...");
 
-    const env: Record<string, string> = {
-      ...process.env as Record<string, string>,
-      OPENAI_API_KEY: this.config.llmApiKey,
-      OPENAI_MODEL: 'anthropic/claude-opus-4.6',
-      BROWSER_USE_LLM_MODEL: 'anthropic/claude-opus-4.6',
-    };
-
-    if (this.config.llmBaseUrl) {
-      env.OPENAI_API_BASE = this.config.llmBaseUrl;
-      env.OPENAI_BASE_URL = this.config.llmBaseUrl;
-    }
-
-    if (this.config.headless !== false) {
-      env.BROWSER_USE_HEADLESS = "true";
-    }
+    const env = buildBrowserMcpEnv({
+      baseEnv: process.env as Record<string, string>,
+      config: this.config,
+    });
 
     this.transport = new StdioClientTransport({
       command: "uvx",

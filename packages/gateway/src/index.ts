@@ -1,21 +1,15 @@
-import "dotenv/config";
+import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { AiAgent } from "./ai/agent.js";
 import { createBot } from "./bot.js";
 import { BrowserMcpClient } from "./browser/mcp-client.js";
+import { loadConfig } from "./config/loader.js";
 import { SchedulerExecutor } from "./scheduler/executor.js";
-import { bootstrapWorkspace } from "./workspace/bootstrap.js";
 import { SchedulerRuntime } from "./scheduler/runtime.js";
 import { SchedulerService } from "./scheduler/service.js";
 import { SessionManager } from "./session/manager.js";
 import { MessageLinkRepository } from "./telegram/message-link.js";
-
-type EnvKey = "BOT_TOKEN" | "AI_GATEWAY_API_KEY" | "DATABASE_URL" | "BOT_TIMEZONE";
-
-type ParsePositiveIntInput = {
-  rawValue: string | undefined;
-  fallback: number;
-};
+import { bootstrapWorkspace } from "./workspace/bootstrap.js";
 
 type ShutdownInput = {
   signal: NodeJS.Signals;
@@ -26,55 +20,40 @@ type ShutdownInput = {
 };
 
 async function main(): Promise<void> {
-  const botToken = requireEnv({ key: "BOT_TOKEN" });
-  const aiGatewayApiKey = requireEnv({ key: "AI_GATEWAY_API_KEY" });
-  requireEnv({ key: "DATABASE_URL" });
-  const botTimezone = requireValidTimezone({
-    rawTimezone: requireEnv({ key: "BOT_TIMEZONE" }),
+  const config = await loadConfig();
+
+  const workspacePath = resolveWorkspaceRoot({
+    workspaceRoot: config.workspace.root,
   });
 
-  const modelId = process.env.AI_MODEL || "anthropic/claude-sonnet-4-20250514";
-  const workspacePath = process.env.WORKSPACE_ROOT || process.cwd();
-  const maxMessagesPerSession = parsePositiveInt({
-    rawValue: process.env.MAX_MESSAGES_PER_SESSION,
-    fallback: 120,
-  });
-  const historyLimit = parsePositiveInt({
-    rawValue: process.env.HISTORY_LIMIT,
-    fallback: 40,
-  });
-  const useReplyChainKey = process.env.SESSION_REPLY_CHAIN_MODE === "reply-chain";
-  const enableGenericTools = parseFeatureFlag({
-    rawValue: process.env.ENABLE_GENERIC_TOOLS,
-    defaultValue: process.env.NODE_ENV !== "production",
-  });
-  const enableBrowserTools = parseFeatureFlag({
-    rawValue: process.env.ENABLE_BROWSER_TOOLS,
-    defaultValue: false,
-  });
-
-  const AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
-
-  const browserMcpClient = enableBrowserTools
+  const browserMcpClient = config.tools.enableBrowserTools
     ? new BrowserMcpClient({
-        llmApiKey: aiGatewayApiKey,
-        llmBaseUrl: AI_GATEWAY_BASE_URL,
-        headless: process.env.BROWSER_USE_HEADLESS !== "false",
+        llmApiKey: config.ai.gatewayApiKey,
+        llmBaseUrl: config.ai.baseUrl,
+        llmModel: config.ai.models.browser,
+        headless: config.tools.browser.headless,
       })
     : undefined;
 
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: config.database.url,
+      },
+    },
+  });
+
   const sessionManager = new SessionManager({
     prisma,
-    maxMessagesPerSession,
+    maxMessagesPerSession: config.session.maxMessagesPerSession,
   });
   const aiAgent = new AiAgent({
-    apiKey: aiGatewayApiKey,
-    modelId,
+    apiKey: config.ai.gatewayApiKey,
+    modelId: config.ai.models.chat,
   });
   const schedulerService = new SchedulerService({
     prisma,
-    timezone: botTimezone,
+    timezone: config.scheduler.timezone,
   });
   const messageLinkRepository = new MessageLinkRepository({
     prisma,
@@ -91,18 +70,29 @@ async function main(): Promise<void> {
 
   await bootstrapWorkspace({ workspacePath });
 
+  const shellConfig = config.tools.shell;
+
+  if (shellConfig.mode === "full-access") {
+    console.warn(
+      "[config] WARNING: Shell tool is running in full-access mode. " +
+        "Command allowlist validation is disabled. Any shell command can be executed.",
+    );
+  }
+
   const bot = createBot({
-    token: botToken,
+    token: config.telegram.botToken,
     workspacePath,
     sessionManager,
     aiAgent,
     schedulerService,
     messageLinkRepository,
     syncSchedule,
-    enableGenericTools,
+    enableGenericTools: config.tools.enableGenericTools,
+    braveSearchApiKey: config.tools.webSearch.braveApiKey,
+    shellConfig,
     browserMcpClient,
-    useReplyChainKey,
-    historyLimit,
+    useReplyChainKey: config.session.replyChainMode === "reply-chain",
+    historyLimit: config.session.historyLimit,
   });
 
   const schedulerExecutor = new SchedulerExecutor({
@@ -113,9 +103,12 @@ async function main(): Promise<void> {
     schedulerService,
     messageLinkRepository,
     syncSchedule,
-    enableGenericTools,
+    enableGenericTools: config.tools.enableGenericTools,
+    braveSearchApiKey: config.tools.webSearch.braveApiKey,
+    shellConfig,
     browserMcpClient,
   });
+
   schedulerRuntime = new SchedulerRuntime({
     schedulerService,
     schedulerExecutor,
@@ -139,58 +132,8 @@ async function main(): Promise<void> {
   console.log("Telegram gateway bot is running.");
 }
 
-function requireEnv({ key }: { key: EnvKey }): string {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-
-  return value;
-}
-
-function requireValidTimezone({ rawTimezone }: { rawTimezone: string }): string {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: rawTimezone });
-  } catch {
-    throw new Error(`Invalid BOT_TIMEZONE value: ${rawTimezone}`);
-  }
-
-  return rawTimezone;
-}
-
-function parsePositiveInt({ rawValue, fallback }: ParsePositiveIntInput): number {
-  if (!rawValue) {
-    return fallback;
-  }
-
-  const parsed = Number.parseInt(rawValue, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-
-  return parsed;
-}
-
-function parseFeatureFlag({
-  rawValue,
-  defaultValue,
-}: {
-  rawValue: string | undefined;
-  defaultValue: boolean;
-}): boolean {
-  if (typeof rawValue !== "string") {
-    return defaultValue;
-  }
-
-  const normalized = rawValue.trim().toLowerCase();
-  if (["1", "true", "yes", "on"].includes(normalized)) {
-    return true;
-  }
-  if (["0", "false", "no", "off"].includes(normalized)) {
-    return false;
-  }
-
-  return defaultValue;
+function resolveWorkspaceRoot({ workspaceRoot }: { workspaceRoot: string }): string {
+  return resolve(process.cwd(), workspaceRoot);
 }
 
 async function handleShutdown({
