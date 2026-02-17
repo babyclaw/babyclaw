@@ -1,0 +1,76 @@
+import { describe, expect, it, vi } from "vitest";
+import { TelegramAdapter } from "./plugin.js";
+
+function createMockChatRegistry(): any {
+  return {
+    upsert: vi.fn(async () => {}),
+    getMainChat: vi.fn(async () => null),
+    markAsMain: vi.fn(async () => {}),
+    isLinked: vi.fn(async () => true),
+    link: vi.fn(async () => {}),
+    unlink: vi.fn(async () => {}),
+    listLinkedChats: vi.fn(async () => []),
+  };
+}
+
+function createMockSchedulerService(): any {
+  return {
+    listSchedules: vi.fn(async () => []),
+    getTimezone: vi.fn(() => "UTC"),
+  };
+}
+
+function createMockMessageLinkRepository(): any {
+  return {
+    upsertMessageLink: vi.fn(async () => {}),
+    findByChatAndMessage: vi.fn(async () => null),
+  };
+}
+
+function createAdapter() {
+  return new TelegramAdapter({
+    token: "test-token",
+    chatRegistry: createMockChatRegistry(),
+    schedulerService: createMockSchedulerService(),
+    messageLinkRepository: createMockMessageLinkRepository(),
+  });
+}
+
+describe("TelegramAdapter", () => {
+  it("has platform set to telegram", () => {
+    const adapter = createAdapter();
+    expect(adapter.platform).toBe("telegram");
+  });
+
+  it("reports correct capabilities", () => {
+    const adapter = createAdapter();
+    expect(adapter.capabilities).toEqual({
+      supportsDraft: true,
+      supportsMarkdown: true,
+      supportsTypingIndicator: true,
+      supportsEditing: false,
+    });
+  });
+
+  it("implements ChannelAdapter interface (has sendMessage + start + stop)", () => {
+    const adapter = createAdapter();
+    expect(typeof adapter.sendMessage).toBe("function");
+    expect(typeof adapter.streamDraft).toBe("function");
+    expect(typeof adapter.start).toBe("function");
+    expect(typeof adapter.stop).toBe("function");
+    expect(adapter.platform).toBe("telegram");
+    expect(adapter.capabilities).toBeDefined();
+  });
+
+  it("sendMessage throws if bot not started", async () => {
+    const adapter = createAdapter();
+    await expect(
+      adapter.sendMessage({ chatId: "123", text: "hello" }),
+    ).rejects.toThrow("bot not started");
+  });
+
+  it("stop is safe to call without start", async () => {
+    const adapter = createAdapter();
+    await expect(adapter.stop()).resolves.toBeUndefined();
+  });
+});

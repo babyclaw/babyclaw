@@ -1,0 +1,506 @@
+import { MessageRole } from "@prisma/client";
+import type { Chat } from "@prisma/client";
+import type { ModelMessage } from "ai";
+import { AiAgent } from "../ai/agent.js";
+import {
+  buildScheduleFollowupSystemNote,
+  getBrowserToolsSystemMessage,
+  getMainSessionSystemMessage,
+  getNonMainSessionSystemMessage,
+  getSchedulerGuidanceSystemMessage,
+  getSharedSystemMessage,
+  getSkillsSystemMessage,
+  getWorkspaceGuideSystemMessage,
+  readToolsIndex,
+} from "../ai/prompts.js";
+import type { BrowserMcpClient } from "../browser/mcp-client.js";
+import type { ChannelRouter } from "../channel/router.js";
+import type { NormalizedInboundEvent } from "../channel/types.js";
+import type { MessageLinkRepository } from "../channel/message-link.js";
+import type { CrossChatDeliveryService } from "../chat/delivery.js";
+import type { ChatRegistry } from "../chat/registry.js";
+import type { ShellConfig } from "../config/shell-defaults.js";
+import {
+  hasCompletePersonalityFiles,
+  readPersonalityFiles,
+} from "../onboarding/personality.js";
+import {
+  bootstrapWorkspace,
+  readBootstrapGuide,
+  readWorkspaceGuide,
+} from "../workspace/bootstrap.js";
+import { SchedulerService } from "../scheduler/service.js";
+import { ActiveTurnManager } from "../session/active-turns.js";
+import { SessionManager } from "../session/manager.js";
+import type { SessionIdentity } from "../session/types.js";
+import { createUnifiedTools } from "../tools/registry.js";
+import {
+  buildUserContent,
+  getUserMetadata,
+  isCommandText,
+  isStopMessage,
+  type ReplyReference,
+} from "./helpers.js";
+
+type AgentTurnOrchestratorInput = {
+  workspacePath: string;
+  sessionManager: SessionManager;
+  aiAgent: AiAgent;
+  schedulerService: SchedulerService;
+  messageLinkRepository: MessageLinkRepository;
+  chatRegistry: ChatRegistry;
+  deliveryService: CrossChatDeliveryService;
+  channelRouter: ChannelRouter;
+  syncSchedule: (args: { scheduleId: string }) => Promise<void>;
+  enableGenericTools: boolean;
+  braveSearchApiKey: string | null;
+  shellConfig: ShellConfig;
+  browserMcpClient?: BrowserMcpClient;
+  useReplyChainKey: boolean;
+  historyLimit: number;
+};
+
+export class AgentTurnOrchestrator {
+  private readonly workspacePath: string;
+  private readonly sessionManager: SessionManager;
+  private readonly aiAgent: AiAgent;
+  private readonly schedulerService: SchedulerService;
+  private readonly messageLinkRepository: MessageLinkRepository;
+  private readonly chatRegistry: ChatRegistry;
+  private readonly deliveryService: CrossChatDeliveryService;
+  private readonly channelRouter: ChannelRouter;
+  private readonly syncSchedule: (args: { scheduleId: string }) => Promise<void>;
+  private readonly enableGenericTools: boolean;
+  private readonly braveSearchApiKey: string | null;
+  private readonly shellConfig: ShellConfig;
+  private readonly browserMcpClient?: BrowserMcpClient;
+  private readonly useReplyChainKey: boolean;
+  private readonly historyLimit: number;
+  private readonly activeTurnManager = new ActiveTurnManager();
+
+  constructor({
+    workspacePath,
+    sessionManager,
+    aiAgent,
+    schedulerService,
+    messageLinkRepository,
+    chatRegistry,
+    deliveryService,
+    channelRouter,
+    syncSchedule,
+    enableGenericTools,
+    braveSearchApiKey,
+    shellConfig,
+    browserMcpClient,
+    useReplyChainKey,
+    historyLimit,
+  }: AgentTurnOrchestratorInput) {
+    this.workspacePath = workspacePath;
+    this.sessionManager = sessionManager;
+    this.aiAgent = aiAgent;
+    this.schedulerService = schedulerService;
+    this.messageLinkRepository = messageLinkRepository;
+    this.chatRegistry = chatRegistry;
+    this.deliveryService = deliveryService;
+    this.channelRouter = channelRouter;
+    this.syncSchedule = syncSchedule;
+    this.enableGenericTools = enableGenericTools;
+    this.braveSearchApiKey = braveSearchApiKey;
+    this.shellConfig = shellConfig;
+    this.browserMcpClient = browserMcpClient;
+    this.useReplyChainKey = useReplyChainKey;
+    this.historyLimit = historyLimit;
+  }
+
+  async handleInboundEvent({
+    event,
+  }: {
+    event: NormalizedInboundEvent;
+  }): Promise<void> {
+    const text = event.messageText.trim();
+    if (text.length === 0) return;
+
+    if (isCommandText({ text })) return;
+
+    if (isStopMessage({ text })) {
+      const sessionIdentity = this.deriveSessionIdentity({ event });
+      const cancelled = await this.activeTurnManager.cancel({
+        sessionKey: sessionIdentity.key,
+      });
+      if (cancelled !== undefined) {
+        const adapter = this.channelRouter.getAdapter({ platform: event.platform });
+        await adapter.sendMessage({
+          chatId: event.chatId,
+          text: "Stopped.",
+          threadId: event.threadId,
+        });
+      }
+      return;
+    }
+
+    if (event.isEdited) {
+      await this.handleEditedMessage({ event });
+      return;
+    }
+
+    await this.handleNewMessage({ event });
+  }
+
+  private async handleNewMessage({
+    event,
+  }: {
+    event: NormalizedInboundEvent;
+  }): Promise<void> {
+    await bootstrapWorkspace({ workspacePath: this.workspacePath });
+
+    const linkedSessionIdentity = await this.resolveLinkedSession({ event });
+    const sessionIdentity =
+      linkedSessionIdentity ?? this.deriveSessionIdentity({ event });
+
+    const existingMessage = await this.activeTurnManager.cancel({
+      sessionKey: sessionIdentity.key,
+    });
+    const mergedText =
+      existingMessage !== undefined
+        ? existingMessage + "\n\n" + event.messageText.trim()
+        : event.messageText.trim();
+
+    const replyReference = this.extractReplyReference({ event });
+    const isMainSession = await this.isMainSession({ event });
+    const linkedChats = await this.chatRegistry.listLinkedChats({
+      platform: event.platform,
+    });
+
+    this.launchAgentTurn({
+      event,
+      sessionIdentity,
+      userMessage: mergedText,
+      replyReference,
+      isMainSession,
+      linkedChats,
+    });
+  }
+
+  private async handleEditedMessage({
+    event,
+  }: {
+    event: NormalizedInboundEvent;
+  }): Promise<void> {
+    const sessionIdentity = this.deriveSessionIdentity({ event });
+
+    const existing = this.activeTurnManager.get({
+      sessionKey: sessionIdentity.key,
+    });
+    if (!existing) return;
+
+    await this.activeTurnManager.cancel({ sessionKey: sessionIdentity.key });
+
+    const replyReference = this.extractReplyReference({ event });
+    const isMainSession = await this.isMainSession({ event });
+    const linkedChats = await this.chatRegistry.listLinkedChats({
+      platform: event.platform,
+    });
+
+    this.launchAgentTurn({
+      event,
+      sessionIdentity,
+      userMessage: event.messageText.trim(),
+      replyReference,
+      isMainSession,
+      linkedChats,
+    });
+  }
+
+  private launchAgentTurn({
+    event,
+    sessionIdentity,
+    userMessage,
+    replyReference,
+    isMainSession,
+    linkedChats,
+  }: {
+    event: NormalizedInboundEvent;
+    sessionIdentity: SessionIdentity;
+    userMessage: string;
+    replyReference: ReplyReference | null;
+    isMainSession: boolean;
+    linkedChats: Chat[];
+  }): void {
+    const sessionKey = sessionIdentity.key;
+    const abortController = new AbortController();
+
+    const completion = this.processAgentTurn({
+      event,
+      sessionIdentity,
+      userMessage,
+      replyReference,
+      abortSignal: abortController.signal,
+      isMainSession,
+      linkedChats,
+    })
+      .catch((err) => {
+        if (abortController.signal.aborted) return;
+        console.error("Agent turn error:", err);
+        const adapter = this.channelRouter.getAdapter({ platform: event.platform });
+        adapter
+          .sendMessage({
+            chatId: event.chatId,
+            text: "I hit an internal error while processing that message.",
+            threadId: event.threadId,
+          })
+          .catch((replyErr: unknown) => {
+            console.error("Failed to send error reply:", replyErr);
+          });
+      })
+      .finally(() => {
+        this.activeTurnManager.remove({ sessionKey, abortController });
+      });
+
+    this.activeTurnManager.register({
+      sessionKey,
+      abortController,
+      completion,
+      userMessage,
+    });
+  }
+
+  private async processAgentTurn({
+    event,
+    sessionIdentity,
+    userMessage,
+    replyReference,
+    abortSignal,
+    isMainSession,
+    linkedChats,
+  }: {
+    event: NormalizedInboundEvent;
+    sessionIdentity: SessionIdentity;
+    userMessage: string;
+    replyReference: ReplyReference | null;
+    abortSignal: AbortSignal;
+    isMainSession: boolean;
+    linkedChats: Chat[];
+  }): Promise<void> {
+    if (abortSignal.aborted) return;
+
+    const adapter = this.channelRouter.getAdapter({ platform: event.platform });
+
+    const [personalityFiles, toolsIndexContent, agentsContent, bootstrapContent] =
+      await Promise.all([
+        readPersonalityFiles({ workspacePath: this.workspacePath }),
+        readToolsIndex({ workspacePath: this.workspacePath }),
+        readWorkspaceGuide({ workspacePath: this.workspacePath }),
+        readBootstrapGuide({ workspacePath: this.workspacePath }),
+      ]);
+
+    if (abortSignal.aborted) return;
+
+    const completePersonality = hasCompletePersonalityFiles(personalityFiles)
+      ? personalityFiles
+      : undefined;
+
+    const userContent = buildUserContent({
+      messageText: userMessage,
+      replyReference,
+    });
+
+    const history = await this.sessionManager.getMessages({
+      identity: sessionIdentity,
+      limit: this.historyLimit,
+    });
+
+    if (abortSignal.aborted) return;
+
+    const scheduleRunContext =
+      await this.schedulerService.getRunContextForSessionKey({
+        sessionKey: sessionIdentity.key,
+      });
+
+    if (abortSignal.aborted) return;
+
+    const currentChatRecord = linkedChats.find(
+      (c) => c.platformChatId === event.chatId,
+    );
+
+    const messages: ModelMessage[] = [
+      getSharedSystemMessage({
+        workspacePath: this.workspacePath,
+        personalityFiles: completePersonality,
+      }),
+      getWorkspaceGuideSystemMessage({ agentsContent, bootstrapContent }),
+      getSkillsSystemMessage({ toolsIndexContent }),
+      getSchedulerGuidanceSystemMessage(),
+      ...(isMainSession
+        ? [getMainSessionSystemMessage({ linkedChats })]
+        : currentChatRecord
+          ? [
+              getNonMainSessionSystemMessage({
+                chatTitle: currentChatRecord.title ?? "Unknown",
+                alias: currentChatRecord.alias ?? undefined,
+              }),
+            ]
+          : []),
+      ...(this.browserMcpClient ? [getBrowserToolsSystemMessage()] : []),
+      ...(scheduleRunContext
+        ? [
+            {
+              role: "system" as const,
+              content: buildScheduleFollowupSystemNote({
+                taskPrompt: scheduleRunContext.taskPrompt,
+                scheduledFor: scheduleRunContext.scheduledFor,
+              }),
+            },
+          ]
+        : []),
+      ...history,
+      { role: "user", content: userContent },
+    ];
+
+    const tools = createUnifiedTools({
+      executionContext: {
+        workspaceRoot: this.workspacePath,
+        botTimezone: this.schedulerService.getTimezone(),
+        platform: event.platform,
+        chatId: event.chatId,
+        threadId: event.threadId,
+        directMessagesTopicId: event.directMessagesTopicId,
+        runSource: "chat",
+        isMainSession,
+      },
+      schedulerService: this.schedulerService,
+      syncSchedule: this.syncSchedule,
+      createdByUserId: event.senderId,
+      sourceText: userMessage,
+      enableGenericTools: this.enableGenericTools,
+      braveSearchApiKey: this.braveSearchApiKey,
+      shellConfig: this.shellConfig,
+      browserMcpClient: this.browserMcpClient,
+      chatRegistry: this.chatRegistry,
+      channelSender: adapter,
+      deliveryService: this.deliveryService,
+    });
+
+    const streamResult = this.aiAgent.chatStreamWithTools({
+      messages,
+      tools,
+      maxSteps: 50,
+      abortSignal,
+    });
+
+    (streamResult.text as Promise<string>).catch(() => {});
+
+    let assistantResponse: string;
+    try {
+      if (adapter.streamDraft && event.draftSupported) {
+        assistantResponse = await adapter.streamDraft({
+          chatId: event.chatId,
+          threadId: event.threadId,
+          textStream: streamResult.textStream,
+        });
+      } else {
+        assistantResponse = (await streamResult.text).trim();
+      }
+    } catch (err) {
+      if (abortSignal.aborted) return;
+      throw err;
+    }
+
+    if (abortSignal.aborted) return;
+
+    if (assistantResponse.length === 0) {
+      assistantResponse = (await streamResult.text).trim();
+    }
+
+    if (assistantResponse.length === 0) {
+      assistantResponse = "Done.";
+    }
+
+    await this.sessionManager.appendMessages({
+      identity: sessionIdentity,
+      messages: [
+        {
+          role: MessageRole.user,
+          content: userContent,
+          metadata: getUserMetadata({ replyReference }),
+        },
+        {
+          role: MessageRole.assistant,
+          content: assistantResponse,
+        },
+      ],
+    });
+
+    const sendResult = await adapter.sendMessage({
+      chatId: event.chatId,
+      text: assistantResponse,
+      threadId: event.threadId,
+    });
+
+    await this.messageLinkRepository.upsertMessageLink({
+      platform: event.platform,
+      platformChatId: event.chatId,
+      platformMessageId: sendResult.platformMessageId,
+      sessionKey: sessionIdentity.key,
+    });
+  }
+
+  private deriveSessionIdentity({
+    event,
+  }: {
+    event: NormalizedInboundEvent;
+  }): SessionIdentity {
+    return SessionManager.deriveSessionIdentity({
+      platform: event.platform,
+      chatId: event.chatId,
+      threadId: event.threadId ?? null,
+      replyToMessageId: event.replyToMessageId ?? null,
+      useReplyChainKey: this.useReplyChainKey,
+    });
+  }
+
+  private async resolveLinkedSession({
+    event,
+  }: {
+    event: NormalizedInboundEvent;
+  }): Promise<SessionIdentity | null> {
+    if (!event.replyToMessageId) return null;
+
+    const link = await this.messageLinkRepository.findByChatAndMessage({
+      platform: event.platform,
+      platformChatId: event.chatId,
+      platformMessageId: event.replyToMessageId,
+    });
+
+    if (!link) return null;
+
+    return SessionManager.fromLinkedSessionKey({
+      key: link.sessionKey,
+      chatId: event.chatId,
+      threadId: event.threadId ?? null,
+      replyToMessageId: event.replyToMessageId,
+    });
+  }
+
+  private extractReplyReference({
+    event,
+  }: {
+    event: NormalizedInboundEvent;
+  }): ReplyReference | null {
+    if (!event.replyToMessageId) return null;
+
+    return {
+      messageId: event.replyToMessageId,
+      text: event.replyToText ?? null,
+    };
+  }
+
+  private async isMainSession({
+    event,
+  }: {
+    event: NormalizedInboundEvent;
+  }): Promise<boolean> {
+    const mainChat = await this.chatRegistry.getMainChat();
+    if (!mainChat) return false;
+    return mainChat.platformChatId === event.chatId;
+  }
+}
