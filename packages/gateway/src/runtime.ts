@@ -16,6 +16,9 @@ import { TelegramMessageSender } from "./chat/telegram-sender.js";
 import { loadConfig } from "./config/loader.js";
 import { getConfigPath } from "./config/paths.js";
 import type { SimpleclawConfig } from "./config/types.js";
+import { HeartbeatExecutor } from "./heartbeat/executor.js";
+import { HeartbeatRuntime } from "./heartbeat/runtime.js";
+import { HeartbeatService } from "./heartbeat/service.js";
 import { SchedulerExecutor } from "./scheduler/executor.js";
 import { SchedulerRuntime } from "./scheduler/runtime.js";
 import { SchedulerService } from "./scheduler/service.js";
@@ -39,6 +42,7 @@ export class GatewayRuntime {
   private bot: ReturnType<typeof createBot> | null = null;
   private prisma: PrismaClient | null = null;
   private schedulerRuntime: SchedulerRuntime | null = null;
+  private heartbeatRuntime: HeartbeatRuntime | null = null;
   private browserMcpClient: BrowserMcpClient | undefined = undefined;
   private adminServer: AdminServer | null = null;
 
@@ -135,6 +139,10 @@ export class GatewayRuntime {
         messageLinkRepository,
       });
 
+      const heartbeatService = new HeartbeatService({ prisma });
+
+      let heartbeatRuntime: HeartbeatRuntime | null = null;
+
       const bot = createBot({
         token: config.telegram.botToken,
         workspacePath,
@@ -151,6 +159,10 @@ export class GatewayRuntime {
         browserMcpClient,
         useReplyChainKey: config.session.replyChainMode === "reply-chain",
         historyLimit: config.session.historyLimit,
+        getHeartbeatStatus: () => ({
+          enabled: config.heartbeat.enabled,
+          nextRunAt: heartbeatRuntime?.getNextRunAt() ?? null,
+        }),
       });
       this.bot = bot;
 
@@ -180,6 +192,35 @@ export class GatewayRuntime {
       this.schedulerRuntime = schedulerRuntime;
 
       await schedulerRuntime.start();
+
+      const heartbeatExecutor = new HeartbeatExecutor({
+        workspacePath,
+        aiAgent,
+        sessionManager,
+        schedulerService,
+        heartbeatService,
+        chatRegistry,
+        messageSender,
+        deliveryService,
+        messageLinkRepository,
+        syncSchedule,
+        enableGenericTools: config.tools.enableGenericTools,
+        braveSearchApiKey: config.tools.webSearch.braveApiKey,
+        shellConfig,
+        browserMcpClient,
+        heartbeatConfig: config.heartbeat,
+        historyLimit: config.session.historyLimit,
+      });
+
+      heartbeatRuntime = new HeartbeatRuntime({
+        heartbeatService,
+        heartbeatExecutor,
+        heartbeatConfig: config.heartbeat,
+        timezone: config.scheduler.timezone,
+      });
+      this.heartbeatRuntime = heartbeatRuntime;
+
+      await heartbeatRuntime.start();
 
       this.adminServer = new AdminServer({
         socketPath: getAdminSocketPath(),
@@ -214,6 +255,9 @@ export class GatewayRuntime {
 
     this.state = "stopping";
 
+    if (this.heartbeatRuntime) {
+      this.heartbeatRuntime.stop();
+    }
     if (this.schedulerRuntime) {
       this.schedulerRuntime.stop();
     }
@@ -233,6 +277,7 @@ export class GatewayRuntime {
     this.bot = null;
     this.prisma = null;
     this.schedulerRuntime = null;
+    this.heartbeatRuntime = null;
     this.browserMcpClient = undefined;
     this.adminServer = null;
     this.startedAt = null;

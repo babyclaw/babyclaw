@@ -53,6 +53,11 @@ import { createUnifiedTools } from "./tools/registry.js";
 
 const ALIAS_PATTERN = /^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$/;
 
+export type HeartbeatStatusGetter = () => {
+  enabled: boolean;
+  nextRunAt: Date | null;
+};
+
 type CreateBotInput = {
   token: string;
   workspacePath: string;
@@ -69,6 +74,7 @@ type CreateBotInput = {
   browserMcpClient?: BrowserMcpClient;
   useReplyChainKey?: boolean;
   historyLimit?: number;
+  getHeartbeatStatus?: HeartbeatStatusGetter;
 };
 
 type ProcessAgentTurnInput = {
@@ -97,6 +103,7 @@ export function createBot({
   browserMcpClient,
   useReplyChainKey = false,
   historyLimit = 40,
+  getHeartbeatStatus,
 }: CreateBotInput): Bot<BotContext> {
   const bot = new Bot<BotContext>(token, {
     ContextConstructor: BotContext,
@@ -244,6 +251,29 @@ export function createBot({
         schedules,
       }),
     });
+  });
+
+  bot.command("heartbeat", async (ctx) => {
+    if (!ctx.chat) {
+      return;
+    }
+
+    if (!getHeartbeatStatus) {
+      await ctx.reply("Heartbeat system is not available.");
+      return;
+    }
+
+    const status = getHeartbeatStatus();
+    if (!status.enabled) {
+      await ctx.reply("Heartbeat is disabled in configuration.");
+      return;
+    }
+
+    const nextRunLabel = status.nextRunAt
+      ? status.nextRunAt.toISOString()
+      : "not scheduled";
+
+    await ctx.reply(`Heartbeat is enabled.\nNext run: ${nextRunLabel}`);
   });
 
   async function processAgentTurn({
