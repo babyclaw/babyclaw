@@ -13,7 +13,7 @@ import {
 } from "../ai/prompts.js";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
-import type { MessageSender } from "../chat/message-sender.js";
+import type { ChannelSender } from "../channel/types.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
 import {
@@ -21,8 +21,8 @@ import {
   readPersonalityFiles,
 } from "../onboarding/personality.js";
 import type { SchedulerService } from "../scheduler/service.js";
-import type { SessionManager } from "../session/manager.js";
-import type { MessageLinkRepository } from "../telegram/message-link.js";
+import { SessionManager } from "../session/manager.js";
+import type { MessageLinkRepository } from "../channel/message-link.js";
 import { createUnifiedTools } from "../tools/registry.js";
 import { toErrorMessage } from "../utils/errors.js";
 import {
@@ -39,7 +39,7 @@ type HeartbeatExecutorInput = {
   schedulerService: SchedulerService;
   heartbeatService: HeartbeatService;
   chatRegistry: ChatRegistry;
-  messageSender: MessageSender;
+  channelSender: ChannelSender;
   deliveryService: CrossChatDeliveryService;
   messageLinkRepository: MessageLinkRepository;
   syncSchedule: (args: { scheduleId: string }) => Promise<void>;
@@ -58,7 +58,7 @@ export class HeartbeatExecutor {
   private readonly schedulerService: SchedulerService;
   private readonly heartbeatService: HeartbeatService;
   private readonly chatRegistry: ChatRegistry;
-  private readonly messageSender: MessageSender;
+  private readonly channelSender: ChannelSender;
   private readonly deliveryService: CrossChatDeliveryService;
   private readonly messageLinkRepository: MessageLinkRepository;
   private readonly syncSchedule: (args: { scheduleId: string }) => Promise<void>;
@@ -77,7 +77,7 @@ export class HeartbeatExecutor {
     schedulerService,
     heartbeatService,
     chatRegistry,
-    messageSender,
+    channelSender,
     deliveryService,
     messageLinkRepository,
     syncSchedule,
@@ -94,7 +94,7 @@ export class HeartbeatExecutor {
     this.schedulerService = schedulerService;
     this.heartbeatService = heartbeatService;
     this.chatRegistry = chatRegistry;
-    this.messageSender = messageSender;
+    this.channelSender = channelSender;
     this.deliveryService = deliveryService;
     this.messageLinkRepository = messageLinkRepository;
     this.syncSchedule = syncSchedule;
@@ -140,18 +140,14 @@ export class HeartbeatExecutor {
       }
 
       const platformChatId = mainChat.platformChatId;
-      const chatId = BigInt(platformChatId);
 
-      const sessionIdentity = {
-        key: platformChatId,
-        chatId,
-        threadId: null,
-        replyToMessageId: null,
-        scope: "chat" as const,
-      };
+      const sessionIdentity = SessionManager.deriveSessionIdentity({
+        platform: mainChat.platform,
+        chatId: platformChatId,
+      });
 
       const linkedChats = await this.chatRegistry.listLinkedChats({
-        platform: "telegram",
+        platform: mainChat.platform,
       });
 
       const [personalityFiles, toolsIndexContent, agentsContent] =
@@ -187,20 +183,21 @@ export class HeartbeatExecutor {
         executionContext: {
           workspaceRoot: this.workspacePath,
           botTimezone: this.schedulerService.getTimezone(),
-          chatId,
+          platform: mainChat.platform,
+          chatId: platformChatId,
           runSource: "heartbeat",
           isMainSession: true,
         },
         schedulerService: this.schedulerService,
         syncSchedule: this.syncSchedule,
-        createdByUserId: chatId,
+        createdByUserId: platformChatId,
         sourceText: this.heartbeatConfig.prompt,
         enableGenericTools: this.enableGenericTools,
         braveSearchApiKey: this.braveSearchApiKey,
         shellConfig: this.shellConfig,
         browserMcpClient: this.browserMcpClient,
         chatRegistry: this.chatRegistry,
-        messageSender: this.messageSender,
+        channelSender: this.channelSender,
         deliveryService: this.deliveryService,
       });
 
@@ -223,8 +220,8 @@ export class HeartbeatExecutor {
       });
 
       if (verdict.action === "alert" && verdict.message) {
-        await this.messageSender.sendMessage({
-          platformChatId,
+        await this.channelSender.sendMessage({
+          chatId: platformChatId,
           text: verdict.message,
         });
 

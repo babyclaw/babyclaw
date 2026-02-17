@@ -32,7 +32,7 @@ function createMocks() {
     })),
   } as any;
 
-  const messageSender = {
+  const channelSender = {
     platform: "telegram",
     sendMessage: vi.fn(),
   } as any;
@@ -44,20 +44,20 @@ function createMocks() {
     isMainSession: true,
   };
 
-  return { chatRegistry, deliveryService, messageSender, executionContext };
+  return { chatRegistry, deliveryService, channelSender, executionContext };
 }
 
 describe("createMessagingTools", () => {
   describe("send_message", () => {
     it("resolves alias via registry and delegates to delivery service", async () => {
-      const { chatRegistry, deliveryService, messageSender, executionContext } = createMocks();
+      const { chatRegistry, deliveryService, channelSender, executionContext } = createMocks();
       const chat = makeChatRecord();
       chatRegistry.resolveAlias.mockResolvedValue(chat);
 
       const tools = createMessagingTools({
         chatRegistry,
         deliveryService,
-        messageSender,
+        channelSender,
         executionContext,
       });
 
@@ -71,7 +71,7 @@ describe("createMessagingTools", () => {
         alias: "family",
       });
       expect(deliveryService.deliver).toHaveBeenCalledWith({
-        messageSender,
+        channelSender,
         targetPlatformChatId: "-1001234",
         targetThreadId: undefined,
         text: "Hello!",
@@ -81,13 +81,13 @@ describe("createMessagingTools", () => {
     });
 
     it("works with direct chat_id", async () => {
-      const { chatRegistry, deliveryService, messageSender, executionContext } = createMocks();
+      const { chatRegistry, deliveryService, channelSender, executionContext } = createMocks();
       chatRegistry.isLinked.mockResolvedValue(true);
 
       const tools = createMessagingTools({
         chatRegistry,
         deliveryService,
-        messageSender,
+        channelSender,
         executionContext,
       });
 
@@ -105,13 +105,13 @@ describe("createMessagingTools", () => {
     });
 
     it("rejects if target chat is not linked (by alias)", async () => {
-      const { chatRegistry, deliveryService, messageSender, executionContext } = createMocks();
+      const { chatRegistry, deliveryService, channelSender, executionContext } = createMocks();
       chatRegistry.resolveAlias.mockResolvedValue(makeChatRecord({ linkedAt: null }));
 
       const tools = createMessagingTools({
         chatRegistry,
         deliveryService,
-        messageSender,
+        channelSender,
         executionContext,
       });
 
@@ -125,13 +125,13 @@ describe("createMessagingTools", () => {
     });
 
     it("rejects if target chat is not linked (by chat_id)", async () => {
-      const { chatRegistry, deliveryService, messageSender, executionContext } = createMocks();
+      const { chatRegistry, deliveryService, channelSender, executionContext } = createMocks();
       chatRegistry.isLinked.mockResolvedValue(false);
 
       const tools = createMessagingTools({
         chatRegistry,
         deliveryService,
-        messageSender,
+        channelSender,
         executionContext,
       });
 
@@ -145,13 +145,13 @@ describe("createMessagingTools", () => {
     });
 
     it("rejects when alias is not found", async () => {
-      const { chatRegistry, deliveryService, messageSender, executionContext } = createMocks();
+      const { chatRegistry, deliveryService, channelSender, executionContext } = createMocks();
       chatRegistry.resolveAlias.mockResolvedValue(null);
 
       const tools = createMessagingTools({
         chatRegistry,
         deliveryService,
-        messageSender,
+        channelSender,
         executionContext,
       });
 
@@ -165,13 +165,13 @@ describe("createMessagingTools", () => {
     });
 
     it("includes context in seed when provided", async () => {
-      const { chatRegistry, deliveryService, messageSender, executionContext } = createMocks();
+      const { chatRegistry, deliveryService, channelSender, executionContext } = createMocks();
       chatRegistry.resolveAlias.mockResolvedValue(makeChatRecord());
 
       const tools = createMessagingTools({
         chatRegistry,
         deliveryService,
-        messageSender,
+        channelSender,
         executionContext,
       });
 
@@ -194,7 +194,7 @@ describe("createMessagingTools", () => {
 
   describe("list_known_chats", () => {
     it("returns formatted list from registry", async () => {
-      const { chatRegistry, deliveryService, messageSender, executionContext } = createMocks();
+      const { chatRegistry, deliveryService, channelSender, executionContext } = createMocks();
       const chats = [
         makeChatRecord({ alias: "family", title: "Family Group" }),
         makeChatRecord({ alias: "work", title: "Work Team", platformChatId: "-1009876" }),
@@ -204,7 +204,7 @@ describe("createMessagingTools", () => {
       const tools = createMessagingTools({
         chatRegistry,
         deliveryService,
-        messageSender,
+        channelSender,
         executionContext,
       });
 

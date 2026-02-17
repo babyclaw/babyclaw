@@ -26,8 +26,8 @@ function createMockChatRegistry(): any {
 }
 
 const baseParams = {
-  chatId: 1n,
-  createdByUserId: 1n,
+  chatId: "1",
+  createdByUserId: "1",
   threadId: null,
   directMessagesTopicId: null,
   sourceText: "test",
@@ -47,6 +47,7 @@ describe("createSchedulerTools - cross-chat targeting", () => {
     const executionContext: ToolExecutionContext = {
       workspaceRoot: "/tmp",
       botTimezone: "UTC",
+      platform: "telegram",
       runSource: "chat",
       isMainSession: true,
     };
@@ -86,6 +87,7 @@ describe("createSchedulerTools - cross-chat targeting", () => {
     const executionContext: ToolExecutionContext = {
       workspaceRoot: "/tmp",
       botTimezone: "UTC",
+      platform: "telegram",
       runSource: "chat",
       isMainSession: false,
     };
@@ -123,6 +125,7 @@ describe("createSchedulerTools - cross-chat targeting", () => {
     const executionContext: ToolExecutionContext = {
       workspaceRoot: "/tmp",
       botTimezone: "UTC",
+      platform: "telegram",
       runSource: "chat",
       isMainSession: true,
     };
@@ -160,6 +163,7 @@ describe("createSchedulerTools - cross-chat targeting", () => {
     const executionContext: ToolExecutionContext = {
       workspaceRoot: "/tmp",
       botTimezone: "UTC",
+      platform: "telegram",
       runSource: "chat",
       isMainSession: true,
     };

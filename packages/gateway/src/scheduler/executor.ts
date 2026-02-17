@@ -1,8 +1,7 @@
 import { MessageRole, ScheduleRunStatus, ScheduleType } from "@prisma/client";
-import type { Api } from "grammy";
 import { AiAgent } from "../ai/agent.js";
+import type { ChannelSender } from "../channel/types.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
-import type { MessageSender } from "../chat/message-sender.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
 import {
@@ -19,16 +18,15 @@ import {
   readPersonalityFiles,
 } from "../onboarding/personality.js";
 import { SessionManager } from "../session/manager.js";
-import { MessageLinkRepository } from "../telegram/message-link.js";
+import { MessageLinkRepository } from "../channel/message-link.js";
 import { createUnifiedTools } from "../tools/registry.js";
-import { sendMessageMarkdownV2 } from "../telegram/markdown.js";
 import { toErrorMessage } from "../utils/errors.js";
 import { SchedulerService } from "./service.js";
 
 const RETRY_DELAYS_MS = [60_000, 5 * 60_000];
 
 type SchedulerExecutorInput = {
-  api: Api;
+  channelSender: ChannelSender;
   workspacePath: string;
   aiAgent: AiAgent;
   sessionManager: SessionManager;
@@ -36,7 +34,6 @@ type SchedulerExecutorInput = {
   messageLinkRepository: MessageLinkRepository;
   chatRegistry: ChatRegistry;
   deliveryService: CrossChatDeliveryService;
-  messageSender: MessageSender;
   syncSchedule: (args: { scheduleId: string }) => Promise<void>;
   enableGenericTools: boolean;
   braveSearchApiKey: string | null;
@@ -45,7 +42,7 @@ type SchedulerExecutorInput = {
 };
 
 export class SchedulerExecutor {
-  private readonly api: Api;
+  private readonly channelSender: ChannelSender;
   private readonly workspacePath: string;
   private readonly aiAgent: AiAgent;
   private readonly sessionManager: SessionManager;
@@ -53,7 +50,6 @@ export class SchedulerExecutor {
   private readonly messageLinkRepository: MessageLinkRepository;
   private readonly chatRegistry: ChatRegistry;
   private readonly deliveryService: CrossChatDeliveryService;
-  private readonly messageSender: MessageSender;
   private readonly syncSchedule: (args: { scheduleId: string }) => Promise<void>;
   private readonly enableGenericTools: boolean;
   private readonly braveSearchApiKey: string | null;
@@ -62,7 +58,7 @@ export class SchedulerExecutor {
   private readonly runningScheduleIds = new Set<string>();
 
   constructor({
-    api,
+    channelSender,
     workspacePath,
     aiAgent,
     sessionManager,
@@ -70,14 +66,13 @@ export class SchedulerExecutor {
     messageLinkRepository,
     chatRegistry,
     deliveryService,
-    messageSender,
     syncSchedule,
     enableGenericTools,
     braveSearchApiKey,
     shellConfig,
     browserMcpClient,
   }: SchedulerExecutorInput) {
-    this.api = api;
+    this.channelSender = channelSender;
     this.workspacePath = workspacePath;
     this.aiAgent = aiAgent;
     this.sessionManager = sessionManager;
@@ -85,7 +80,6 @@ export class SchedulerExecutor {
     this.messageLinkRepository = messageLinkRepository;
     this.chatRegistry = chatRegistry;
     this.deliveryService = deliveryService;
-    this.messageSender = messageSender;
     this.syncSchedule = syncSchedule;
     this.enableGenericTools = enableGenericTools;
     this.braveSearchApiKey = braveSearchApiKey;
@@ -163,7 +157,7 @@ export class SchedulerExecutor {
             scheduledFor,
           });
 
-          let sentMessageId: bigint;
+          let sentMessageId: string;
           let effectiveSessionKey = sessionKey;
 
           const targetChat = schedule.targetChatRef
@@ -172,26 +166,25 @@ export class SchedulerExecutor {
 
           if (targetChat) {
             const deliveryResult = await this.deliveryService.deliver({
-              messageSender: this.messageSender,
+              channelSender: this.channelSender,
               targetPlatformChatId: targetChat.platformChatId,
               text: output,
               seedContext: `[Scheduled task] ${schedule.taskPrompt}`,
             });
-            sentMessageId = BigInt(deliveryResult.platformMessageId);
+            sentMessageId = deliveryResult.platformMessageId;
             effectiveSessionKey = deliveryResult.bridgeSessionKey;
           } else {
-            const sent = await this.sendScheduledMessage({
-              chatId: schedule.chatId,
+            const sendResult = await this.channelSender.sendMessage({
+              chatId: String(schedule.chatId),
               text: output,
-              threadId: schedule.threadId,
-              directMessagesTopicId: schedule.directMessagesTopicId,
+              threadId: schedule.threadId !== null ? String(schedule.threadId) : undefined,
             });
-            sentMessageId = BigInt(sent.message_id);
+            sentMessageId = sendResult.platformMessageId;
 
             const identity = SessionManager.fromLinkedSessionKey({
               key: sessionKey,
-              chatId: schedule.chatId,
-              threadId: schedule.threadId,
+              chatId: String(schedule.chatId),
+              threadId: schedule.threadId !== null ? String(schedule.threadId) : null,
               replyToMessageId: null,
             });
             await this.sessionManager.appendMessages({
@@ -212,8 +205,9 @@ export class SchedulerExecutor {
             });
 
             await this.messageLinkRepository.upsertMessageLink({
-              chatId: schedule.chatId,
-              messageId: sentMessageId,
+              platform: this.channelSender.platform,
+              platformChatId: String(schedule.chatId),
+              platformMessageId: sentMessageId,
               sessionKey,
               scheduleId: schedule.id,
               scheduleRunId: run.id,
@@ -225,7 +219,7 @@ export class SchedulerExecutor {
             runId: run.id,
             data: {
               status: ScheduleRunStatus.succeeded,
-              assistantMessageId: sentMessageId,
+              assistantMessageId: BigInt(sentMessageId),
               sessionKey: effectiveSessionKey,
               finishedAt,
               error: null,
@@ -265,7 +259,6 @@ export class SchedulerExecutor {
       await this.sendFailureNotification({
         chatId: schedule.chatId,
         threadId: schedule.threadId,
-        directMessagesTopicId: schedule.directMessagesTopicId,
         title: schedule.title,
         taskPrompt: schedule.taskPrompt,
         errorMessage,
@@ -311,19 +304,21 @@ export class SchedulerExecutor {
       agentsContent,
     });
 
+    const chatIdStr = String(chatId);
     const tools = createUnifiedTools({
       executionContext: {
         workspaceRoot: this.workspacePath,
         botTimezone: this.schedulerService.getTimezone(),
-        chatId,
-        threadId: threadId ?? undefined,
-        directMessagesTopicId: directMessagesTopicId ?? undefined,
+        platform: this.channelSender.platform,
+        chatId: chatIdStr,
+        threadId: threadId !== null ? String(threadId) : undefined,
+        directMessagesTopicId: directMessagesTopicId !== null ? String(directMessagesTopicId) : undefined,
         runSource: "scheduled",
         isMainSession: false,
       },
       schedulerService: this.schedulerService,
       syncSchedule: this.syncSchedule,
-      createdByUserId: chatId,
+      createdByUserId: chatIdStr,
       sourceText: taskPrompt,
       enableGenericTools: this.enableGenericTools,
       braveSearchApiKey: this.braveSearchApiKey,
@@ -352,62 +347,15 @@ export class SchedulerExecutor {
     return text.trim();
   }
 
-  private async sendScheduledMessage({
-    chatId,
-    text,
-    threadId,
-    directMessagesTopicId,
-  }: {
-    chatId: bigint;
-    text: string;
-    threadId: bigint | null;
-    directMessagesTopicId: bigint | null;
-  }) {
-    const chatIdAsString = chatId.toString();
-    const thread = toSafeNumber({ value: threadId });
-    const directTopic = toSafeNumber({ value: directMessagesTopicId });
-
-    try {
-      return await sendMessageMarkdownV2({
-        api: this.api,
-        chatId: chatIdAsString,
-        text,
-        options: {
-          ...(thread === undefined ? {} : { message_thread_id: thread }),
-          ...(directTopic === undefined
-            ? {}
-            : {
-                direct_messages_topic_id: directTopic,
-              }),
-        },
-      });
-    } catch (error) {
-      if (directTopic === undefined) {
-        throw error;
-      }
-
-      return sendMessageMarkdownV2({
-        api: this.api,
-        chatId: chatIdAsString,
-        text,
-        options: {
-          ...(thread === undefined ? {} : { message_thread_id: thread }),
-        },
-      });
-    }
-  }
-
   private async sendFailureNotification({
     chatId,
     threadId,
-    directMessagesTopicId,
     title,
     taskPrompt,
     errorMessage,
   }: {
     chatId: bigint;
     threadId: bigint | null;
-    directMessagesTopicId: bigint | null;
     title: string | null;
     taskPrompt: string;
     errorMessage: string;
@@ -420,29 +368,15 @@ export class SchedulerExecutor {
     ].join("\n");
 
     try {
-      await this.sendScheduledMessage({
-        chatId,
-        threadId,
-        directMessagesTopicId,
+      await this.channelSender.sendMessage({
+        chatId: String(chatId),
         text,
+        threadId: threadId !== null ? String(threadId) : undefined,
       });
     } catch (error) {
       console.error("Failed to send schedule failure notification:", error);
     }
   }
-}
-
-function toSafeNumber({ value }: { value: bigint | null }): number | undefined {
-  if (value === null) {
-    return undefined;
-  }
-
-  const asNumber = Number(value);
-  if (!Number.isSafeInteger(asNumber)) {
-    return undefined;
-  }
-
-  return asNumber;
 }
 
 async function wait({ ms }: { ms: number }): Promise<void> {

@@ -1,10 +1,10 @@
 import type { Schedule, ScheduleRun, ScheduleType } from "@prisma/client";
 
 export type CreateScheduleInput = {
-  chatId: bigint;
-  createdByUserId: bigint;
-  threadId: bigint | null;
-  directMessagesTopicId: bigint | null;
+  chatId: string;
+  createdByUserId: string;
+  threadId: string | null;
+  directMessagesTopicId: string | null;
   sourceText: string;
   title: string | null;
   taskPrompt: string;
@@ -20,7 +20,7 @@ export type CreateScheduleResult = {
 };
 
 export type CancelScheduleInput = {
-  chatId: bigint;
+  chatId: string;
   scheduleId?: string;
   query?: string;
 };

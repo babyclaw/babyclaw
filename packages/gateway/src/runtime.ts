@@ -8,11 +8,13 @@ import {
 } from "./ai/provider-registry.js";
 import { AdminServer } from "./admin/server.js";
 import { getAdminSocketPath } from "./admin/paths.js";
-import { createBot } from "./bot.js";
+import { AgentTurnOrchestrator } from "./agent/orchestrator.js";
 import { BrowserMcpClient } from "./browser/mcp-client.js";
+import { ChannelRouter } from "./channel/router.js";
+import { MessageLinkRepository } from "./channel/message-link.js";
+import { TelegramAdapter } from "./telegram/plugin.js";
 import { CrossChatDeliveryService } from "./chat/delivery.js";
 import { ChatRegistry } from "./chat/registry.js";
-import { TelegramMessageSender } from "./chat/telegram-sender.js";
 import { loadConfig } from "./config/loader.js";
 import { getConfigPath } from "./config/paths.js";
 import type { SimpleclawConfig } from "./config/types.js";
@@ -23,7 +25,6 @@ import { SchedulerExecutor } from "./scheduler/executor.js";
 import { SchedulerRuntime } from "./scheduler/runtime.js";
 import { SchedulerService } from "./scheduler/service.js";
 import { SessionManager } from "./session/manager.js";
-import { MessageLinkRepository } from "./telegram/message-link.js";
 import { bootstrapWorkspace } from "./workspace/bootstrap.js";
 
 export type GatewayStatus = {
@@ -39,12 +40,12 @@ export class GatewayRuntime {
   private startedAt: number | null = null;
   private config: SimpleclawConfig | null = null;
 
-  private bot: ReturnType<typeof createBot> | null = null;
   private prisma: PrismaClient | null = null;
   private schedulerRuntime: SchedulerRuntime | null = null;
   private heartbeatRuntime: HeartbeatRuntime | null = null;
   private browserMcpClient: BrowserMcpClient | undefined = undefined;
   private adminServer: AdminServer | null = null;
+  private channelRouter: ChannelRouter | null = null;
 
   async start(): Promise<void> {
     if (this.state !== "stopped") {
@@ -143,8 +144,30 @@ export class GatewayRuntime {
 
       let heartbeatRuntime: HeartbeatRuntime | null = null;
 
-      const bot = createBot({
-        token: config.telegram.botToken,
+      const telegramBotToken =
+        config.channels?.telegram?.botToken ?? config.telegram?.botToken;
+      if (!telegramBotToken) {
+        throw new Error(
+          "Telegram bot token is required. Set channels.telegram.botToken in configuration.",
+        );
+      }
+
+      const telegramAdapter = new TelegramAdapter({
+        token: telegramBotToken,
+        chatRegistry,
+        schedulerService,
+        messageLinkRepository,
+        getHeartbeatStatus: () => ({
+          enabled: config.heartbeat.enabled,
+          nextRunAt: heartbeatRuntime?.getNextRunAt() ?? null,
+        }),
+      });
+
+      const channelRouter = new ChannelRouter();
+      channelRouter.register({ adapter: telegramAdapter });
+      this.channelRouter = channelRouter;
+
+      const orchestrator = new AgentTurnOrchestrator({
         workspacePath,
         sessionManager,
         aiAgent,
@@ -152,6 +175,7 @@ export class GatewayRuntime {
         messageLinkRepository,
         chatRegistry,
         deliveryService,
+        channelRouter,
         syncSchedule,
         enableGenericTools: config.tools.enableGenericTools,
         braveSearchApiKey: config.tools.webSearch.braveApiKey,
@@ -159,17 +183,10 @@ export class GatewayRuntime {
         browserMcpClient,
         useReplyChainKey: config.session.replyChainMode === "reply-chain",
         historyLimit: config.session.historyLimit,
-        getHeartbeatStatus: () => ({
-          enabled: config.heartbeat.enabled,
-          nextRunAt: heartbeatRuntime?.getNextRunAt() ?? null,
-        }),
       });
-      this.bot = bot;
-
-      const messageSender = new TelegramMessageSender({ api: bot.api });
 
       const schedulerExecutor = new SchedulerExecutor({
-        api: bot.api,
+        channelSender: telegramAdapter,
         workspacePath,
         aiAgent,
         sessionManager,
@@ -177,7 +194,6 @@ export class GatewayRuntime {
         messageLinkRepository,
         chatRegistry,
         deliveryService,
-        messageSender,
         syncSchedule,
         enableGenericTools: config.tools.enableGenericTools,
         braveSearchApiKey: config.tools.webSearch.braveApiKey,
@@ -200,7 +216,7 @@ export class GatewayRuntime {
         schedulerService,
         heartbeatService,
         chatRegistry,
-        messageSender,
+        channelSender: telegramAdapter,
         deliveryService,
         messageLinkRepository,
         syncSchedule,
@@ -237,11 +253,13 @@ export class GatewayRuntime {
       });
       await this.adminServer.start();
 
-      await bot.start();
+      await channelRouter.startAll({
+        onInboundEvent: orchestrator.handleInboundEvent.bind(orchestrator),
+      });
 
       this.startedAt = Date.now();
       this.state = "running";
-      console.log("Telegram gateway bot is running.");
+      console.log("Gateway is running.");
     } catch (error) {
       this.state = "stopped";
       throw error;
@@ -261,8 +279,8 @@ export class GatewayRuntime {
     if (this.schedulerRuntime) {
       this.schedulerRuntime.stop();
     }
-    if (this.bot) {
-      this.bot.stop();
+    if (this.channelRouter) {
+      await this.channelRouter.stopAll();
     }
     if (this.browserMcpClient) {
       await this.browserMcpClient.shutdown();
@@ -274,12 +292,12 @@ export class GatewayRuntime {
       await this.adminServer.stop();
     }
 
-    this.bot = null;
     this.prisma = null;
     this.schedulerRuntime = null;
     this.heartbeatRuntime = null;
     this.browserMcpClient = undefined;
     this.adminServer = null;
+    this.channelRouter = null;
     this.startedAt = null;
     this.config = null;
     this.state = "stopped";

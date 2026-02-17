@@ -1,7 +1,8 @@
 import type { ToolSet } from "ai";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
+import type { ChannelRouter } from "../channel/router.js";
+import type { ChannelSender } from "../channel/types.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
-import type { MessageSender } from "../chat/message-sender.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
 import { SchedulerService } from "../scheduler/service.js";
@@ -19,13 +20,14 @@ type CreateUnifiedToolsInput = {
   schedulerService: SchedulerService;
   syncSchedule: (args: { scheduleId: string }) => Promise<void>;
   sourceText: string;
-  createdByUserId: bigint;
+  createdByUserId: string;
   enableGenericTools: boolean;
   braveSearchApiKey: string | null;
   shellConfig: ShellConfig;
   browserMcpClient?: BrowserMcpClient;
   chatRegistry?: ChatRegistry;
-  messageSender?: MessageSender;
+  channelSender?: ChannelSender;
+  channelRouter?: ChannelRouter;
   deliveryService?: CrossChatDeliveryService;
 };
 
@@ -40,7 +42,7 @@ export function createUnifiedTools({
   shellConfig,
   browserMcpClient,
   chatRegistry,
-  messageSender,
+  channelSender,
   deliveryService,
 }: CreateUnifiedToolsInput): ToolSet {
   if (!executionContext.chatId) {
@@ -71,11 +73,11 @@ export function createUnifiedTools({
     : {};
 
   const messagingTools =
-    executionContext.isMainSession && chatRegistry && messageSender && deliveryService
+    executionContext.isMainSession && chatRegistry && channelSender && deliveryService
       ? createMessagingTools({
           chatRegistry,
           deliveryService,
-          messageSender,
+          channelSender,
           executionContext,
         })
       : {};

@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { MessageRole } from "@prisma/client";
-import type { MessageSender } from "./message-sender.js";
+import type { ChannelSender } from "../channel/types.js";
 import type { SessionManager } from "../session/manager.js";
-import type { MessageLinkRepository } from "../telegram/message-link.js";
+import type { MessageLinkRepository } from "../channel/message-link.js";
 
 type DeliverInput = {
-  messageSender: MessageSender;
+  channelSender: ChannelSender;
   targetPlatformChatId: string;
   targetThreadId?: string;
   text: string;
@@ -35,24 +35,24 @@ export class CrossChatDeliveryService {
   }
 
   async deliver({
-    messageSender,
+    channelSender,
     targetPlatformChatId,
     targetThreadId,
     text,
     seedContext,
   }: DeliverInput): Promise<DeliverResult> {
-    const sendResult = await messageSender.sendMessage({
-      platformChatId: targetPlatformChatId,
+    const sendResult = await channelSender.sendMessage({
+      chatId: targetPlatformChatId,
       text,
       threadId: targetThreadId,
     });
 
-    const bridgeSessionKey = `bridge:${messageSender.platform}:${targetPlatformChatId}:${randomUUID()}`;
+    const bridgeSessionKey = `bridge:${channelSender.platform}:${targetPlatformChatId}:${randomUUID()}`;
 
     const identity = {
       key: bridgeSessionKey,
-      chatId: BigInt(targetPlatformChatId),
-      threadId: targetThreadId ? BigInt(targetThreadId) : null,
+      chatId: targetPlatformChatId,
+      threadId: targetThreadId ?? null,
       replyToMessageId: null,
       scope: "chat" as const,
     };
@@ -74,8 +74,9 @@ export class CrossChatDeliveryService {
     });
 
     await this.messageLinkRepository.upsertMessageLink({
-      chatId: BigInt(targetPlatformChatId),
-      messageId: BigInt(sendResult.platformMessageId),
+      platform: channelSender.platform,
+      platformChatId: targetPlatformChatId,
+      platformMessageId: sendResult.platformMessageId,
       sessionKey: bridgeSessionKey,
     });
 

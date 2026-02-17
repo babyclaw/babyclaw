@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { CrossChatDeliveryService } from "./delivery.js";
-import type { MessageSender } from "./message-sender.js";
+import type { ChannelSender } from "../channel/types.js";
 
-function createMockMessageSender(): MessageSender {
+function createMockChannelSender(): ChannelSender {
   return {
     platform: "test-platform",
     sendMessage: vi.fn(async () => ({
@@ -24,34 +24,34 @@ function createMockMessageLinkRepository(): any {
 }
 
 describe("CrossChatDeliveryService", () => {
-  it("calls messageSender.sendMessage with correct params", async () => {
-    const messageSender = createMockMessageSender();
+  it("calls channelSender.sendMessage with correct params", async () => {
+    const channelSender = createMockChannelSender();
     const sessionManager = createMockSessionManager();
     const messageLinkRepository = createMockMessageLinkRepository();
     const service = new CrossChatDeliveryService({ sessionManager, messageLinkRepository });
 
     await service.deliver({
-      messageSender,
+      channelSender,
       targetPlatformChatId: "-1001234",
       text: "Hello family",
       seedContext: "Owner requested a greeting",
     });
 
-    expect(messageSender.sendMessage).toHaveBeenCalledWith({
-      platformChatId: "-1001234",
+    expect(channelSender.sendMessage).toHaveBeenCalledWith({
+      chatId: "-1001234",
       text: "Hello family",
       threadId: undefined,
     });
   });
 
   it("creates a bridge session with seed context and assistant text", async () => {
-    const messageSender = createMockMessageSender();
+    const channelSender = createMockChannelSender();
     const sessionManager = createMockSessionManager();
     const messageLinkRepository = createMockMessageLinkRepository();
     const service = new CrossChatDeliveryService({ sessionManager, messageLinkRepository });
 
     await service.deliver({
-      messageSender,
+      channelSender,
       targetPlatformChatId: "-1001234",
       text: "Hello family",
       seedContext: "Owner requested a greeting",
@@ -68,40 +68,41 @@ describe("CrossChatDeliveryService", () => {
   });
 
   it("creates a message link pointing to the bridge session", async () => {
-    const messageSender = createMockMessageSender();
+    const channelSender = createMockChannelSender();
     const sessionManager = createMockSessionManager();
     const messageLinkRepository = createMockMessageLinkRepository();
     const service = new CrossChatDeliveryService({ sessionManager, messageLinkRepository });
 
     const result = await service.deliver({
-      messageSender,
+      channelSender,
       targetPlatformChatId: "-1001234",
       text: "Hello",
       seedContext: "test",
     });
 
     expect(messageLinkRepository.upsertMessageLink).toHaveBeenCalledWith({
-      chatId: BigInt("-1001234"),
-      messageId: BigInt("100"),
+      platform: "test-platform",
+      platformChatId: "-1001234",
+      platformMessageId: "100",
       sessionKey: result.bridgeSessionKey,
     });
   });
 
   it("generates unique bridge session keys per delivery", async () => {
-    const messageSender = createMockMessageSender();
+    const channelSender = createMockChannelSender();
     const sessionManager = createMockSessionManager();
     const messageLinkRepository = createMockMessageLinkRepository();
     const service = new CrossChatDeliveryService({ sessionManager, messageLinkRepository });
 
     const result1 = await service.deliver({
-      messageSender,
+      channelSender,
       targetPlatformChatId: "-1001234",
       text: "First",
       seedContext: "ctx",
     });
 
     const result2 = await service.deliver({
-      messageSender,
+      channelSender,
       targetPlatformChatId: "-1001234",
       text: "Second",
       seedContext: "ctx",
@@ -111,37 +112,37 @@ describe("CrossChatDeliveryService", () => {
   });
 
   it("forwards threadId when provided", async () => {
-    const messageSender = createMockMessageSender();
+    const channelSender = createMockChannelSender();
     const sessionManager = createMockSessionManager();
     const messageLinkRepository = createMockMessageLinkRepository();
     const service = new CrossChatDeliveryService({ sessionManager, messageLinkRepository });
 
     await service.deliver({
-      messageSender,
+      channelSender,
       targetPlatformChatId: "-1001234",
       targetThreadId: "789",
       text: "In thread",
       seedContext: "ctx",
     });
 
-    expect(messageSender.sendMessage).toHaveBeenCalledWith({
-      platformChatId: "-1001234",
+    expect(channelSender.sendMessage).toHaveBeenCalledWith({
+      chatId: "-1001234",
       text: "In thread",
       threadId: "789",
     });
 
     const sessionCall = sessionManager.appendMessages.mock.calls[0][0];
-    expect(sessionCall.identity.threadId).toBe(BigInt(789));
+    expect(sessionCall.identity.threadId).toBe("789");
   });
 
   it("returns platformMessageId and bridgeSessionKey", async () => {
-    const messageSender = createMockMessageSender();
+    const channelSender = createMockChannelSender();
     const sessionManager = createMockSessionManager();
     const messageLinkRepository = createMockMessageLinkRepository();
     const service = new CrossChatDeliveryService({ sessionManager, messageLinkRepository });
 
     const result = await service.deliver({
-      messageSender,
+      channelSender,
       targetPlatformChatId: "-1001234",
       text: "test",
       seedContext: "ctx",

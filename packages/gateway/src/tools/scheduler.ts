@@ -10,10 +10,10 @@ import { ToolExecutionError, withToolLogging } from "./errors.js";
 type CreateSchedulerToolsInput = {
   schedulerService: SchedulerService;
   syncSchedule: (args: { scheduleId: string }) => Promise<void>;
-  chatId: bigint;
-  createdByUserId: bigint;
-  threadId: bigint | null;
-  directMessagesTopicId: bigint | null;
+  chatId: string;
+  createdByUserId: string;
+  threadId: string | null;
+  directMessagesTopicId: string | null;
   sourceText: string;
   executionContext: ToolExecutionContext;
   chatRegistry?: ChatRegistry;
@@ -104,9 +104,9 @@ export function createSchedulerTools({
           action: async () => {
             let targetChatRef: string | null = null;
 
-            if (target_alias && executionContext.isMainSession && chatRegistry) {
+            if (target_alias && executionContext.isMainSession && chatRegistry && executionContext.platform) {
               const targetChat = await chatRegistry.resolveAlias({
-                platform: "telegram",
+                platform: executionContext.platform,
                 alias: target_alias,
               });
               if (!targetChat) {

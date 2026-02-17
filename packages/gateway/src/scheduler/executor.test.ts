@@ -2,11 +2,10 @@ import { ScheduleRunStatus, ScheduleType } from "@prisma/client";
 import { describe, expect, it, vi } from "vitest";
 import { SchedulerExecutor } from "./executor.js";
 
-function createMockApi(): any {
+function createMockChannelSender(): any {
   return {
-    sendMessage: vi.fn(async () => ({
-      message_id: 999,
-    })),
+    platform: "telegram",
+    sendMessage: vi.fn(async () => ({ platformMessageId: "999" })),
   };
 }
 
@@ -54,16 +53,9 @@ function createMockDeliveryService(): any {
   };
 }
 
-function createMockMessageSender(): any {
-  return {
-    platform: "telegram",
-    sendMessage: vi.fn(async () => ({ platformMessageId: "42" })),
-  };
-}
-
 function createExecutor(overrides: Record<string, any> = {}) {
   return new SchedulerExecutor({
-    api: createMockApi(),
+    channelSender: createMockChannelSender(),
     workspacePath: "/tmp/test",
     aiAgent: createMockAiAgent(),
     sessionManager: createMockSessionManager(),
@@ -71,7 +63,6 @@ function createExecutor(overrides: Record<string, any> = {}) {
     messageLinkRepository: createMockMessageLinkRepository(),
     chatRegistry: createMockChatRegistry(),
     deliveryService: createMockDeliveryService(),
-    messageSender: createMockMessageSender(),
     syncSchedule: vi.fn(async () => {}),
     enableGenericTools: false,
     braveSearchApiKey: null,
@@ -130,10 +121,11 @@ describe("SchedulerExecutor - cross-chat delivery", () => {
     expect(messageLinkRepository.upsertMessageLink).not.toHaveBeenCalled();
   });
 
-  it("uses existing sendScheduledMessage when targetChatRef is null", async () => {
+  it("uses channelSender.sendMessage when targetChatRef is null", async () => {
     const schedulerService = createMockSchedulerService();
     const deliveryService = createMockDeliveryService();
     const messageLinkRepository = createMockMessageLinkRepository();
+    const channelSender = createMockChannelSender();
 
     schedulerService.getScheduleForRuntime.mockResolvedValue({
       id: "sched-2",
@@ -154,11 +146,13 @@ describe("SchedulerExecutor - cross-chat delivery", () => {
       schedulerService,
       deliveryService,
       messageLinkRepository,
+      channelSender,
     });
 
     await executor.executeSchedule({ scheduleId: "sched-2" });
 
     expect(deliveryService.deliver).not.toHaveBeenCalled();
+    expect(channelSender.sendMessage).toHaveBeenCalled();
     expect(messageLinkRepository.upsertMessageLink).toHaveBeenCalled();
   });
 

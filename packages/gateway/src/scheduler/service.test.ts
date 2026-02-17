@@ -29,8 +29,8 @@ function createMockPrisma(): any {
 }
 
 const BASE_INPUT = {
-  chatId: 1n,
-  createdByUserId: 1n,
+  chatId: "1",
+  createdByUserId: "1",
   threadId: null,
   directMessagesTopicId: null,
   sourceText: "test",

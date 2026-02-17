@@ -1,22 +1,22 @@
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
+import type { ChannelSender } from "../channel/types.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
-import type { MessageSender } from "../chat/message-sender.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { ToolExecutionError, withToolLogging } from "./errors.js";
 
 type CreateMessagingToolsInput = {
   chatRegistry: ChatRegistry;
   deliveryService: CrossChatDeliveryService;
-  messageSender: MessageSender;
+  channelSender: ChannelSender;
   executionContext: ToolExecutionContext;
 };
 
 export function createMessagingTools({
   chatRegistry,
   deliveryService,
-  messageSender,
+  channelSender,
   executionContext,
 }: CreateMessagingToolsInput): ToolSet {
   return {
@@ -74,7 +74,7 @@ export function createMessagingTools({
 
             if (alias) {
               const chat = await chatRegistry.resolveAlias({
-                platform: messageSender.platform,
+                platform: channelSender.platform,
                 alias,
               });
               if (!chat) {
@@ -96,7 +96,7 @@ export function createMessagingTools({
             } else {
               targetPlatformChatId = chat_id!;
               const linked = await chatRegistry.isLinked({
-                platform: messageSender.platform,
+                platform: channelSender.platform,
                 platformChatId: targetPlatformChatId,
               });
               if (!linked) {
@@ -112,7 +112,7 @@ export function createMessagingTools({
               context ?? `Cross-chat message sent to ${resolvedAlias ?? targetPlatformChatId}`;
 
             const result = await deliveryService.deliver({
-              messageSender,
+              channelSender,
               targetPlatformChatId,
               targetThreadId: thread_id,
               text,
@@ -141,7 +141,7 @@ export function createMessagingTools({
           defaultCode: "LIST_CHATS_FAILED",
           action: async () => {
             const chats = await chatRegistry.listLinkedChats({
-              platform: messageSender.platform,
+              platform: channelSender.platform,
             });
 
             return {

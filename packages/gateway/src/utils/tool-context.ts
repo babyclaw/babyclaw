@@ -3,9 +3,10 @@ export type ToolRunSource = "chat" | "scheduled" | "heartbeat";
 export type ToolExecutionContext = {
   workspaceRoot: string;
   botTimezone: string;
-  chatId?: bigint;
-  threadId?: bigint;
-  directMessagesTopicId?: bigint;
+  platform?: string;
+  chatId?: string;
+  threadId?: string;
+  directMessagesTopicId?: string;
   runSource: ToolRunSource;
   isMainSession: boolean;
 };

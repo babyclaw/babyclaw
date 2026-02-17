@@ -100,10 +100,10 @@ export class SchedulerService {
 
     const schedule = await this.prisma.schedule.create({
       data: {
-        chatId,
-        createdByUserId,
-        threadId,
-        directMessagesTopicId,
+        chatId: BigInt(chatId),
+        createdByUserId: BigInt(createdByUserId),
+        threadId: threadId ? BigInt(threadId) : null,
+        directMessagesTopicId: directMessagesTopicId ? BigInt(directMessagesTopicId) : null,
         sourceText,
         title: normalizeNullableString({ value: title }),
         taskPrompt: taskPrompt.trim(),
@@ -127,12 +127,12 @@ export class SchedulerService {
     chatId,
     includeInactive = false,
   }: {
-    chatId: bigint;
+    chatId: string;
     includeInactive?: boolean;
   }): Promise<Schedule[]> {
     return this.prisma.schedule.findMany({
       where: {
-        chatId,
+        chatId: BigInt(chatId),
         ...(includeInactive ? {} : { status: ScheduleStatus.active }),
       },
       orderBy: [
@@ -152,7 +152,7 @@ export class SchedulerService {
       const schedule = await this.prisma.schedule.findFirst({
         where: {
           id: scheduleId,
-          chatId,
+          chatId: BigInt(chatId),
           status: ScheduleStatus.active,
         },
       });
@@ -189,7 +189,7 @@ export class SchedulerService {
     const normalizedQuery = query.trim().toLowerCase();
     const activeSchedules = await this.prisma.schedule.findMany({
       where: {
-        chatId,
+        chatId: BigInt(chatId),
         status: ScheduleStatus.active,
       },
       select: {
