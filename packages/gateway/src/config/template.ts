@@ -45,6 +45,18 @@ const DEFAULT_CONFIG_TEMPLATE = {
       braveApiKey: null,
     },
   },
+  heartbeat: {
+    enabled: false,
+    intervalMinutes: 30,
+    activeHours: {
+      start: null,
+      end: null,
+    },
+    prompt:
+      "Read HEARTBEAT.md if it exists. Follow its instructions. " +
+      "Do not infer or repeat old tasks from prior chats. " +
+      "If nothing needs attention, say so.",
+  },
 };
 
 export function getDefaultConfigTemplate(): string {

@@ -113,4 +113,25 @@ export const simpleclawConfigSchema = z.object({
     replyChainMode: "default",
   }),
   tools: toolsSchema,
+  heartbeat: z.object({
+    enabled: z.boolean().default(false),
+    intervalMinutes: z.number().int().min(5).default(30),
+    activeHours: z.object({
+      start: z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
+      end: z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
+    }).strict().default({ start: null, end: null }),
+    prompt: z.string().min(1).default(
+      "Read HEARTBEAT.md if it exists. Follow its instructions. " +
+      "Do not infer or repeat old tasks from prior chats. " +
+      "If nothing needs attention, say so.",
+    ),
+  }).strict().default({
+    enabled: false,
+    intervalMinutes: 30,
+    activeHours: { start: null, end: null },
+    prompt:
+      "Read HEARTBEAT.md if it exists. Follow its instructions. " +
+      "Do not infer or repeat old tasks from prior chats. " +
+      "If nothing needs attention, say so.",
+  }),
 }).strict();
