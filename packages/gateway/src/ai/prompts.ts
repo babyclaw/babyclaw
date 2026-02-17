@@ -265,6 +265,47 @@ export function getNonMainSessionSystemMessage({
   };
 }
 
+export function getHeartbeatSystemMessage({
+  instructions,
+}: {
+  instructions: string;
+}): ModelMessage {
+  return {
+    role: "system",
+    content: [
+      "You are performing a scheduled heartbeat check.",
+      "Your workspace HEARTBEAT.md contains the following instructions:",
+      "",
+      "<heartbeat_instructions>",
+      instructions,
+      "</heartbeat_instructions>",
+      "",
+      "Follow these instructions using your available tools and your own judgment.",
+      "Be thorough but concise. Use tools to check real state -- don't guess from old data.",
+    ].join("\n"),
+  };
+}
+
+export function buildHeartbeatVerdictMessages({
+  phase1Response,
+}: {
+  phase1Response: string;
+}): ModelMessage[] {
+  return [
+    {
+      role: "user",
+      content: [
+        "You just completed a heartbeat check. Based on your findings below, report the result.",
+        'Use "ok" if nothing needs the user\'s attention. Use "alert" if something should be delivered.',
+        "",
+        "<heartbeat_findings>",
+        phase1Response,
+        "</heartbeat_findings>",
+      ].join("\n"),
+    },
+  ];
+}
+
 function buildSharedSystemPrompt({
   workspacePath,
   personalityFiles,

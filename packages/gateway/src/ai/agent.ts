@@ -3,6 +3,7 @@ import {
   generateText,
   stepCountIs,
   streamText,
+  tool,
   type LanguageModel,
   type ModelMessage,
   type ToolSet,
@@ -33,6 +34,13 @@ type ChatWithToolsInput<TTools extends ToolSet = ToolSet> = {
   messages: ModelMessage[];
   tools: TTools;
   maxSteps?: number;
+};
+
+type ForceToolCallInput<TSchema extends z.ZodTypeAny> = {
+  messages: ModelMessage[];
+  toolName: string;
+  description: string;
+  inputSchema: TSchema;
 };
 
 type GenerateStructuredInput<TSchema extends z.ZodTypeAny> = {
@@ -104,6 +112,29 @@ export class AiAgent {
     });
 
     return result.text.trim();
+  }
+
+  async forceToolCall<TSchema extends z.ZodTypeAny>({
+    messages,
+    toolName,
+    description,
+    inputSchema,
+  }: ForceToolCallInput<TSchema>): Promise<z.infer<TSchema>> {
+    const forcedTool = tool({ description, inputSchema });
+
+    const result = await generateText({
+      model: this.model,
+      messages,
+      tools: { [toolName]: forcedTool } as ToolSet,
+      toolChoice: { type: "tool", toolName },
+    });
+
+    const firstCall = result.toolCalls[0];
+    if (!firstCall) {
+      throw new Error(`Forced tool call to "${toolName}" produced no result`);
+    }
+
+    return firstCall.input as z.infer<TSchema>;
   }
 
   async generateStructured<TSchema extends z.ZodTypeAny>({

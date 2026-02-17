@@ -1,4 +1,4 @@
-export type ToolRunSource = "chat" | "scheduled";
+export type ToolRunSource = "chat" | "scheduled" | "heartbeat";
 
 export type ToolExecutionContext = {
   workspaceRoot: string;

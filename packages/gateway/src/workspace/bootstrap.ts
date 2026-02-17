@@ -44,6 +44,26 @@ export async function readBootstrapGuide({
   return readOptionalFile({ path: join(workspacePath, "BOOTSTRAP.md") });
 }
 
+export async function readHeartbeatInstructions({
+  workspacePath,
+}: WorkspaceInput): Promise<string | null> {
+  const raw = await readOptionalFile({
+    path: join(workspacePath, "HEARTBEAT.md"),
+  });
+  if (!raw) return null;
+
+  const meaningful = raw
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trim();
+      return trimmed.length > 0 && !trimmed.startsWith("#");
+    })
+    .join("\n")
+    .trim();
+
+  return meaningful.length > 0 ? raw : null;
+}
+
 async function hasAnyPersonalityFile({
   workspacePath,
 }: WorkspaceInput): Promise<boolean> {
