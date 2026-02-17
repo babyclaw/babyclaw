@@ -9,6 +9,7 @@ import {
 import { AdminServer } from "./admin/server.js";
 import { getAdminSocketPath } from "./admin/paths.js";
 import { AgentTurnOrchestrator } from "./agent/orchestrator.js";
+import { CommandApprovalService } from "./approval/service.js";
 import { BrowserMcpClient } from "./browser/mcp-client.js";
 import { ChannelRouter } from "./channel/router.js";
 import { MessageLinkRepository } from "./channel/message-link.js";
@@ -163,6 +164,18 @@ export class GatewayRuntime {
         }),
       });
 
+      const commandApprovalService =
+        shellConfig.mode === "allowlist"
+          ? new CommandApprovalService({
+              sender: telegramAdapter,
+              timeoutMs: 120_000,
+            })
+          : undefined;
+
+      if (commandApprovalService) {
+        telegramAdapter.setCommandApprovalService({ service: commandApprovalService });
+      }
+
       const channelRouter = new ChannelRouter();
       channelRouter.register({ adapter: telegramAdapter });
       this.channelRouter = channelRouter;
@@ -181,6 +194,7 @@ export class GatewayRuntime {
         braveSearchApiKey: config.tools.webSearch.braveApiKey,
         shellConfig,
         browserMcpClient,
+        commandApprovalService,
         useReplyChainKey: config.session.replyChainMode === "reply-chain",
         historyLimit: config.session.historyLimit,
       });

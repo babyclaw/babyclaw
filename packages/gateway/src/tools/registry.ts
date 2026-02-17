@@ -1,4 +1,5 @@
 import type { ToolSet } from "ai";
+import type { CommandApprovalService } from "../approval/service.js";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { ChannelRouter } from "../channel/router.js";
 import type { ChannelSender } from "../channel/types.js";
@@ -29,6 +30,7 @@ type CreateUnifiedToolsInput = {
   channelSender?: ChannelSender;
   channelRouter?: ChannelRouter;
   deliveryService?: CrossChatDeliveryService;
+  commandApprovalService?: CommandApprovalService;
 };
 
 export function createUnifiedTools({
@@ -44,6 +46,7 @@ export function createUnifiedTools({
   chatRegistry,
   channelSender,
   deliveryService,
+  commandApprovalService,
 }: CreateUnifiedToolsInput): ToolSet {
   if (!executionContext.chatId) {
     throw new Error("Tool execution context must include chatId");
@@ -93,6 +96,7 @@ export function createUnifiedTools({
     ...createShellTools({
       context: executionContext,
       shellConfig,
+      commandApprovalService,
     }),
     ...createWebSearchTools({
       context: executionContext,

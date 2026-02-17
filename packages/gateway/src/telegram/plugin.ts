@@ -1,4 +1,6 @@
-import { Context, Bot, type BotError } from "grammy";
+import { Context, Bot, InlineKeyboard, type BotError } from "grammy";
+import type { CommandApprovalService } from "../approval/service.js";
+import type { ApprovalSender } from "../approval/types.js";
 import type {
   ChannelAdapter,
   ChannelCapabilities,
@@ -41,7 +43,7 @@ type TelegramAdapterInput = {
  * fully encapsulating all grammy/Telegram-specific logic for both inbound
  * event handling and outbound messaging.
  */
-export class TelegramAdapter implements ChannelAdapter {
+export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
   readonly platform = "telegram";
   readonly capabilities: ChannelCapabilities = {
     supportsDraft: true,
@@ -55,6 +57,7 @@ export class TelegramAdapter implements ChannelAdapter {
   private readonly schedulerService: SchedulerService;
   private readonly messageLinkRepository: MessageLinkRepository;
   private readonly getHeartbeatStatus?: HeartbeatStatusGetter;
+  private commandApprovalService?: CommandApprovalService;
   private bot: Bot<TelegramBotContext> | null = null;
 
   constructor({
@@ -69,6 +72,10 @@ export class TelegramAdapter implements ChannelAdapter {
     this.schedulerService = schedulerService;
     this.messageLinkRepository = messageLinkRepository;
     this.getHeartbeatStatus = getHeartbeatStatus;
+  }
+
+  setCommandApprovalService({ service }: { service: CommandApprovalService }): void {
+    this.commandApprovalService = service;
   }
 
   async sendMessage(input: ChannelOutboundMessage): Promise<ChannelSendResult> {
@@ -97,6 +104,59 @@ export class TelegramAdapter implements ChannelAdapter {
       supportsDraft: this.capabilities.supportsDraft,
       messageThreadId: input.threadId !== undefined ? Number(input.threadId) : undefined,
     });
+  }
+
+  async sendApprovalPrompt(input: {
+    requestId: string;
+    chatId: string;
+    threadId?: string;
+    command: string;
+    disallowedNames: string[];
+  }): Promise<{ messageId: string }> {
+    const api = this.getApi();
+
+    const nameList = input.disallowedNames.map((n) => `\`${n}\``).join(", ");
+    const text =
+      `Shell command requires approval.\n\n` +
+      `Command: \`${input.command}\`\n` +
+      `Not in allowlist: ${nameList}`;
+
+    const keyboard = new InlineKeyboard()
+      .text("Approve", `cmd_approve:${input.requestId}`)
+      .text("Deny", `cmd_deny:${input.requestId}`);
+
+    const options: Record<string, unknown> = {
+      parse_mode: "Markdown",
+      reply_markup: keyboard,
+    };
+    if (input.threadId !== undefined) {
+      options.message_thread_id = Number(input.threadId);
+    }
+
+    const sent = await api.sendMessage(Number(input.chatId), text, options);
+    return { messageId: String(sent.message_id) };
+  }
+
+  async updateApprovalPrompt(input: {
+    chatId: string;
+    messageId: string;
+    command: string;
+    approved: boolean;
+  }): Promise<void> {
+    const api = this.getApi();
+    const status = input.approved ? "Approved" : "Denied";
+    const text = `Shell command ${status.toLowerCase()}.\n\nCommand: \`${input.command}\`\n\nStatus: ${status}`;
+
+    try {
+      await api.editMessageText(
+        Number(input.chatId),
+        Number(input.messageId),
+        text,
+        { parse_mode: "Markdown" },
+      );
+    } catch (err) {
+      console.error("[approval] Failed to update approval prompt:", err);
+    }
   }
 
   async start({
@@ -306,6 +366,40 @@ export class TelegramAdapter implements ChannelAdapter {
       const event = this.normalizeMessage({ ctx, isEdited: true });
       if (!event) return;
       await onInboundEvent({ event });
+    });
+
+    bot.on("callback_query:data", async (ctx) => {
+      const data = ctx.callbackQuery.data;
+      if (!data.startsWith("cmd_approve:") && !data.startsWith("cmd_deny:")) {
+        return;
+      }
+
+      if (!this.commandApprovalService) {
+        await ctx.answerCallbackQuery({ text: "Approval service not available." });
+        return;
+      }
+
+      if (!ctx.from) {
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      const ownerCheck = await isOwner({
+        actor: { platform: "telegram", platformUserId: String(ctx.from.id) },
+        chatRegistry: this.chatRegistry,
+      });
+      if (!ownerCheck) {
+        await ctx.answerCallbackQuery({ text: "Only the owner can approve commands." });
+        return;
+      }
+
+      const approved = data.startsWith("cmd_approve:");
+      const requestId = data.split(":")[1];
+
+      await this.commandApprovalService.handleResponse({ requestId, approved });
+      await ctx.answerCallbackQuery({
+        text: approved ? "Command approved." : "Command denied.",
+      });
     });
   }
 

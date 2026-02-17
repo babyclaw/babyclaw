@@ -2,6 +2,7 @@ import { exec } from "node:child_process";
 import { basename } from "node:path";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
+import type { CommandApprovalService } from "../approval/service.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
 import { resolveWorkspacePath } from "../utils/path.js";
 import { MAX_TOOL_PAYLOAD_BYTES } from "../utils/payload.js";
@@ -11,6 +12,7 @@ import { ToolExecutionError, withToolLogging } from "./errors.js";
 type CreateShellToolsInput = {
   context: ToolExecutionContext;
   shellConfig: ShellConfig;
+  commandApprovalService?: CommandApprovalService;
 };
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -33,7 +35,7 @@ export function normalizeAllowedCommands({ commands }: { commands: string[] }): 
   return normalized;
 }
 
-export function createShellTools({ context, shellConfig }: CreateShellToolsInput): ToolSet {
+export function createShellTools({ context, shellConfig, commandApprovalService }: CreateShellToolsInput): ToolSet {
   const isFullAccess = shellConfig.mode === "full-access";
   const allowedCommands = isFullAccess
     ? null
@@ -41,7 +43,9 @@ export function createShellTools({ context, shellConfig }: CreateShellToolsInput
 
   const description = isFullAccess
     ? "Run a shell command in the workspace directory. Full access mode: any command is allowed. Supports pipes and chaining."
-    : "Run a shell command in the workspace directory. Commands are restricted to an allowlist of common dev tools (git, node, npm, pnpm, curl, grep, etc.). Supports pipes and chaining.";
+    : commandApprovalService
+      ? "Run a shell command in the workspace directory. Commands are restricted to an allowlist. Non-allowlisted commands may be sent to the owner for approval. Supports pipes and chaining."
+      : "Run a shell command in the workspace directory. Commands are restricted to an allowlist of common dev tools (git, node, npm, pnpm, curl, grep, etc.). Supports pipes and chaining.";
 
   return {
     shell_exec: tool({
@@ -63,8 +67,38 @@ export function createShellTools({ context, shellConfig }: CreateShellToolsInput
           toolName: "shell_exec",
           defaultCode: "SHELL_EXEC_FAILED",
           action: async () => {
+            let approvedByOwner = false;
+
             if (allowedCommands) {
-              validateCommandAllowlist({ command, allowedCommands });
+              try {
+                validateCommandAllowlist({ command, allowedCommands });
+              } catch (err) {
+                if (
+                  err instanceof ToolExecutionError &&
+                  err.code === "COMMAND_NOT_ALLOWED" &&
+                  commandApprovalService &&
+                  context.chatId
+                ) {
+                  const disallowedNames = extractCommandNames({ command }).filter(
+                    (n) => !allowedCommands.has(n),
+                  );
+                  const result = await commandApprovalService.requestApproval({
+                    command,
+                    disallowedNames,
+                    chatId: context.chatId,
+                    threadId: context.threadId,
+                  });
+                  if (!result.approved) {
+                    throw new ToolExecutionError({
+                      code: "COMMAND_DENIED_BY_OWNER",
+                      message: "The owner denied this command.",
+                    });
+                  }
+                  approvedByOwner = true;
+                } else {
+                  throw err;
+                }
+              }
             }
 
             const cwd = working_directory
@@ -82,6 +116,7 @@ export function createShellTools({ context, shellConfig }: CreateShellToolsInput
 
             return {
               ok: true,
+              ...(approvedByOwner ? { approved_by_owner: true } : {}),
               exit_code: result.exitCode,
               stdout: result.stdout,
               stderr: result.stderr,

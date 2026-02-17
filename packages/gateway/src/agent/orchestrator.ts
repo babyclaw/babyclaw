@@ -2,6 +2,7 @@ import { MessageRole } from "@prisma/client";
 import type { Chat } from "@prisma/client";
 import type { ModelMessage } from "ai";
 import { AiAgent } from "../ai/agent.js";
+import type { CommandApprovalService } from "../approval/service.js";
 import {
   buildScheduleFollowupSystemNote,
   getBrowserToolsSystemMessage,
@@ -11,7 +12,7 @@ import {
   getSharedSystemMessage,
   getSkillsSystemMessage,
   getWorkspaceGuideSystemMessage,
-  readToolsIndex,
+  readToolNotes,
 } from "../ai/prompts.js";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { ChannelRouter } from "../channel/router.js";
@@ -41,6 +42,7 @@ import {
   isStopMessage,
   type ReplyReference,
 } from "./helpers.js";
+import { scanWorkspaceSkills } from "../workspace/skills/scanner.js";
 
 type AgentTurnOrchestratorInput = {
   workspacePath: string;
@@ -56,6 +58,7 @@ type AgentTurnOrchestratorInput = {
   braveSearchApiKey: string | null;
   shellConfig: ShellConfig;
   browserMcpClient?: BrowserMcpClient;
+  commandApprovalService?: CommandApprovalService;
   useReplyChainKey: boolean;
   historyLimit: number;
 };
@@ -74,6 +77,7 @@ export class AgentTurnOrchestrator {
   private readonly braveSearchApiKey: string | null;
   private readonly shellConfig: ShellConfig;
   private readonly browserMcpClient?: BrowserMcpClient;
+  private readonly commandApprovalService?: CommandApprovalService;
   private readonly useReplyChainKey: boolean;
   private readonly historyLimit: number;
   private readonly activeTurnManager = new ActiveTurnManager();
@@ -92,6 +96,7 @@ export class AgentTurnOrchestrator {
     braveSearchApiKey,
     shellConfig,
     browserMcpClient,
+    commandApprovalService,
     useReplyChainKey,
     historyLimit,
   }: AgentTurnOrchestratorInput) {
@@ -108,6 +113,7 @@ export class AgentTurnOrchestrator {
     this.braveSearchApiKey = braveSearchApiKey;
     this.shellConfig = shellConfig;
     this.browserMcpClient = browserMcpClient;
+    this.commandApprovalService = commandApprovalService;
     this.useReplyChainKey = useReplyChainKey;
     this.historyLimit = historyLimit;
   }
@@ -285,12 +291,13 @@ export class AgentTurnOrchestrator {
 
     const adapter = this.channelRouter.getAdapter({ platform: event.platform });
 
-    const [personalityFiles, toolsIndexContent, agentsContent, bootstrapContent] =
+    const [personalityFiles, toolsIndexContent, agentsContent, bootstrapContent, skills] =
       await Promise.all([
         readPersonalityFiles({ workspacePath: this.workspacePath }),
-        readToolsIndex({ workspacePath: this.workspacePath }),
+        readToolNotes({ workspacePath: this.workspacePath }),
         readWorkspaceGuide({ workspacePath: this.workspacePath }),
         readBootstrapGuide({ workspacePath: this.workspacePath }),
+        scanWorkspaceSkills({ workspacePath: this.workspacePath }),
       ]);
 
     if (abortSignal.aborted) return;
@@ -328,7 +335,10 @@ export class AgentTurnOrchestrator {
         personalityFiles: completePersonality,
       }),
       getWorkspaceGuideSystemMessage({ agentsContent, bootstrapContent }),
-      getSkillsSystemMessage({ toolsIndexContent }),
+      getSkillsSystemMessage({ 
+        skills,
+        toolNotesContent: toolsIndexContent,
+      }),
       getSchedulerGuidanceSystemMessage(),
       ...(isMainSession
         ? [getMainSessionSystemMessage({ linkedChats })]
@@ -378,6 +388,7 @@ export class AgentTurnOrchestrator {
       chatRegistry: this.chatRegistry,
       channelSender: adapter,
       deliveryService: this.deliveryService,
+      commandApprovalService: this.commandApprovalService,
     });
 
     const streamResult = this.aiAgent.chatStreamWithTools({
