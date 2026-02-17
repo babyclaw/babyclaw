@@ -1,6 +1,7 @@
 import { ScheduleType } from "@prisma/client";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
+import type { ChatRegistry } from "../chat/registry.js";
 import { SchedulerService } from "../scheduler/service.js";
 import { toErrorMessage } from "../utils/errors.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
@@ -15,6 +16,7 @@ type CreateSchedulerToolsInput = {
   directMessagesTopicId: bigint | null;
   sourceText: string;
   executionContext: ToolExecutionContext;
+  chatRegistry?: ChatRegistry;
 };
 
 export function createSchedulerTools({
@@ -26,6 +28,7 @@ export function createSchedulerTools({
   directMessagesTopicId,
   sourceText,
   executionContext,
+  chatRegistry,
 }: CreateSchedulerToolsInput): ToolSet {
   return {
     get_current_time: tool({
@@ -78,6 +81,7 @@ export function createSchedulerTools({
         "Only call when user clearly asks to schedule something.",
         "For recurring jobs, you must provide cron_expression.",
         "Timezone is fixed by the system. Fuzzy defaults: morning=09:00, afternoon=14:00, evening=19:00.",
+        "In the main session, you can target a linked chat by providing target_alias.",
       ].join(" "),
       inputSchema: z.object({
         job_type: z.enum([ScheduleType.one_off, ScheduleType.recurring]),
@@ -85,13 +89,42 @@ export function createSchedulerTools({
         run_at_iso: z.string().datetime().optional(),
         cron_expression: z.string().trim().min(1).optional(),
         title: z.string().trim().min(1).optional(),
+        target_alias: z
+          .string()
+          .trim()
+          .min(1)
+          .optional()
+          .describe("Alias of a linked chat to deliver output to (main session only)"),
       }),
-      execute: async ({ job_type, task, run_at_iso, cron_expression, title }) =>
+      execute: async ({ job_type, task, run_at_iso, cron_expression, title, target_alias }) =>
         withToolLogging({
           context: executionContext,
           toolName: "create_schedule",
           defaultCode: "CREATE_SCHEDULE_FAILED",
           action: async () => {
+            let targetChatRef: string | null = null;
+
+            if (target_alias && executionContext.isMainSession && chatRegistry) {
+              const targetChat = await chatRegistry.resolveAlias({
+                platform: "telegram",
+                alias: target_alias,
+              });
+              if (!targetChat) {
+                throw new ToolExecutionError({
+                  code: "ALIAS_NOT_FOUND",
+                  message: `No chat found with alias "${target_alias}".`,
+                  hint: "Use list_known_chats to see available aliases.",
+                });
+              }
+              if (!targetChat.linkedAt) {
+                throw new ToolExecutionError({
+                  code: "CHAT_NOT_LINKED",
+                  message: `Chat "${target_alias}" is not linked.`,
+                });
+              }
+              targetChatRef = targetChat.id;
+            }
+
             let created;
             try {
               created = await schedulerService.createSchedule({
@@ -105,6 +138,7 @@ export function createSchedulerTools({
                 jobType: job_type,
                 runAtIso: run_at_iso,
                 cronExpression: cron_expression,
+                targetChatRef,
               });
             } catch (error) {
               const message = toErrorMessage({ error });
@@ -142,6 +176,7 @@ export function createSchedulerTools({
               schedule_type: created.schedule.type,
               title: created.schedule.title,
               task: created.schedule.taskPrompt,
+              target_alias: target_alias ?? null,
               next_run_at: created.nextRunAt?.toISOString() ?? null,
             } as const;
           },
@@ -173,6 +208,7 @@ export function createSchedulerTools({
                 status: schedule.status,
                 title: schedule.title,
                 task: schedule.taskPrompt,
+                target_chat_ref: schedule.targetChatRef ?? null,
                 next_run_at: schedule.nextRunAt?.toISOString() ?? null,
                 created_at: schedule.createdAt.toISOString(),
               })),

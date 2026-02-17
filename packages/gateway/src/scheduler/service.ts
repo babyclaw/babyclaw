@@ -49,6 +49,7 @@ export class SchedulerService {
     jobType,
     runAtIso,
     cronExpression,
+    targetChatRef,
   }: CreateScheduleInput): Promise<CreateScheduleResult> {
     if (taskPrompt.trim().length === 0) {
       throw new Error("task is required");
@@ -112,6 +113,7 @@ export class SchedulerService {
         timezone: this.timezone,
         status: ScheduleStatus.active,
         nextRunAt,
+        targetChatRef: targetChatRef ?? null,
       },
     });
 
@@ -257,6 +259,7 @@ export class SchedulerService {
         status: true,
         taskPrompt: true,
         title: true,
+        targetChatRef: true,
       },
     });
   }
@@ -278,6 +281,7 @@ export class SchedulerService {
         status: true,
         taskPrompt: true,
         title: true,
+        targetChatRef: true,
       },
     });
   }

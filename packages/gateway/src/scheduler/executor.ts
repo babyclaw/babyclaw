@@ -1,6 +1,9 @@
 import { MessageRole, ScheduleRunStatus, ScheduleType } from "@prisma/client";
 import type { Api } from "grammy";
 import { AiAgent } from "../ai/agent.js";
+import type { CrossChatDeliveryService } from "../chat/delivery.js";
+import type { MessageSender } from "../chat/message-sender.js";
+import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
 import {
   buildScheduledTaskUserContent,
@@ -31,6 +34,9 @@ type SchedulerExecutorInput = {
   sessionManager: SessionManager;
   schedulerService: SchedulerService;
   messageLinkRepository: MessageLinkRepository;
+  chatRegistry: ChatRegistry;
+  deliveryService: CrossChatDeliveryService;
+  messageSender: MessageSender;
   syncSchedule: (args: { scheduleId: string }) => Promise<void>;
   enableGenericTools: boolean;
   braveSearchApiKey: string | null;
@@ -45,6 +51,9 @@ export class SchedulerExecutor {
   private readonly sessionManager: SessionManager;
   private readonly schedulerService: SchedulerService;
   private readonly messageLinkRepository: MessageLinkRepository;
+  private readonly chatRegistry: ChatRegistry;
+  private readonly deliveryService: CrossChatDeliveryService;
+  private readonly messageSender: MessageSender;
   private readonly syncSchedule: (args: { scheduleId: string }) => Promise<void>;
   private readonly enableGenericTools: boolean;
   private readonly braveSearchApiKey: string | null;
@@ -59,6 +68,9 @@ export class SchedulerExecutor {
     sessionManager,
     schedulerService,
     messageLinkRepository,
+    chatRegistry,
+    deliveryService,
+    messageSender,
     syncSchedule,
     enableGenericTools,
     braveSearchApiKey,
@@ -71,6 +83,9 @@ export class SchedulerExecutor {
     this.sessionManager = sessionManager;
     this.schedulerService = schedulerService;
     this.messageLinkRepository = messageLinkRepository;
+    this.chatRegistry = chatRegistry;
+    this.deliveryService = deliveryService;
+    this.messageSender = messageSender;
     this.syncSchedule = syncSchedule;
     this.enableGenericTools = enableGenericTools;
     this.braveSearchApiKey = braveSearchApiKey;
@@ -148,50 +163,70 @@ export class SchedulerExecutor {
             scheduledFor,
           });
 
-          const sent = await this.sendScheduledMessage({
-            chatId: schedule.chatId,
-            text: output,
-            threadId: schedule.threadId,
-            directMessagesTopicId: schedule.directMessagesTopicId,
-          });
+          let sentMessageId: bigint;
+          let effectiveSessionKey = sessionKey;
 
-          const identity = SessionManager.fromLinkedSessionKey({
-            key: sessionKey,
-            chatId: schedule.chatId,
-            threadId: schedule.threadId,
-            replyToMessageId: null,
-          });
-          await this.sessionManager.appendMessages({
-            identity,
-            messages: [
-              {
-                role: MessageRole.user,
-                content: buildScheduledTaskUserContent({
-                  taskPrompt: schedule.taskPrompt,
-                  scheduledFor,
-                }),
-              },
-              {
-                role: MessageRole.assistant,
-                content: output,
-              },
-            ],
-          });
+          const targetChat = schedule.targetChatRef
+            ? await this.chatRegistry.findById({ id: schedule.targetChatRef })
+            : null;
 
-          await this.messageLinkRepository.upsertMessageLink({
-            chatId: schedule.chatId,
-            messageId: BigInt(sent.message_id),
-            sessionKey,
-            scheduleId: schedule.id,
-            scheduleRunId: run.id,
-          });
+          if (targetChat) {
+            const deliveryResult = await this.deliveryService.deliver({
+              messageSender: this.messageSender,
+              targetPlatformChatId: targetChat.platformChatId,
+              text: output,
+              seedContext: `[Scheduled task] ${schedule.taskPrompt}`,
+            });
+            sentMessageId = BigInt(deliveryResult.platformMessageId);
+            effectiveSessionKey = deliveryResult.bridgeSessionKey;
+          } else {
+            const sent = await this.sendScheduledMessage({
+              chatId: schedule.chatId,
+              text: output,
+              threadId: schedule.threadId,
+              directMessagesTopicId: schedule.directMessagesTopicId,
+            });
+            sentMessageId = BigInt(sent.message_id);
+
+            const identity = SessionManager.fromLinkedSessionKey({
+              key: sessionKey,
+              chatId: schedule.chatId,
+              threadId: schedule.threadId,
+              replyToMessageId: null,
+            });
+            await this.sessionManager.appendMessages({
+              identity,
+              messages: [
+                {
+                  role: MessageRole.user,
+                  content: buildScheduledTaskUserContent({
+                    taskPrompt: schedule.taskPrompt,
+                    scheduledFor,
+                  }),
+                },
+                {
+                  role: MessageRole.assistant,
+                  content: output,
+                },
+              ],
+            });
+
+            await this.messageLinkRepository.upsertMessageLink({
+              chatId: schedule.chatId,
+              messageId: sentMessageId,
+              sessionKey,
+              scheduleId: schedule.id,
+              scheduleRunId: run.id,
+            });
+          }
 
           const finishedAt = new Date();
           await this.schedulerService.updateRun({
             runId: run.id,
             data: {
               status: ScheduleRunStatus.succeeded,
-              assistantMessageId: BigInt(sent.message_id),
+              assistantMessageId: sentMessageId,
+              sessionKey: effectiveSessionKey,
               finishedAt,
               error: null,
             },
@@ -284,6 +319,7 @@ export class SchedulerExecutor {
         threadId: threadId ?? undefined,
         directMessagesTopicId: directMessagesTopicId ?? undefined,
         runSource: "scheduled",
+        isMainSession: false,
       },
       schedulerService: this.schedulerService,
       syncSchedule: this.syncSchedule,

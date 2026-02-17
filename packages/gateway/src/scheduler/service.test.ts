@@ -228,4 +228,39 @@ describe("SchedulerService.createSchedule", () => {
     const createArg = mockPrisma.schedule.create.mock.calls[0][0];
     expect(createArg.data.title).toBeNull();
   });
+
+  it("persists targetChatRef when provided", async () => {
+    const mockPrisma = createMockPrisma();
+    const service = new SchedulerService({
+      prisma: mockPrisma,
+      timezone: "UTC",
+    });
+
+    await service.createSchedule({
+      ...BASE_INPUT,
+      jobType: ScheduleType.one_off,
+      runAtIso: new Date(Date.now() + 3_600_000).toISOString(),
+      targetChatRef: "chat-abc",
+    });
+
+    const createArg = mockPrisma.schedule.create.mock.calls[0][0];
+    expect(createArg.data.targetChatRef).toBe("chat-abc");
+  });
+
+  it("sets targetChatRef to null when not provided", async () => {
+    const mockPrisma = createMockPrisma();
+    const service = new SchedulerService({
+      prisma: mockPrisma,
+      timezone: "UTC",
+    });
+
+    await service.createSchedule({
+      ...BASE_INPUT,
+      jobType: ScheduleType.one_off,
+      runAtIso: new Date(Date.now() + 3_600_000).toISOString(),
+    });
+
+    const createArg = mockPrisma.schedule.create.mock.calls[0][0];
+    expect(createArg.data.targetChatRef).toBeNull();
+  });
 });

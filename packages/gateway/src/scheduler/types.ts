@@ -11,6 +11,7 @@ export type CreateScheduleInput = {
   jobType: ScheduleType;
   runAtIso?: string;
   cronExpression?: string;
+  targetChatRef?: string | null;
 };
 
 export type CreateScheduleResult = {
@@ -50,6 +51,7 @@ export type ScheduleForRuntime = Pick<
   | "status"
   | "taskPrompt"
   | "title"
+  | "targetChatRef"
 >;
 
 export type ScheduleRunWithSchedule = ScheduleRun & {
