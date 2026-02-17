@@ -1,10 +1,12 @@
 {
   "name": "simpleclaw",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Simpleclaw - your friendly agent gateway",
+  "private": true,
   "scripts": {
-    "test": "pnpm -r test"
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
   },
   "keywords": [],
   "author": "",
