@@ -92,7 +92,7 @@ model Schedule {
   targetChatRef        String?
   canceledAt           DateTime?
   runs                 ScheduleRun[]
-  links                TelegramMessageLink[]
+  links                ChannelMessageLink[]
 
   @@index([chatId, status, nextRunAt])
 }
@@ -110,7 +110,7 @@ model ScheduleRun {
   startedAt        DateTime?
   finishedAt       DateTime?
   createdAt        DateTime          @default(now())
-  links            TelegramMessageLink[]
+  links            ChannelMessageLink[]
 
   @@index([scheduleId, createdAt])
   @@index([status, createdAt])
@@ -137,18 +137,19 @@ model HeartbeatRun {
   @@index([createdAt])
 }
 
-model TelegramMessageLink {
-  id          String      @id @default(cuid())
-  chatId      BigInt
-  messageId   BigInt
-  sessionKey  String
-  scheduleId  String?
-  schedule    Schedule?   @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
-  scheduleRunId String?
-  scheduleRun ScheduleRun? @relation(fields: [scheduleRunId], references: [id], onDelete: SetNull)
-  createdAt   DateTime    @default(now())
+model ChannelMessageLink {
+  id                String       @id @default(cuid())
+  platform          String
+  platformChatId    String
+  platformMessageId String
+  sessionKey        String
+  scheduleId        String?
+  schedule          Schedule?    @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduleRunId     String?
+  scheduleRun       ScheduleRun? @relation(fields: [scheduleRunId], references: [id], onDelete: SetNull)
+  createdAt         DateTime     @default(now())
 
-  @@unique([chatId, messageId])
+  @@unique([platform, platformChatId, platformMessageId])
   @@index([sessionKey])
   @@index([scheduleId])
   @@index([scheduleRunId])
