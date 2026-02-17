@@ -117,6 +117,26 @@ model ScheduleRun {
   @@index([sessionKey])
 }
 
+enum HeartbeatOutcome {
+  ok
+  alerted
+  error
+  skipped_overlap
+  skipped_empty
+}
+
+model HeartbeatRun {
+  id         String           @id @default(cuid())
+  startedAt  DateTime
+  finishedAt DateTime?
+  outcome    HeartbeatOutcome
+  summary    String?
+  error      String?
+  createdAt  DateTime         @default(now())
+
+  @@index([createdAt])
+}
+
 model TelegramMessageLink {
   id          String      @id @default(cuid())
   chatId      BigInt
