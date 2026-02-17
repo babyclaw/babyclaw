@@ -13,7 +13,15 @@ function createValidConfig(): Record<string, unknown> {
       botToken: "telegram-token",
     },
     ai: {
-      gatewayApiKey: "ai-key",
+      providers: {
+        anthropic: {
+          apiKey: "ai-key",
+        },
+      },
+      models: {
+        chat: "anthropic:claude-sonnet-4-20250514",
+        browser: "anthropic:claude-sonnet-4-20250514",
+      },
     },
   };
 }
@@ -34,8 +42,8 @@ describe("loadConfig", () => {
       const config = await loadConfig();
 
       expect(config.telegram.botToken).toBe("telegram-token");
-      expect(config.ai.gatewayApiKey).toBe("ai-key");
-      expect(config.ai.baseUrl).toBe("https://ai-gateway.vercel.sh/v1");
+      expect(config.ai.providers.anthropic?.apiKey).toBe("ai-key");
+      expect(config.ai.models.chat).toBe("anthropic:claude-sonnet-4-20250514");
       expect(config.session.historyLimit).toBe(40);
       expect(config.tools.webSearch.braveApiKey).toBeNull();
     } finally {
@@ -127,7 +135,7 @@ describe("loadConfig", () => {
       const config = await loadConfig();
 
       expect(config.telegram.botToken).toBe("telegram-token");
-      expect(config.ai.gatewayApiKey).toBe("ai-key");
+      expect(config.ai.providers.anthropic?.apiKey).toBe("ai-key");
     } finally {
       await rm(tempHome, { recursive: true, force: true });
     }
@@ -165,7 +173,15 @@ describe("loadConfig", () => {
           botToken: "REPLACE_ME",
         },
         ai: {
-          gatewayApiKey: "  ",
+          providers: {
+            anthropic: {
+              apiKey: "  ",
+            },
+          },
+          models: {
+            chat: "anthropic:claude-sonnet-4-20250514",
+            browser: "anthropic:claude-sonnet-4-20250514",
+          },
         },
       };
       await writeFile(configPath, JSON.stringify(withPlaceholders), "utf8");

@@ -1,17 +1,16 @@
 import {
-  createGateway,
   generateObject,
   generateText,
   stepCountIs,
   streamText,
+  type LanguageModel,
   type ModelMessage,
   type ToolSet,
 } from "ai";
 import type { z } from "zod";
 
 type CreateAgentInput = {
-  apiKey: string;
-  modelId?: string;
+  model: LanguageModel;
 };
 
 type ChatInput = {
@@ -41,20 +40,16 @@ type GenerateStructuredInput<TSchema extends z.ZodTypeAny> = {
   schema: TSchema;
 };
 
-const DEFAULT_MODEL_ID = "anthropic/claude-sonnet-4-20250514";
-
 export class AiAgent {
-  private readonly modelId: string;
-  private readonly gateway: ReturnType<typeof createGateway>;
+  private readonly model: LanguageModel;
 
-  constructor({ apiKey, modelId = DEFAULT_MODEL_ID }: CreateAgentInput) {
-    this.modelId = modelId;
-    this.gateway = createGateway({ apiKey });
+  constructor({ model }: CreateAgentInput) {
+    this.model = model;
   }
 
   async chat({ messages }: ChatInput): Promise<string> {
     const result = await generateText({
-      model: this.gateway(this.modelId),
+      model: this.model,
       messages,
     });
 
@@ -63,7 +58,7 @@ export class AiAgent {
 
   chatStream({ messages }: ChatInput): ChatStreamResult {
     const result = streamText({
-      model: this.gateway(this.modelId),
+      model: this.model,
       messages,
     });
 
@@ -80,7 +75,7 @@ export class AiAgent {
     abortSignal,
   }: ChatStreamWithToolsInput<TTools>): ChatStreamResult {
     const result = streamText({
-      model: this.gateway(this.modelId),
+      model: this.model,
       messages,
       tools,
       stopWhen: stepCountIs(maxSteps),
@@ -102,7 +97,7 @@ export class AiAgent {
     maxSteps = 50,
   }: ChatWithToolsInput<TTools>): Promise<string> {
     const result = await generateText({
-      model: this.gateway(this.modelId),
+      model: this.model,
       messages,
       tools,
       stopWhen: stepCountIs(maxSteps),
@@ -116,7 +111,7 @@ export class AiAgent {
     schema,
   }: GenerateStructuredInput<TSchema>): Promise<z.infer<TSchema>> {
     const result = await generateObject({
-      model: this.gateway(this.modelId),
+      model: this.model,
       messages,
       schema,
     });

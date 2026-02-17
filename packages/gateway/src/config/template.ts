@@ -6,12 +6,16 @@ const DEFAULT_CONFIG_TEMPLATE = {
     botToken: "REPLACE_ME",
   },
   ai: {
-    gatewayApiKey: "REPLACE_ME",
-    baseUrl: "https://ai-gateway.vercel.sh/v1",
-    models: {
-      chat: "anthropic/claude-sonnet-4-20250514",
-      browser: "anthropic/claude-opus-4.6",
+    providers: {
+      anthropic: {
+        apiKey: "REPLACE_ME",
+      },
     },
+    models: {
+      chat: "anthropic:claude-sonnet-4-20250514",
+      browser: "anthropic:claude-sonnet-4-20250514",
+    },
+    aliases: {},
   },
   database: {
     url: "file:../data/simpleclaw.db",

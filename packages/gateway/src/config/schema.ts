@@ -5,9 +5,6 @@ import {
   SHELL_MODES,
 } from "./shell-defaults.js";
 
-const DEFAULT_CHAT_MODEL = "anthropic/claude-sonnet-4-20250514";
-const DEFAULT_BROWSER_MODEL = "anthropic/claude-opus-4.6";
-const DEFAULT_AI_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 const DEFAULT_DATABASE_URL = "file:../data/simpleclaw.db";
 
 function isValidTimezone(value: string): boolean {
@@ -19,13 +16,28 @@ function isValidTimezone(value: string): boolean {
   }
 }
 
+const providerConfigSchema = z.object({
+  apiKey: z.string().min(1),
+  baseUrl: z.string().url().optional(),
+}).strict();
+
+const aiProvidersSchema = z.record(
+  z.string().min(1),
+  providerConfigSchema,
+).refine(
+  (obj) => Object.keys(obj).length > 0,
+  "At least one provider must be configured",
+);
+
+const modelAliasesSchema = z.record(
+  z.string().min(1).regex(/^[a-z0-9_-]+$/),
+  z.string().min(1),
+).default({});
+
 const aiModelsSchema = z.object({
-  chat: z.string().min(1).default(DEFAULT_CHAT_MODEL),
-  browser: z.string().min(1).default(DEFAULT_BROWSER_MODEL),
-}).strict().default({
-  chat: DEFAULT_CHAT_MODEL,
-  browser: DEFAULT_BROWSER_MODEL,
-});
+  chat: z.string().min(1),
+  browser: z.string().min(1),
+}).strict();
 
 const toolsSchema = z.object({
   enableGenericTools: z.boolean().default(true),
@@ -68,9 +80,9 @@ export const simpleclawConfigSchema = z.object({
     botToken: z.string().min(1),
   }).strict(),
   ai: z.object({
-    gatewayApiKey: z.string().min(1),
-    baseUrl: z.string().url().default(DEFAULT_AI_BASE_URL),
+    providers: aiProvidersSchema,
     models: aiModelsSchema,
+    aliases: modelAliasesSchema,
   }).strict(),
   database: z.object({
     url: z.string().min(1).default(DEFAULT_DATABASE_URL),

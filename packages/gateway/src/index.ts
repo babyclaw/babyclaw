@@ -1,20 +1,11 @@
-import { GatewayRuntime } from "./runtime.js";
-
 export { GatewayRuntime } from "./runtime.js";
 export type { GatewayStatus } from "./runtime.js";
 export { AdminClient } from "./admin/client.js";
 export { getAdminSocketPath } from "./admin/paths.js";
-export { loadConfig } from "./config/loader.js";
+export { loadConfig, loadConfigRaw, writeConfig } from "./config/loader.js";
 export { getConfigPath, getDefaultConfigPath, CONFIG_PATH_ENV_VAR } from "./config/paths.js";
 export { simpleclawConfigSchema } from "./config/schema.js";
 export { getSimpleclawConfigJsonSchema, writeSimpleclawConfigJsonSchema } from "./config/schema-json.js";
 export { getDefaultConfigTemplate } from "./config/template.js";
 export type { SimpleclawConfig } from "./config/types.js";
-
-const runtime = new GatewayRuntime();
-
-runtime.registerSignalHandlers();
-runtime.start().catch((error) => {
-  console.error("Failed to start Telegram gateway bot:", error);
-  process.exit(1);
-});
+export { SUPPORTED_PROVIDERS } from "./ai/provider-registry.js";

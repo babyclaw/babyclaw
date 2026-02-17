@@ -16,6 +16,8 @@ export async function loadConfig(): Promise<SimpleclawConfig> {
   const raw = await readFile(configPath, "utf8");
   const json = parseJsonConfig({ raw, configPath });
 
+  detectLegacyConfig({ json, configPath });
+
   const parsed = simpleclawConfigSchema.safeParse(json);
   if (!parsed.success) {
     const issues = parsed.error.issues.map(formatIssue).join("\n");
@@ -27,6 +29,36 @@ export async function loadConfig(): Promise<SimpleclawConfig> {
   ensureRequiredSecrets({ config: parsed.data, configPath });
 
   return parsed.data;
+}
+
+export async function loadConfigRaw(): Promise<SimpleclawConfig | null> {
+  const configPath = getConfigPath();
+
+  try {
+    await access(configPath);
+  } catch {
+    return null;
+  }
+
+  const raw = await readFile(configPath, "utf8");
+  const json = parseJsonConfig({ raw, configPath });
+
+  const parsed = simpleclawConfigSchema.safeParse(json);
+  if (!parsed.success) {
+    return null;
+  }
+
+  return parsed.data;
+}
+
+export async function writeConfig({
+  config,
+}: {
+  config: SimpleclawConfig;
+}): Promise<void> {
+  const configPath = getConfigPath();
+  await mkdir(dirname(configPath), { recursive: true });
+  await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
 }
 
 async function ensureConfigFileExists({
@@ -78,8 +110,10 @@ function ensureRequiredSecrets({
     missing.push("telegram.botToken");
   }
 
-  if (isMissingSecret(config.ai.gatewayApiKey)) {
-    missing.push("ai.gatewayApiKey");
+  for (const [key, provider] of Object.entries(config.ai.providers)) {
+    if (isMissingSecret(provider.apiKey)) {
+      missing.push(`ai.providers.${key}.apiKey`);
+    }
   }
 
   if (missing.length > 0) {
@@ -87,6 +121,30 @@ function ensureRequiredSecrets({
       `Invalid configuration at ${configPath}: required secret values are missing for ${missing.join(
         ", ",
       )}`,
+    );
+  }
+}
+
+function detectLegacyConfig({
+  json,
+  configPath,
+}: {
+  json: unknown;
+  configPath: string;
+}): void {
+  if (
+    typeof json === "object" &&
+    json !== null &&
+    "ai" in json &&
+    typeof (json as Record<string, unknown>).ai === "object" &&
+    (json as Record<string, unknown>).ai !== null &&
+    "gatewayApiKey" in ((json as Record<string, unknown>).ai as Record<string, unknown>)
+  ) {
+    throw new Error(
+      `Legacy configuration detected at ${configPath}.\n` +
+        "The 'ai.gatewayApiKey' field has been replaced by the multi-provider 'ai.providers' structure.\n" +
+        "Run 'simpleclaw model configure' to set up providers interactively, or migrate manually.\n" +
+        "See the configuration docs for the new schema.",
     );
   }
 }

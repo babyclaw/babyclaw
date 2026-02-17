@@ -1,6 +1,11 @@
 import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { AiAgent } from "./ai/agent.js";
+import {
+  buildProviderRegistry,
+  parseModelRef,
+  resolveModelRef,
+} from "./ai/provider-registry.js";
 import { AdminServer } from "./admin/server.js";
 import { getAdminSocketPath } from "./admin/paths.js";
 import { createBot } from "./bot.js";
@@ -47,14 +52,40 @@ export class GatewayRuntime {
 
       const workspacePath = resolve(process.cwd(), config.workspace.root);
 
-      const browserMcpClient = config.tools.enableBrowserTools
-        ? new BrowserMcpClient({
-            llmApiKey: config.ai.gatewayApiKey,
-            llmBaseUrl: config.ai.baseUrl,
-            llmModel: config.ai.models.browser,
-            headless: config.tools.browser.headless,
-          })
-        : undefined;
+      const registry = buildProviderRegistry({
+        providers: config.ai.providers,
+      });
+
+      const chatModelRef = resolveModelRef({
+        ref: config.ai.models.chat,
+        aliases: config.ai.aliases,
+      });
+      const chatModel = registry.languageModel(
+        chatModelRef as `${string}:${string}`,
+      );
+
+      let browserMcpClient: BrowserMcpClient | undefined;
+      if (config.tools.enableBrowserTools) {
+        const browserModelRef = resolveModelRef({
+          ref: config.ai.models.browser,
+          aliases: config.ai.aliases,
+        });
+        const { providerKey, modelId: browserModelId } = parseModelRef({
+          ref: browserModelRef,
+        });
+        const browserProviderConfig = config.ai.providers[providerKey];
+        if (!browserProviderConfig) {
+          throw new Error(
+            `Browser model references provider "${providerKey}" which is not configured in ai.providers`,
+          );
+        }
+        browserMcpClient = new BrowserMcpClient({
+          llmApiKey: browserProviderConfig.apiKey,
+          llmBaseUrl: browserProviderConfig.baseUrl,
+          llmModel: browserModelId,
+          headless: config.tools.browser.headless,
+        });
+      }
       this.browserMcpClient = browserMcpClient;
 
       const prisma = new PrismaClient({
@@ -70,10 +101,7 @@ export class GatewayRuntime {
         prisma,
         maxMessagesPerSession: config.session.maxMessagesPerSession,
       });
-      const aiAgent = new AiAgent({
-        apiKey: config.ai.gatewayApiKey,
-        modelId: config.ai.models.chat,
-      });
+      const aiAgent = new AiAgent({ model: chatModel });
       const schedulerService = new SchedulerService({
         prisma,
         timezone: config.scheduler.timezone,
