@@ -6,6 +6,7 @@ const CONTEXT: ToolExecutionContext = {
   workspaceRoot: "/tmp",
   botTimezone: "UTC",
   runSource: "chat",
+  isMainSession: false,
 };
 
 afterEach(() => {

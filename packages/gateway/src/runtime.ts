@@ -10,6 +10,9 @@ import { AdminServer } from "./admin/server.js";
 import { getAdminSocketPath } from "./admin/paths.js";
 import { createBot } from "./bot.js";
 import { BrowserMcpClient } from "./browser/mcp-client.js";
+import { CrossChatDeliveryService } from "./chat/delivery.js";
+import { ChatRegistry } from "./chat/registry.js";
+import { TelegramMessageSender } from "./chat/telegram-sender.js";
 import { loadConfig } from "./config/loader.js";
 import { getConfigPath } from "./config/paths.js";
 import type { SimpleclawConfig } from "./config/types.js";
@@ -126,6 +129,12 @@ export class GatewayRuntime {
         );
       }
 
+      const chatRegistry = new ChatRegistry({ prisma });
+      const deliveryService = new CrossChatDeliveryService({
+        sessionManager,
+        messageLinkRepository,
+      });
+
       const bot = createBot({
         token: config.telegram.botToken,
         workspacePath,
@@ -133,6 +142,8 @@ export class GatewayRuntime {
         aiAgent,
         schedulerService,
         messageLinkRepository,
+        chatRegistry,
+        deliveryService,
         syncSchedule,
         enableGenericTools: config.tools.enableGenericTools,
         braveSearchApiKey: config.tools.webSearch.braveApiKey,
@@ -143,6 +154,8 @@ export class GatewayRuntime {
       });
       this.bot = bot;
 
+      const messageSender = new TelegramMessageSender({ api: bot.api });
+
       const schedulerExecutor = new SchedulerExecutor({
         api: bot.api,
         workspacePath,
@@ -150,6 +163,9 @@ export class GatewayRuntime {
         sessionManager,
         schedulerService,
         messageLinkRepository,
+        chatRegistry,
+        deliveryService,
+        messageSender,
         syncSchedule,
         enableGenericTools: config.tools.enableGenericTools,
         braveSearchApiKey: config.tools.webSearch.braveApiKey,

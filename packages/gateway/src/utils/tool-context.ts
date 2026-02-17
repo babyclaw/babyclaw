@@ -7,4 +7,5 @@ export type ToolExecutionContext = {
   threadId?: bigint;
   directMessagesTopicId?: bigint;
   runSource: ToolRunSource;
+  isMainSession: boolean;
 };

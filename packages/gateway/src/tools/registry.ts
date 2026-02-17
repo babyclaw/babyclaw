@@ -1,9 +1,13 @@
 import type { ToolSet } from "ai";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
+import type { CrossChatDeliveryService } from "../chat/delivery.js";
+import type { MessageSender } from "../chat/message-sender.js";
+import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
 import { SchedulerService } from "../scheduler/service.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { createBrowserTools } from "./browser.js";
+import { createMessagingTools } from "./messaging.js";
 import { createSchedulerTools } from "./scheduler.js";
 import { createShellTools } from "./shell.js";
 import { createStateTools } from "./state.js";
@@ -20,6 +24,9 @@ type CreateUnifiedToolsInput = {
   braveSearchApiKey: string | null;
   shellConfig: ShellConfig;
   browserMcpClient?: BrowserMcpClient;
+  chatRegistry?: ChatRegistry;
+  messageSender?: MessageSender;
+  deliveryService?: CrossChatDeliveryService;
 };
 
 export function createUnifiedTools({
@@ -32,6 +39,9 @@ export function createUnifiedTools({
   braveSearchApiKey,
   shellConfig,
   browserMcpClient,
+  chatRegistry,
+  messageSender,
+  deliveryService,
 }: CreateUnifiedToolsInput): ToolSet {
   if (!executionContext.chatId) {
     throw new Error("Tool execution context must include chatId");
@@ -46,6 +56,7 @@ export function createUnifiedTools({
     directMessagesTopicId: executionContext.directMessagesTopicId ?? null,
     sourceText,
     executionContext,
+    chatRegistry,
   });
 
   if (!enableGenericTools) {
@@ -58,6 +69,16 @@ export function createUnifiedTools({
         context: executionContext,
       })
     : {};
+
+  const messagingTools =
+    executionContext.isMainSession && chatRegistry && messageSender && deliveryService
+      ? createMessagingTools({
+          chatRegistry,
+          deliveryService,
+          messageSender,
+          executionContext,
+        })
+      : {};
 
   return {
     ...schedulerTools,
@@ -76,5 +97,6 @@ export function createUnifiedTools({
       braveApiKey: braveSearchApiKey,
     }),
     ...browserTools,
+    ...messagingTools,
   };
 }

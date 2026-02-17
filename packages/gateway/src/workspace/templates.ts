@@ -13,7 +13,7 @@ Before doing anything else:
 1. Read \`SOUL.md\` — this is who you are
 2. Read \`USER.md\` — this is who you're helping
 3. Read \`memory/YYYY-MM-DD.md\` (today + yesterday) for recent context
-4. **If in MAIN SESSION** (direct chat with your human): Also read \`MEMORY.md\`
+4. The system prompt will explicitly tell you when you're in the main session and list available linked chats. If in the main session, also read \`MEMORY.md\`.
 
 Don't ask permission. Just do it.
 
@@ -28,8 +28,8 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 
 ### 🧠 MEMORY.md - Your Long-Term Memory
 
-- **ONLY load in main session** (direct chats with your human)
-- **DO NOT load in shared contexts** (Discord, group chats, sessions with other people)
+- **ONLY load in main session** — the system prompt will tell you explicitly when you're in one
+- In non-main chats, the system prompt identifies which chat you're in by alias
 - This is for **security** — contains personal context that shouldn't leak to strangers
 - You can **read, edit, and update** MEMORY.md freely in main sessions
 - Write significant events, thoughts, decisions, opinions, lessons learned
@@ -69,6 +69,8 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 ## Group Chats
 
 You have access to your human's stuff. That doesn't mean you _share_ their stuff. In groups, you're a participant — not their voice, not their proxy. Think before you speak.
+
+**Linking chats:** The owner can link new chats using \`/link <alias>\` and unlink with \`/unlink\`. Until a chat is linked, you won't respond there.
 
 ### 💬 Know When to Speak!
 

@@ -115,6 +115,7 @@ describe("withToolLogging", () => {
     workspaceRoot: "/tmp",
     botTimezone: "UTC",
     runSource: "chat",
+    isMainSession: false,
   };
 
   it("returns the action result on success", async () => {

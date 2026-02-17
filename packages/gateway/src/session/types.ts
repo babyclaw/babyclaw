@@ -18,6 +18,7 @@ export type DeriveSessionIdentityInput = {
 
 export type SessionState = {
   sessionIdentity?: SessionIdentity;
+  isMainSession?: boolean;
 };
 
 export type PersistedMessageInput = {
