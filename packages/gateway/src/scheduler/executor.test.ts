@@ -67,6 +67,8 @@ function createExecutor(overrides: Record<string, any> = {}) {
     enableGenericTools: false,
     braveSearchApiKey: null,
     shellConfig: { mode: "allowlist" as const, allowedCommands: [] },
+    skillsConfig: { entries: {} },
+    fullConfig: {},
     ...overrides,
   });
 }

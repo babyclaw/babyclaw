@@ -4,13 +4,15 @@ import type { ChannelSender } from "../channel/types.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
+import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
+import type { SkillsConfig } from "../workspace/skills/types.js";
 import {
   buildScheduledTaskUserContent,
   getScheduledExecutionSystemMessage,
   getSharedSystemMessage,
   getSkillsSystemMessage,
   getWorkspaceGuideSystemMessage,
-  readToolsIndex,
+  readToolNotes,
 } from "../ai/prompts.js";
 import { readWorkspaceGuide } from "../workspace/bootstrap.js";
 import {
@@ -39,6 +41,8 @@ type SchedulerExecutorInput = {
   braveSearchApiKey: string | null;
   shellConfig: ShellConfig;
   browserMcpClient?: import("../browser/mcp-client.js").BrowserMcpClient;
+  skillsConfig: SkillsConfig;
+  fullConfig: Record<string, unknown>;
 };
 
 export class SchedulerExecutor {
@@ -55,6 +59,8 @@ export class SchedulerExecutor {
   private readonly braveSearchApiKey: string | null;
   private readonly shellConfig: ShellConfig;
   private readonly browserMcpClient?: import("../browser/mcp-client.js").BrowserMcpClient;
+  private readonly skillsConfig: SkillsConfig;
+  private readonly fullConfig: Record<string, unknown>;
   private readonly runningScheduleIds = new Set<string>();
 
   constructor({
@@ -71,6 +77,8 @@ export class SchedulerExecutor {
     braveSearchApiKey,
     shellConfig,
     browserMcpClient,
+    skillsConfig,
+    fullConfig,
   }: SchedulerExecutorInput) {
     this.channelSender = channelSender;
     this.workspacePath = workspacePath;
@@ -85,6 +93,8 @@ export class SchedulerExecutor {
     this.braveSearchApiKey = braveSearchApiKey;
     this.shellConfig = shellConfig;
     this.browserMcpClient = browserMcpClient;
+    this.skillsConfig = skillsConfig;
+    this.fullConfig = fullConfig;
   }
 
   async executeSchedule({
@@ -287,11 +297,18 @@ export class SchedulerExecutor {
     taskPrompt: string;
     scheduledFor: Date;
   }): Promise<string> {
-    const [personalityFiles, toolsIndexContent, agentsContent] = await Promise.all([
+    const [personalityFiles, toolNotesContent, agentsContent, allSkills] = await Promise.all([
       readPersonalityFiles({ workspacePath: this.workspacePath }),
-      readToolsIndex({ workspacePath: this.workspacePath }),
+      readToolNotes({ workspacePath: this.workspacePath }),
       readWorkspaceGuide({ workspacePath: this.workspacePath }),
+      scanWorkspaceSkills({ workspacePath: this.workspacePath }),
     ]);
+
+    const skills = getEligibleSkills({
+      skills: allSkills,
+      skillsConfig: this.skillsConfig,
+      fullConfig: this.fullConfig,
+    });
 
     const sharedSystemMessage = getSharedSystemMessage({
       workspacePath: this.workspacePath,
@@ -330,7 +347,7 @@ export class SchedulerExecutor {
       messages: [
         sharedSystemMessage,
         workspaceGuideMessage,
-        getSkillsSystemMessage({ toolsIndexContent }),
+        getSkillsSystemMessage({ skills, toolNotesContent }),
         getScheduledExecutionSystemMessage(),
         {
           role: "user",

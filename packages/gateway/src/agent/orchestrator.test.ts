@@ -15,7 +15,7 @@ vi.mock("../onboarding/personality.js", () => ({
 }));
 
 vi.mock("../ai/prompts.js", () => ({
-  readToolsIndex: vi.fn(async () => null),
+  readToolNotes: vi.fn(async () => null),
   getSharedSystemMessage: vi.fn(() => ({ role: "system", content: "shared" })),
   getWorkspaceGuideSystemMessage: vi.fn(() => ({ role: "system", content: "workspace" })),
   getSkillsSystemMessage: vi.fn(() => ({ role: "system", content: "skills" })),
@@ -26,6 +26,11 @@ vi.mock("../ai/prompts.js", () => ({
   buildScheduleFollowupSystemNote: vi.fn(() => "schedule followup"),
   buildScheduledTaskUserContent: vi.fn(() => "scheduled task"),
   getScheduledExecutionSystemMessage: vi.fn(() => ({ role: "system", content: "scheduled" })),
+}));
+
+vi.mock("../workspace/skills/index.js", () => ({
+  scanWorkspaceSkills: vi.fn(async () => []),
+  getEligibleSkills: vi.fn(({ skills }: any) => skills),
 }));
 
 function createMockAdapter(): ChannelAdapter {
@@ -108,6 +113,8 @@ function createOrchestrator(deps: ReturnType<typeof createMockDeps>) {
     shellConfig: { mode: "allowlist" as const, allowedCommands: [] },
     useReplyChainKey: false,
     historyLimit: 40,
+    skillsConfig: { entries: {} },
+    fullConfig: {},
   });
 }
 

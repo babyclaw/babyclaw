@@ -9,13 +9,15 @@ import {
   getSharedSystemMessage,
   getSkillsSystemMessage,
   getWorkspaceGuideSystemMessage,
-  readToolsIndex,
+  readToolNotes,
 } from "../ai/prompts.js";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
 import type { ChannelSender } from "../channel/types.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
+import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
+import type { SkillsConfig } from "../workspace/skills/types.js";
 import {
   hasCompletePersonalityFiles,
   readPersonalityFiles,
@@ -49,6 +51,8 @@ type HeartbeatExecutorInput = {
   browserMcpClient?: BrowserMcpClient;
   heartbeatConfig: HeartbeatConfig;
   historyLimit: number;
+  skillsConfig: SkillsConfig;
+  fullConfig: Record<string, unknown>;
 };
 
 export class HeartbeatExecutor {
@@ -68,6 +72,8 @@ export class HeartbeatExecutor {
   private readonly browserMcpClient?: BrowserMcpClient;
   private readonly heartbeatConfig: HeartbeatConfig;
   private readonly historyLimit: number;
+  private readonly skillsConfig: SkillsConfig;
+  private readonly fullConfig: Record<string, unknown>;
   private running = false;
 
   constructor({
@@ -87,6 +93,8 @@ export class HeartbeatExecutor {
     browserMcpClient,
     heartbeatConfig,
     historyLimit,
+    skillsConfig,
+    fullConfig,
   }: HeartbeatExecutorInput) {
     this.workspacePath = workspacePath;
     this.aiAgent = aiAgent;
@@ -104,6 +112,8 @@ export class HeartbeatExecutor {
     this.browserMcpClient = browserMcpClient;
     this.heartbeatConfig = heartbeatConfig;
     this.historyLimit = historyLimit;
+    this.skillsConfig = skillsConfig;
+    this.fullConfig = fullConfig;
   }
 
   async execute(): Promise<void> {
@@ -150,12 +160,19 @@ export class HeartbeatExecutor {
         platform: mainChat.platform,
       });
 
-      const [personalityFiles, toolsIndexContent, agentsContent] =
+      const [personalityFiles, toolNotesContent, agentsContent, allSkills] =
         await Promise.all([
           readPersonalityFiles({ workspacePath: this.workspacePath }),
-          readToolsIndex({ workspacePath: this.workspacePath }),
+          readToolNotes({ workspacePath: this.workspacePath }),
           readWorkspaceGuide({ workspacePath: this.workspacePath }),
+          scanWorkspaceSkills({ workspacePath: this.workspacePath }),
         ]);
+
+      const skills = getEligibleSkills({
+        skills: allSkills,
+        skillsConfig: this.skillsConfig,
+        fullConfig: this.fullConfig,
+      });
 
       const history = await this.sessionManager.getMessages({
         identity: sessionIdentity,
@@ -170,7 +187,7 @@ export class HeartbeatExecutor {
             : undefined,
         }),
         getWorkspaceGuideSystemMessage({ agentsContent }),
-        getSkillsSystemMessage({ toolsIndexContent }),
+        getSkillsSystemMessage({ skills, toolNotesContent }),
         getSchedulerGuidanceSystemMessage(),
         getMainSessionSystemMessage({ linkedChats }),
         getHeartbeatSystemMessage({ instructions }),
