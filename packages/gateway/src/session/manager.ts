@@ -1,18 +1,10 @@
 import { MessageRole, PrismaClient, type Message } from "@prisma/client";
 import type { ModelMessage } from "ai";
-import type { Context } from "grammy";
 import type {
   DeriveSessionIdentityInput,
   PersistedMessageInput,
   SessionIdentity,
 } from "./types.js";
-
-type MessageLike = {
-  message_thread_id?: number;
-  reply_to_message?: {
-    message_id?: number;
-  };
-};
 
 type SessionManagerConstructorInput = {
   prisma: PrismaClient;
@@ -51,29 +43,21 @@ export class SessionManager {
   }
 
   static deriveSessionIdentity({
-    ctx,
+    platform,
+    chatId,
+    threadId: rawThreadId,
+    replyToMessageId: rawReplyToMessageId,
     useReplyChainKey = false,
   }: DeriveSessionIdentityInput): SessionIdentity {
-    if (!ctx.chat) {
-      throw new Error("Cannot derive a session key without chat context.");
-    }
-
-    const chatId = BigInt(ctx.chat.id);
-    const message = getMessageLike({ ctx });
-    const threadId =
-      typeof message?.message_thread_id === "number"
-        ? BigInt(message.message_thread_id)
-        : null;
-    const replyToMessageId =
-      typeof message?.reply_to_message?.message_id === "number"
-        ? BigInt(message.reply_to_message.message_id)
-        : null;
+    const threadId = rawThreadId ?? null;
+    const replyToMessageId = rawReplyToMessageId ?? null;
+    const prefix = `${platform}:${chatId}`;
 
     if (useReplyChainKey && replyToMessageId !== null) {
       const key =
         threadId !== null
-          ? `${chatId}:${threadId}:reply:${replyToMessageId}`
-          : `${chatId}:reply:${replyToMessageId}`;
+          ? `${prefix}:${threadId}:reply:${replyToMessageId}`
+          : `${prefix}:reply:${replyToMessageId}`;
 
       return {
         key,
@@ -86,7 +70,7 @@ export class SessionManager {
 
     if (threadId !== null) {
       return {
-        key: `${chatId}:${threadId}`,
+        key: `${prefix}:${threadId}`,
         chatId,
         threadId,
         replyToMessageId,
@@ -95,7 +79,7 @@ export class SessionManager {
     }
 
     return {
-      key: `${chatId}`,
+      key: prefix,
       chatId,
       threadId: null,
       replyToMessageId,
@@ -110,9 +94,9 @@ export class SessionManager {
     replyToMessageId,
   }: {
     key: string;
-    chatId: bigint;
-    threadId: bigint | null;
-    replyToMessageId: bigint | null;
+    chatId: string;
+    threadId: string | null;
+    replyToMessageId: string | null;
   }): SessionIdentity {
     return {
       key,
@@ -187,13 +171,13 @@ export class SessionManager {
     return this.prisma.session.upsert({
       where: { key: identity.key },
       update: {
-        chatId: identity.chatId,
-        threadId: identity.threadId,
+        chatId: BigInt(identity.chatId),
+        threadId: identity.threadId ? BigInt(identity.threadId) : null,
       },
       create: {
         key: identity.key,
-        chatId: identity.chatId,
-        threadId: identity.threadId,
+        chatId: BigInt(identity.chatId),
+        threadId: identity.threadId ? BigInt(identity.threadId) : null,
       },
     });
   }
@@ -227,15 +211,6 @@ export class SessionManager {
       },
     });
   }
-}
-
-function getMessageLike({ ctx }: { ctx: Context }): MessageLike | null {
-  const message = (ctx.message ?? ctx.editedMessage) as MessageLike | undefined;
-  if (!message) {
-    return null;
-  }
-
-  return message;
 }
 
 function getEffectiveLimit({

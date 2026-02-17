@@ -1,18 +1,20 @@
-import type { Context } from "grammy";
 import type { MessageRole } from "@prisma/client";
 
 export type SessionScope = "chat" | "topic" | "reply-chain";
 
 export type SessionIdentity = {
   key: string;
-  chatId: bigint;
-  threadId: bigint | null;
-  replyToMessageId: bigint | null;
+  chatId: string;
+  threadId: string | null;
+  replyToMessageId: string | null;
   scope: SessionScope;
 };
 
 export type DeriveSessionIdentityInput = {
-  ctx: Context;
+  platform: string;
+  chatId: string;
+  threadId?: string | null;
+  replyToMessageId?: string | null;
   useReplyChainKey?: boolean;
 };
 
