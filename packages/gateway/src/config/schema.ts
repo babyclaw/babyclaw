@@ -74,6 +74,16 @@ const toolsSchema = z.object({
   },
 });
 
+const skillEntryConfigSchema = z.object({
+  enabled: z.boolean().default(true),
+  apiKey: z.string().min(1).optional(),
+  env: z.record(z.string(), z.string()).optional(),
+}).strict();
+
+const skillsSchema = z.object({
+  entries: z.record(z.string(), skillEntryConfigSchema).default({}),
+}).strict().default({ entries: {} });
+
 const telegramChannelConfigSchema = z.object({
   botToken: z.string().min(1),
 }).strict();
@@ -122,6 +132,7 @@ export const simpleclawConfigSchema = z.object({
     replyChainMode: "default",
   }),
   tools: toolsSchema,
+  skills: skillsSchema,
   heartbeat: z.object({
     enabled: z.boolean().default(false),
     intervalMinutes: z.number().int().min(5).default(30),
