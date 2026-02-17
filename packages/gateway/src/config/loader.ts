@@ -17,6 +17,7 @@ export async function loadConfig(): Promise<SimpleclawConfig> {
   const json = parseJsonConfig({ raw, configPath });
 
   detectLegacyConfig({ json, configPath });
+  normalizeLegacyTelegramConfig({ json });
 
   const parsed = simpleclawConfigSchema.safeParse(json);
   if (!parsed.success) {
@@ -42,6 +43,7 @@ export async function loadConfigRaw(): Promise<SimpleclawConfig | null> {
 
   const raw = await readFile(configPath, "utf8");
   const json = parseJsonConfig({ raw, configPath });
+  normalizeLegacyTelegramConfig({ json });
 
   const parsed = simpleclawConfigSchema.safeParse(json);
   if (!parsed.success) {
@@ -106,8 +108,9 @@ function ensureRequiredSecrets({
 }): void {
   const missing: string[] = [];
 
-  if (isMissingSecret(config.telegram.botToken)) {
-    missing.push("telegram.botToken");
+  const telegramToken = config.channels?.telegram?.botToken ?? config.telegram?.botToken;
+  if (!telegramToken || isMissingSecret(telegramToken)) {
+    missing.push("channels.telegram.botToken");
   }
 
   for (const [key, provider] of Object.entries(config.ai.providers)) {
@@ -122,6 +125,21 @@ function ensureRequiredSecrets({
         ", ",
       )}`,
     );
+  }
+}
+
+function normalizeLegacyTelegramConfig({ json }: { json: unknown }): void {
+  if (typeof json !== "object" || json === null) {
+    return;
+  }
+
+  const obj = json as Record<string, unknown>;
+  if (
+    obj.telegram &&
+    typeof obj.telegram === "object" &&
+    !obj.channels
+  ) {
+    obj.channels = { telegram: obj.telegram };
   }
 }
 

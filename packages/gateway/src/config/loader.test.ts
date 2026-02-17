@@ -41,7 +41,7 @@ describe("loadConfig", () => {
 
       const config = await loadConfig();
 
-      expect(config.telegram.botToken).toBe("telegram-token");
+      expect(config.channels.telegram?.botToken).toBe("telegram-token");
       expect(config.ai.providers.anthropic?.apiKey).toBe("ai-key");
       expect(config.ai.models.chat).toBe("anthropic:claude-sonnet-4-20250514");
       expect(config.session.historyLimit).toBe(40);
@@ -134,7 +134,7 @@ describe("loadConfig", () => {
 
       const config = await loadConfig();
 
-      expect(config.telegram.botToken).toBe("telegram-token");
+      expect(config.channels.telegram?.botToken).toBe("telegram-token");
       expect(config.ai.providers.anthropic?.apiKey).toBe("ai-key");
     } finally {
       await rm(tempHome, { recursive: true, force: true });
@@ -154,6 +154,7 @@ describe("loadConfig", () => {
 
       const created = await readFile(configPath, "utf8");
       expect(created).toContain('"version": 1');
+      expect(created).toContain('"channels"');
       expect(created).toContain('"botToken": "REPLACE_ME"');
     } finally {
       await rm(tempDir, { recursive: true, force: true });
@@ -169,8 +170,10 @@ describe("loadConfig", () => {
 
       const withPlaceholders = {
         version: 1,
-        telegram: {
-          botToken: "REPLACE_ME",
+        channels: {
+          telegram: {
+            botToken: "REPLACE_ME",
+          },
         },
         ai: {
           providers: {
@@ -189,6 +192,57 @@ describe("loadConfig", () => {
       await expect(loadConfig()).rejects.toThrow(
         "required secret values are missing",
       );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("loads new channels.telegram config format", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-channels-"));
+
+    try {
+      const configPath = join(tempDir, "runtime.json");
+      const newFormatConfig = {
+        version: 1,
+        channels: {
+          telegram: {
+            botToken: "new-format-token",
+          },
+        },
+        ai: {
+          providers: {
+            anthropic: {
+              apiKey: "ai-key",
+            },
+          },
+          models: {
+            chat: "anthropic:claude-sonnet-4-20250514",
+            browser: "anthropic:claude-sonnet-4-20250514",
+          },
+        },
+      };
+      await writeFile(configPath, JSON.stringify(newFormatConfig), "utf8");
+      vi.stubEnv(CONFIG_PATH_ENV_VAR, configPath);
+
+      const config = await loadConfig();
+
+      expect(config.channels.telegram?.botToken).toBe("new-format-token");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("normalizes legacy telegram config into channels", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-legacy-"));
+
+    try {
+      const configPath = join(tempDir, "runtime.json");
+      await writeFile(configPath, JSON.stringify(createValidConfig()), "utf8");
+      vi.stubEnv(CONFIG_PATH_ENV_VAR, configPath);
+
+      const config = await loadConfig();
+
+      expect(config.channels.telegram?.botToken).toBe("telegram-token");
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

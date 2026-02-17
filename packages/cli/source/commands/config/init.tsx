@@ -77,7 +77,7 @@ export default function ConfigInit({ options: opts }: Props) {
         <Text color={colors.muted}>  Next: run </Text>
         <Text color={colors.info}>simpleclaw model configure</Text>
         <Text color={colors.muted}> to set up AI providers, or edit </Text>
-        <Text color={colors.info}>telegram.botToken</Text>
+        <Text color={colors.info}>channels.telegram.botToken</Text>
         <Text color={colors.muted}> and </Text>
         <Text color={colors.info}>ai.providers</Text>
         <Text color={colors.muted}> manually.</Text>

@@ -74,11 +74,20 @@ const toolsSchema = z.object({
   },
 });
 
+const telegramChannelConfigSchema = z.object({
+  botToken: z.string().min(1),
+}).strict();
+
+const channelsSchema = z.object({
+  telegram: telegramChannelConfigSchema.optional(),
+}).strict().default({});
+
 export const simpleclawConfigSchema = z.object({
   version: z.literal(1),
   telegram: z.object({
     botToken: z.string().min(1),
-  }).strict(),
+  }).strict().optional(),
+  channels: channelsSchema,
   ai: z.object({
     providers: aiProvidersSchema,
     models: aiModelsSchema,

@@ -2,8 +2,10 @@ import { DEFAULT_SHELL_ALLOWED_COMMANDS, DEFAULT_SHELL_MODE } from "./shell-defa
 
 const DEFAULT_CONFIG_TEMPLATE = {
   version: 1,
-  telegram: {
-    botToken: "REPLACE_ME",
+  channels: {
+    telegram: {
+      botToken: "REPLACE_ME",
+    },
   },
   ai: {
     providers: {
