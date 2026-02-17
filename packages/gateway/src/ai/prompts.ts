@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Chat } from "@prisma/client";
 import type { ModelMessage } from "ai";
 import type { CompletePersonalityFiles } from "../onboarding/personality.js";
+import type { SkillEntry } from "../workspace/skills/types.js";
 
 type SharedContextInput = {
   workspacePath: string;
@@ -82,7 +83,7 @@ export function buildScheduledTaskUserContent({
   ].join("\n");
 }
 
-export async function readToolsIndex({
+export async function readToolNotes({
   workspacePath,
 }: {
   workspacePath: string;
@@ -96,56 +97,75 @@ export async function readToolsIndex({
 }
 
 export function getSkillsSystemMessage({
-  toolsIndexContent,
+  skills,
+  toolNotesContent,
 }: {
-  toolsIndexContent?: string;
+  skills: SkillEntry[];
+  toolNotesContent?: string;
 }): ModelMessage {
   return {
     role: "system",
-    content: buildSkillsSystemPrompt({ toolsIndexContent }),
+    content: buildSkillsSystemPrompt({ skills, toolNotesContent }),
   };
 }
 
 function buildSkillsSystemPrompt({
-  toolsIndexContent,
+  skills,
+  toolNotesContent,
 }: {
-  toolsIndexContent?: string;
+  skills: SkillEntry[];
+  toolNotesContent?: string;
 }): string {
   const lines = [
-    "You have access to a skills system. Skills are markdown files in the skills/ directory of your workspace that teach you how to perform specific tasks.",
-    "",
-    "IMPORTANT: TOOLS.md is ONLY an index for matching — it contains short summaries, NOT the actual skill instructions. You MUST always read the full skill file before applying it. Never act on the summary alone.",
+    "You have access to a skills system. Skills are SKILL.md files inside the skills/ directory of your workspace that teach you how to perform specific tasks.",
     "",
     "Using skills:",
-    "1. When you receive a request, check the skills index below to see if a relevant skill exists.",
-    "2. If a skill matches, you MUST call workspace_read on the skill file (e.g. path \"skills/<name>.md\") to get the full instructions. Do NOT skip this step.",
-    "3. Follow the instructions from the skill file you just read — not the summary from TOOLS.md.",
+    '1. When you receive a request, check the <available_skills> listing below to see if a relevant skill exists.',
+    '2. If a skill matches, you MUST call workspace_read on the skill path to get the full instructions. Do NOT skip this step — the listing only contains a short description, not the actual instructions.',
+    "3. Follow the instructions from the skill file you just read.",
     "4. If no skill matches, proceed normally with your built-in capabilities.",
-    "",
-    "Maintaining TOOLS.md:",
-    "- TOOLS.md at the workspace root is your index of available skills. It is your responsibility to maintain this file.",
-    "- If TOOLS.md does not exist yet, bootstrap it: use workspace_list on \"skills/\" to discover skill files, read each one, then write a TOOLS.md summarizing every skill with its filename and a short description of when to use it.",
-    "- When you notice skills have been added, removed, or changed, update TOOLS.md accordingly.",
-    "- Keep TOOLS.md concise: one line per skill with the filename and a brief description.",
   ];
 
-  if (toolsIndexContent) {
-    lines.push(
-      "",
-      "Current skills index:",
-      "",
-      "<tools_index>",
-      toolsIndexContent,
-      "</tools_index>",
-    );
+  if (skills.length > 0) {
+    lines.push("", "<available_skills>");
+    for (const skill of skills) {
+      const emoji = skill.frontmatter.openclaw?.emoji;
+      const emojiAttr = emoji ? ` emoji="${emoji}"` : "";
+      lines.push(
+        `  <skill name="${escapeXmlAttr(skill.frontmatter.name)}"${emojiAttr}>`,
+        `    <description>${escapeXmlText(skill.frontmatter.description)}</description>`,
+        `    <path>${escapeXmlText(skill.relativePath)}</path>`,
+        "  </skill>",
+      );
+    }
+    lines.push("</available_skills>");
   } else {
     lines.push(
       "",
-      "No TOOLS.md found. If skills/ exists and contains skill files, bootstrap TOOLS.md on your next opportunity.",
+      "No skills are currently available.",
+    );
+  }
+
+  if (toolNotesContent) {
+    lines.push(
+      "",
+      "The following are environment-specific tool configuration notes from TOOLS.md. These contain details unique to the user's setup (device names, SSH hosts, preferences, etc.):",
+      "",
+      "<tool_notes>",
+      toolNotesContent,
+      "</tool_notes>",
     );
   }
 
   return lines.join("\n");
+}
+
+function escapeXmlAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function escapeXmlText(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 export function getWorkspaceGuideSystemMessage({

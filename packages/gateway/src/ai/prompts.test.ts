@@ -115,29 +115,63 @@ describe("buildScheduledTaskUserContent", () => {
 });
 
 describe("getSkillsSystemMessage", () => {
-  it("includes the skills index when provided", () => {
+  it("includes available skills when provided", () => {
     const msg = getSkillsSystemMessage({
-      toolsIndexContent: "- weather.md: fetch weather forecasts",
+      skills: [
+        {
+          frontmatter: {
+            name: "weather",
+            description: "Fetch weather forecasts",
+            userInvocable: true,
+            disableModelInvocation: false,
+            openclaw: { emoji: "🌤️" },
+          },
+          slug: "weather",
+          relativePath: "skills/weather/SKILL.md",
+        },
+      ],
     });
     expect(msg.role).toBe("system");
-    expect(msg.content).toContain("<tools_index>");
-    expect(msg.content).toContain("weather.md: fetch weather forecasts");
-    expect(msg.content).toContain("</tools_index>");
+    expect(msg.content).toContain("<available_skills>");
+    expect(msg.content).toContain("weather");
+    expect(msg.content).toContain("Fetch weather forecasts");
+    expect(msg.content).toContain("skills/weather/SKILL.md");
+    expect(msg.content).toContain("</available_skills>");
   });
 
-  it("includes bootstrap hint when no tools index exists", () => {
-    const msg = getSkillsSystemMessage({});
-    expect(msg.content).toContain("No TOOLS.md found");
-    expect(msg.content).toContain("bootstrap TOOLS.md");
-    expect(msg.content).not.toContain("<tools_index>");
+  it("shows no skills message when array is empty", () => {
+    const msg = getSkillsSystemMessage({ skills: [] });
+    expect(msg.content).toContain("No skills are currently available");
+    expect(msg.content).not.toContain("</available_skills>");
+  });
+
+  it("includes tool notes when provided", () => {
+    const msg = getSkillsSystemMessage({
+      skills: [],
+      toolNotesContent: "### SSH\n- home-server: 192.168.1.100",
+    });
+    expect(msg.content).toContain("<tool_notes>");
+    expect(msg.content).toContain("home-server");
+    expect(msg.content).toContain("</tool_notes>");
   });
 
   it("always includes the skills usage instructions", () => {
     const msg = getSkillsSystemMessage({
-      toolsIndexContent: "- skill.md: does something",
+      skills: [
+        {
+          frontmatter: {
+            name: "test",
+            description: "Does something",
+            userInvocable: true,
+            disableModelInvocation: false,
+          },
+          slug: "test",
+          relativePath: "skills/test/SKILL.md",
+        },
+      ],
     });
     expect(msg.content).toContain("workspace_read");
-    expect(msg.content).toContain("MUST always read the full skill file");
+    expect(msg.content).toContain("MUST");
   });
 });
 
