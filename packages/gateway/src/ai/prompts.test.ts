@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
+import type { Chat } from "@prisma/client";
 import {
   buildScheduleFollowupSystemNote,
   buildScheduledTaskUserContent,
   getBrowserToolsSystemMessage,
+  getMainSessionSystemMessage,
+  getNonMainSessionSystemMessage,
   getScheduledExecutionSystemMessage,
   getSchedulerGuidanceSystemMessage,
   getSharedSystemMessage,
@@ -187,5 +190,83 @@ describe("getBrowserToolsSystemMessage", () => {
     const msg = getBrowserToolsSystemMessage();
     expect(msg.content).toContain("headless mode");
     expect(msg.content).toContain("File downloads are not supported");
+  });
+});
+
+function makeChatRecord(overrides: Partial<Chat> = {}): Chat {
+  return {
+    id: "chat-1",
+    platform: "telegram",
+    platformChatId: "-1001234567890",
+    type: "group",
+    title: "Family Group",
+    alias: "family",
+    isMain: false,
+    linkedAt: new Date(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+describe("getMainSessionSystemMessage", () => {
+  it("includes MAIN SESSION marker", () => {
+    const msg = getMainSessionSystemMessage({ linkedChats: [] });
+    expect(msg.role).toBe("system");
+    expect(msg.content).toContain("MAIN SESSION");
+  });
+
+  it("lists linked chats with alias, title, type, and platform", () => {
+    const chats = [
+      makeChatRecord({ isMain: true, title: "Owner DM", alias: null }),
+      makeChatRecord({ alias: "family", title: "Family Group", type: "group", platformChatId: "-1001234" }),
+      makeChatRecord({ alias: "work", title: "Work Team", type: "supergroup", platformChatId: "-1009876" }),
+    ];
+    const msg = getMainSessionSystemMessage({ linkedChats: chats });
+    expect(msg.content).toContain('"Family Group" (group, alias: family');
+    expect(msg.content).toContain('"Work Team" (supergroup, alias: work');
+    expect(msg.content).toContain("send_message");
+  });
+
+  it("handles empty linked chats list", () => {
+    const msg = getMainSessionSystemMessage({ linkedChats: [] });
+    expect(msg.content).toContain("MAIN SESSION");
+    expect(msg.content).not.toContain("linked chats:");
+  });
+
+  it("excludes main chat from the list", () => {
+    const chats = [
+      makeChatRecord({ isMain: true, title: "Owner DM", alias: null }),
+    ];
+    const msg = getMainSessionSystemMessage({ linkedChats: chats });
+    expect(msg.content).not.toContain("Owner DM");
+  });
+});
+
+describe("getNonMainSessionSystemMessage", () => {
+  it("includes chat title and alias", () => {
+    const msg = getNonMainSessionSystemMessage({
+      chatTitle: "Family Group",
+      alias: "family",
+    });
+    expect(msg.role).toBe("system");
+    expect(msg.content).toContain('"Family Group"');
+    expect(msg.content).toContain("alias: family");
+    expect(msg.content).toContain("not the main session");
+  });
+
+  it("works without an alias", () => {
+    const msg = getNonMainSessionSystemMessage({
+      chatTitle: "Random Group",
+    });
+    expect(msg.content).toContain('"Random Group"');
+    expect(msg.content).not.toContain("alias:");
+  });
+
+  it("instructs not to load MEMORY.md", () => {
+    const msg = getNonMainSessionSystemMessage({
+      chatTitle: "Test",
+    });
+    expect(msg.content).toContain("Do not load MEMORY.md");
   });
 });

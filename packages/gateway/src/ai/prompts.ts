@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { Chat } from "@prisma/client";
 import type { ModelMessage } from "ai";
 import type { CompletePersonalityFiles } from "../onboarding/personality.js";
 
@@ -208,6 +209,58 @@ export function getBrowserToolsSystemMessage(): ModelMessage {
       "- File downloads are not supported.",
       "- Authentication state (cookies, sessions) does not persist across bot restarts.",
       "- Browser tasks can be slow; prefer direct API calls (curl via shell_exec) when you just need raw data from a public API.",
+    ].join("\n"),
+  };
+}
+
+export function getMainSessionSystemMessage({
+  linkedChats,
+}: {
+  linkedChats: Chat[];
+}): ModelMessage {
+  const lines = [
+    "You are in the MAIN SESSION -- your owner's direct chat.",
+    "You can load MEMORY.md and other sensitive context here.",
+  ];
+
+  const nonMainChats = linkedChats.filter((c) => !c.isMain);
+  if (nonMainChats.length > 0) {
+    lines.push(
+      "",
+      "You are present in these linked chats:",
+    );
+    for (const chat of nonMainChats) {
+      const aliasLabel = chat.alias ? `, alias: ${chat.alias}` : "";
+      lines.push(
+        `- "${chat.title ?? "Untitled"}" (${chat.type}${aliasLabel}, ${chat.platform}:${chat.platformChatId})`,
+      );
+    }
+    lines.push(
+      "",
+      "Use the send_message tool with an alias to message any of these chats.",
+      "Use the list_known_chats tool to refresh this list.",
+    );
+  }
+
+  return {
+    role: "system",
+    content: lines.join("\n"),
+  };
+}
+
+export function getNonMainSessionSystemMessage({
+  chatTitle,
+  alias,
+}: {
+  chatTitle: string;
+  alias?: string;
+}): ModelMessage {
+  const aliasNote = alias ? ` (alias: ${alias})` : "";
+  return {
+    role: "system",
+    content: [
+      `You are in "${chatTitle}"${aliasNote}. This is not the main session.`,
+      "Do not load MEMORY.md or share private context here.",
     ].join("\n"),
   };
 }
