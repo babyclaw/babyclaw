@@ -1,0 +1,64 @@
+export type ChannelCapabilities = {
+  supportsDraft: boolean;
+  supportsMarkdown: boolean;
+  supportsTypingIndicator: boolean;
+  supportsEditing: boolean;
+};
+
+export type NormalizedInboundEvent = {
+  platform: string;
+  chatId: string;
+  threadId?: string;
+  senderId: string;
+  senderName?: string;
+  messageId: string;
+  messageText: string;
+  replyToMessageId?: string;
+  replyToText?: string;
+  isEdited: boolean;
+  chatType?: string;
+  chatTitle?: string;
+  directMessagesTopicId?: string;
+  draftSupported: boolean;
+};
+
+export type ChannelOutboundMessage = {
+  chatId: string;
+  threadId?: string;
+  text: string;
+};
+
+export type ChannelSendResult = {
+  platformMessageId: string;
+};
+
+export type StreamDraftInput = {
+  chatId: string;
+  threadId?: string;
+  textStream: AsyncIterable<string>;
+};
+
+export type InboundEventHandler = (input: {
+  event: NormalizedInboundEvent;
+}) => Promise<void>;
+
+/**
+ * Unified channel adapter interface. Every present and future channel
+ * implements this single contract covering both inbound and outbound.
+ */
+export interface ChannelAdapter {
+  readonly platform: string;
+  readonly capabilities: ChannelCapabilities;
+
+  start(input: { onInboundEvent: InboundEventHandler }): Promise<void>;
+  stop(): Promise<void>;
+
+  sendMessage(input: ChannelOutboundMessage): Promise<ChannelSendResult>;
+  streamDraft?(input: StreamDraftInput): Promise<string>;
+}
+
+/**
+ * Convenience type for consumers that only need the outbound send capability
+ * (e.g. delivery service, heartbeat executor, messaging tools).
+ */
+export type ChannelSender = Pick<ChannelAdapter, "platform" | "sendMessage">;
