@@ -23,29 +23,38 @@
     "ai": {
       "type": "object",
       "properties": {
-        "gatewayApiKey": {
-          "type": "string",
-          "minLength": 1
-        },
-        "baseUrl": {
-          "default": "https://ai-gateway.vercel.sh/v1",
-          "type": "string",
-          "format": "uri"
+        "providers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "apiKey": {
+                "type": "string",
+                "minLength": 1
+              },
+              "baseUrl": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "required": [
+              "apiKey"
+            ],
+            "additionalProperties": false
+          }
         },
         "models": {
-          "default": {
-            "chat": "anthropic/claude-sonnet-4-20250514",
-            "browser": "anthropic/claude-opus-4.6"
-          },
           "type": "object",
           "properties": {
             "chat": {
-              "default": "anthropic/claude-sonnet-4-20250514",
               "type": "string",
               "minLength": 1
             },
             "browser": {
-              "default": "anthropic/claude-opus-4.6",
               "type": "string",
               "minLength": 1
             }
@@ -55,12 +64,25 @@
             "browser"
           ],
           "additionalProperties": false
+        },
+        "aliases": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-z0-9_-]+$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "required": [
-        "gatewayApiKey",
-        "baseUrl",
-        "models"
+        "providers",
+        "models",
+        "aliases"
       ],
       "additionalProperties": false
     },

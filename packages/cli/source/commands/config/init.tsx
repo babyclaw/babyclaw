@@ -74,12 +74,13 @@ export default function ConfigInit({ options: opts }: Props) {
       <Text color={colors.success}>✓ Config created!</Text>
       <Text color={colors.muted}>  {configPath}</Text>
       <Text>
-        <Text color={colors.muted}>  Next: edit </Text>
+        <Text color={colors.muted}>  Next: run </Text>
+        <Text color={colors.info}>simpleclaw model configure</Text>
+        <Text color={colors.muted}> to set up AI providers, or edit </Text>
         <Text color={colors.info}>telegram.botToken</Text>
         <Text color={colors.muted}> and </Text>
-        <Text color={colors.info}>ai.gatewayApiKey</Text>
-        <Text color={colors.muted}> in the config, then run </Text>
-        <Text color={colors.info}>simpleclaw config validate</Text>
+        <Text color={colors.info}>ai.providers</Text>
+        <Text color={colors.muted}> manually.</Text>
       </Text>
     </Box>
   );

@@ -41,10 +41,10 @@ function getSystemdUnitPath(): string {
 function getGatewayEntryPath(): string {
   try {
     const require = createRequire(import.meta.url);
-    return require.resolve("@simpleclaw/gateway/dist/index.js");
+    return require.resolve("@simpleclaw/gateway/dist/main.js");
   } catch {
     const thisDir = dirname(fileURLToPath(import.meta.url));
-    return join(thisDir, "..", "..", "..", "gateway", "dist", "index.js");
+    return join(thisDir, "..", "..", "..", "gateway", "dist", "main.js");
   }
 }
 
