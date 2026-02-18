@@ -9,6 +9,8 @@ import type {
   InboundEventHandler,
   NormalizedInboundEvent,
   StreamDraftInput,
+  StreamTurnInput,
+  StreamTurnResult,
 } from "../channel/types.js";
 import { isOwner } from "../channel/authorization.js";
 import type { MessageLinkRepository } from "../channel/message-link.js";
@@ -17,7 +19,7 @@ import type { SchedulerService } from "../scheduler/service.js";
 import { formatSchedulesForCommand } from "../scheduler/formatter.js";
 import type { SessionState } from "../session/types.js";
 import { sendMessageMarkdownV2, replyMarkdownV2 } from "./markdown.js";
-import { streamDraftToChat } from "./draft.js";
+import { streamDraftToChat, streamTurnToChat } from "./draft.js";
 
 const ALIAS_PATTERN = /^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$/;
 
@@ -103,6 +105,33 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
       textStream: input.textStream,
       supportsDraft: this.capabilities.supportsDraft,
       messageThreadId: input.threadId !== undefined ? Number(input.threadId) : undefined,
+    });
+  }
+
+  async streamTurn(input: StreamTurnInput): Promise<StreamTurnResult> {
+    const api = this.getApi();
+    const chatId = Number(input.chatId);
+    const messageThreadId = input.threadId !== undefined ? Number(input.threadId) : undefined;
+    const options: Record<string, unknown> = {};
+    if (messageThreadId !== undefined) {
+      options.message_thread_id = messageThreadId;
+    }
+
+    return streamTurnToChat({
+      api,
+      chatId,
+      agentStream: input.agentStream,
+      supportsDraft: this.capabilities.supportsDraft,
+      messageThreadId,
+      sendMessage: async ({ text }) => {
+        const sent = await sendMessageMarkdownV2({
+          api,
+          chatId: String(chatId),
+          text,
+          options,
+        });
+        return { platformMessageId: String(sent.message_id) };
+      },
     });
   }
 

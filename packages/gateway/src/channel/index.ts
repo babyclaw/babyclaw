@@ -1,4 +1,5 @@
 export type {
+  AgentStreamEvent,
   ChannelAdapter,
   ChannelCapabilities,
   ChannelOutboundMessage,
@@ -7,6 +8,8 @@ export type {
   InboundEventHandler,
   NormalizedInboundEvent,
   StreamDraftInput,
+  StreamTurnInput,
+  StreamTurnResult,
 } from "./types.js";
 
 export { ChannelRouter } from "./router.js";

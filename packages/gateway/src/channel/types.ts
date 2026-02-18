@@ -38,6 +38,23 @@ export type StreamDraftInput = {
   textStream: AsyncIterable<string>;
 };
 
+export type AgentStreamEvent =
+  | { type: "reasoning-delta"; text: string }
+  | { type: "text-delta"; text: string }
+  | { type: "step-finish" }
+  | { type: "finish" };
+
+export type StreamTurnInput = {
+  chatId: string;
+  threadId?: string;
+  agentStream: AsyncIterable<AgentStreamEvent>;
+};
+
+export type StreamTurnResult = {
+  fullText: string;
+  lastPlatformMessageId?: string;
+};
+
 export type InboundEventHandler = (input: {
   event: NormalizedInboundEvent;
 }) => Promise<void>;
@@ -55,6 +72,7 @@ export interface ChannelAdapter {
 
   sendMessage(input: ChannelOutboundMessage): Promise<ChannelSendResult>;
   streamDraft?(input: StreamDraftInput): Promise<string>;
+  streamTurn?(input: StreamTurnInput): Promise<StreamTurnResult>;
 }
 
 /**

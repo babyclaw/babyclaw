@@ -1,6 +1,6 @@
 import { MessageRole } from "@prisma/client";
 import type { Chat } from "@prisma/client";
-import { hasToolCall, type ModelMessage } from "ai";
+import { hasToolCall, type ModelMessage, type TextStreamPart, type ToolSet } from "ai";
 import { AiAgent } from "../ai/agent.js";
 import type { CommandApprovalService } from "../approval/service.js";
 import {
@@ -17,7 +17,7 @@ import {
 } from "../ai/prompts.js";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { ChannelRouter } from "../channel/router.js";
-import type { NormalizedInboundEvent } from "../channel/types.js";
+import type { AgentStreamEvent, NormalizedInboundEvent } from "../channel/types.js";
 import type { MessageLinkRepository } from "../channel/message-link.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
 import type { ChatRegistry } from "../chat/registry.js";
@@ -505,8 +505,17 @@ export class AgentTurnOrchestrator {
     (streamResult.text as Promise<string>).catch(() => {});
 
     let assistantResponse: string;
+    let alreadySentMessageId: string | undefined;
     try {
-      if (adapter.streamDraft && event.draftSupported) {
+      if (adapter.streamTurn && event.draftSupported) {
+        const turnResult = await adapter.streamTurn({
+          chatId: event.chatId,
+          threadId: event.threadId,
+          agentStream: toAgentStream({ fullStream: streamResult.fullStream }),
+        });
+        assistantResponse = turnResult.fullText;
+        alreadySentMessageId = turnResult.lastPlatformMessageId;
+      } else if (adapter.streamDraft && event.draftSupported) {
         assistantResponse = await adapter.streamDraft({
           chatId: event.chatId,
           threadId: event.threadId,
@@ -590,21 +599,27 @@ export class AgentTurnOrchestrator {
       ],
     });
 
-    const sendResult = await adapter.sendMessage({
-      chatId: event.chatId,
-      text: assistantResponse,
-      threadId: event.threadId,
-    });
+    let platformMessageId: string;
+    if (alreadySentMessageId) {
+      platformMessageId = alreadySentMessageId;
+    } else {
+      const sendResult = await adapter.sendMessage({
+        chatId: event.chatId,
+        text: assistantResponse,
+        threadId: event.threadId,
+      });
+      platformMessageId = sendResult.platformMessageId;
+    }
 
     this.log.debug(
-      { sessionKey: sessionIdentity.key, responseLength: assistantResponse.length, messageId: sendResult.platformMessageId },
+      { sessionKey: sessionIdentity.key, responseLength: assistantResponse.length, messageId: platformMessageId },
       "Response sent to channel",
     );
 
     await this.messageLinkRepository.upsertMessageLink({
       platform: event.platform,
       platformChatId: event.chatId,
-      platformMessageId: sendResult.platformMessageId,
+      platformMessageId,
       sessionKey: sessionIdentity.key,
     });
   }
@@ -727,4 +742,27 @@ function formatWaitDuration({ seconds }: { seconds: number }): string {
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
   return remaining > 0 ? `${minutes}m ${remaining}s` : `${minutes}m`;
+}
+
+async function* toAgentStream({
+  fullStream,
+}: {
+  fullStream: AsyncIterable<TextStreamPart<ToolSet>>;
+}): AsyncGenerator<AgentStreamEvent> {
+  for await (const part of fullStream) {
+    switch (part.type) {
+      case "reasoning-delta":
+        yield { type: "reasoning-delta", text: part.text };
+        break;
+      case "text-delta":
+        yield { type: "text-delta", text: part.text };
+        break;
+      case "finish-step":
+        yield { type: "step-finish" };
+        break;
+      case "finish":
+        yield { type: "finish" };
+        break;
+    }
+  }
 }

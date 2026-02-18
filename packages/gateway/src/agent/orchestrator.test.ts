@@ -56,6 +56,22 @@ function createMockAdapter(): ChannelAdapter {
     },
     sendMessage: vi.fn(async () => ({ platformMessageId: "msg-1" })),
     streamDraft: vi.fn(async () => "streamed response"),
+    streamTurn: vi.fn(async ({ agentStream }: any) => {
+      const texts: string[] = [];
+      let stepText = "";
+      let lastId: string | undefined;
+      for await (const event of agentStream) {
+        if (event.type === "text-delta") stepText += event.text;
+        if (event.type === "step-finish") {
+          if (stepText.trim()) {
+            texts.push(stepText.trim());
+            lastId = "msg-turn-1";
+          }
+          stepText = "";
+        }
+      }
+      return { fullText: texts.join("\n\n"), lastPlatformMessageId: lastId };
+    }),
     start: vi.fn(async () => {}),
     stop: vi.fn(async () => {}),
   };
@@ -74,10 +90,16 @@ function createMockDeps(overrides: Record<string, any> = {}) {
       appendMessages: vi.fn(async () => {}),
     },
     aiAgent: {
-      chatStreamWithTools: vi.fn((): { textStream: AsyncIterable<string>; text: Promise<string> } => ({
-        textStream: (async function* (): AsyncGenerator<string> {
+      chatStreamWithTools: vi.fn(() => ({
+        textStream: (async function* () {
           yield "Hello ";
           yield "world";
+        })(),
+        fullStream: (async function* () {
+          yield { type: "text-delta", id: "1", text: "Hello " };
+          yield { type: "text-delta", id: "1", text: "world" };
+          yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+          yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
         })(),
         text: Promise.resolve("Hello world"),
       })),
@@ -208,7 +230,7 @@ describe("AgentTurnOrchestrator", () => {
       });
 
       await vi.waitFor(() => {
-        expect(deps.adapter.sendMessage).toHaveBeenCalled();
+        expect(deps.adapter.streamTurn).toHaveBeenCalled();
       });
     });
 
@@ -221,7 +243,7 @@ describe("AgentTurnOrchestrator", () => {
       });
 
       await vi.waitFor(() => {
-        expect(deps.adapter.sendMessage).toHaveBeenCalledWith(
+        expect(deps.adapter.streamTurn).toHaveBeenCalledWith(
           expect.objectContaining({
             chatId: "12345",
           }),
@@ -229,8 +251,23 @@ describe("AgentTurnOrchestrator", () => {
       });
     });
 
-    it("uses streamDraft when adapter supports it and event allows it", async () => {
+    it("uses streamTurn when adapter supports it and event allows draft", async () => {
       const deps = createMockDeps();
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ draftSupported: true }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.adapter.streamTurn).toHaveBeenCalled();
+      });
+      expect(deps.adapter.streamDraft).not.toHaveBeenCalled();
+    });
+
+    it("falls back to streamDraft when streamTurn is not available", async () => {
+      const deps = createMockDeps();
+      deps.adapter.streamTurn = undefined;
       const orchestrator = createOrchestrator(deps);
 
       await orchestrator.handleInboundEvent({
@@ -274,7 +311,7 @@ describe("AgentTurnOrchestrator", () => {
           expect.objectContaining({
             platform: "test",
             platformChatId: "12345",
-            platformMessageId: "msg-1",
+            platformMessageId: "msg-turn-1",
           }),
         );
       });
@@ -343,24 +380,20 @@ describe("AgentTurnOrchestrator", () => {
       const deps = createMockDeps();
 
       (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-        (): { textStream: AsyncIterable<string>; text: Promise<string> } => {
-          const stream = (async function* (): AsyncGenerator<string> {
-            yield "start";
-            throw new Error("AI failed");
-          })();
+        () => {
           return {
-            textStream: stream,
+            textStream: (async function* () {
+              yield "start";
+              throw new Error("AI failed");
+            })(),
+            fullStream: (async function* () {
+              yield { type: "text-delta", id: "1", text: "start" };
+              throw new Error("AI failed");
+            })(),
             text: Promise.reject(new Error("AI failed")),
           };
         },
       );
-
-      deps.adapter.streamDraft = vi.fn(async ({ textStream }: any) => {
-        for await (const _chunk of textStream) {
-          // consume the stream -- will throw
-        }
-        return "";
-      });
 
       const orchestrator = createOrchestrator(deps);
 
@@ -392,17 +425,20 @@ describe("AgentTurnOrchestrator", () => {
       note: string;
     }): void {
       (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-        (): { textStream: AsyncIterable<string>; text: Promise<string> } => {
+        () => {
           if (capturedTurnSignals) {
             capturedTurnSignals.continuation = { seconds, note };
           }
           return {
-            textStream: (async function* (): AsyncGenerator<string> {})(),
+            textStream: (async function* () {})(),
+            fullStream: (async function* () {
+              yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+              yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
+            })(),
             text: Promise.resolve(""),
           };
         },
       );
-      deps.adapter.streamDraft = vi.fn(async () => "");
     }
 
     it("sends a waiting message when the tool sets continuation", async () => {
@@ -484,30 +520,32 @@ describe("AgentTurnOrchestrator", () => {
       const deps = createMockDeps();
       let callCount = 0;
       (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-        (): { textStream: AsyncIterable<string>; text: Promise<string> } => {
+        () => {
           callCount++;
           if (callCount === 1 && capturedTurnSignals) {
             capturedTurnSignals.continuation = { seconds: 5, note: "check output" };
             return {
-              textStream: (async function* (): AsyncGenerator<string> {})(),
+              textStream: (async function* () {})(),
+              fullStream: (async function* () {
+                yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+                yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
+              })(),
               text: Promise.resolve(""),
             };
           }
           return {
-            textStream: (async function* (): AsyncGenerator<string> {
+            textStream: (async function* () {
               yield "Done checking";
+            })(),
+            fullStream: (async function* () {
+              yield { type: "text-delta", id: "1", text: "Done checking" };
+              yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+              yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
             })(),
             text: Promise.resolve("Done checking"),
           };
         },
       );
-      deps.adapter.streamDraft = vi.fn(async ({ textStream }: any) => {
-        let result = "";
-        for await (const chunk of textStream) {
-          result += chunk;
-        }
-        return result;
-      });
 
       const orchestrator = createOrchestrator(deps);
 
@@ -571,30 +609,32 @@ describe("AgentTurnOrchestrator", () => {
       const deps = createMockDeps();
       let callCount = 0;
       (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-        (): { textStream: AsyncIterable<string>; text: Promise<string> } => {
+        () => {
           callCount++;
           if (callCount === 1 && capturedTurnSignals) {
             capturedTurnSignals.continuation = { seconds: 600, note: "waiting" };
             return {
-              textStream: (async function* (): AsyncGenerator<string> {})(),
+              textStream: (async function* () {})(),
+              fullStream: (async function* () {
+                yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+                yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
+              })(),
               text: Promise.resolve(""),
             };
           }
           return {
-            textStream: (async function* (): AsyncGenerator<string> {
+            textStream: (async function* () {
               yield "response";
+            })(),
+            fullStream: (async function* () {
+              yield { type: "text-delta", id: "1", text: "response" };
+              yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+              yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
             })(),
             text: Promise.resolve("response"),
           };
         },
       );
-      deps.adapter.streamDraft = vi.fn(async ({ textStream }: any) => {
-        let result = "";
-        for await (const chunk of textStream) {
-          result += chunk;
-        }
-        return result;
-      });
 
       const orchestrator = createOrchestrator(deps);
 

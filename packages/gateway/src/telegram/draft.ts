@@ -1,4 +1,5 @@
 import type { Api } from "grammy";
+import type { AgentStreamEvent, ChannelSendResult } from "../channel/types.js";
 
 type StreamDraftToChatInput = {
   api: Api;
@@ -7,6 +8,21 @@ type StreamDraftToChatInput = {
   supportsDraft: boolean;
   messageThreadId?: number;
   throttleMs?: number;
+};
+
+type StreamTurnToChatInput = {
+  api: Api;
+  chatId: number;
+  agentStream: AsyncIterable<AgentStreamEvent>;
+  supportsDraft: boolean;
+  messageThreadId?: number;
+  throttleMs?: number;
+  sendMessage: (input: { text: string }) => Promise<ChannelSendResult>;
+};
+
+type StreamTurnToChatResult = {
+  fullText: string;
+  lastPlatformMessageId?: string;
 };
 
 type SendDraftInput = {
@@ -86,6 +102,77 @@ export async function streamDraftToChat({
   }
 
   return accumulatedText.trim();
+}
+
+export async function streamTurnToChat({
+  api,
+  chatId,
+  agentStream,
+  supportsDraft,
+  messageThreadId,
+  throttleMs = DEFAULT_THROTTLE_MS,
+  sendMessage,
+}: StreamTurnToChatInput): Promise<StreamTurnToChatResult> {
+  const stepTexts: string[] = [];
+  let lastPlatformMessageId: string | undefined;
+
+  let reasoningText = "";
+  let stepText = "";
+  let draftSendingEnabled = supportsDraft;
+  let lastDraftSentAt = 0;
+  let draftId = createDraftId();
+
+  for await (const event of agentStream) {
+    switch (event.type) {
+      case "reasoning-delta": {
+        if (!draftSendingEnabled || event.text.length === 0) break;
+
+        reasoningText += event.text;
+        if (reasoningText.length > MAX_DRAFT_TEXT_LENGTH) {
+          draftSendingEnabled = false;
+          break;
+        }
+
+        const now = Date.now();
+        if (now - lastDraftSentAt < throttleMs) break;
+
+        const ok = await sendDraft({ api, chatId, draftId, text: reasoningText, messageThreadId });
+        if (!ok) {
+          draftSendingEnabled = false;
+          break;
+        }
+        lastDraftSentAt = now;
+        break;
+      }
+
+      case "text-delta": {
+        stepText += event.text;
+        break;
+      }
+
+      case "step-finish": {
+        const trimmed = stepText.trim();
+        if (trimmed.length > 0) {
+          const result = await sendMessage({ text: trimmed });
+          lastPlatformMessageId = result.platformMessageId;
+          stepTexts.push(trimmed);
+        }
+        stepText = "";
+        reasoningText = "";
+        draftSendingEnabled = supportsDraft;
+        draftId = createDraftId();
+        break;
+      }
+
+      case "finish":
+        break;
+    }
+  }
+
+  return {
+    fullText: stepTexts.join("\n\n"),
+    lastPlatformMessageId,
+  };
 }
 
 function createDraftId(): number {

@@ -7,6 +7,7 @@ import {
   tool,
   type LanguageModel,
   type ModelMessage,
+  type TextStreamPart,
   type ToolSet,
 } from "ai";
 import type { z } from "zod";
@@ -22,6 +23,7 @@ type ChatInput = {
 
 type ChatStreamResult = {
   textStream: AsyncIterable<string>;
+  fullStream: AsyncIterable<TextStreamPart<ToolSet>>;
   text: PromiseLike<string>;
 };
 
@@ -77,6 +79,7 @@ export class AiAgent {
 
     return {
       textStream: result.textStream,
+      fullStream: result.fullStream,
       text: result.text,
     };
   }
@@ -112,6 +115,7 @@ export class AiAgent {
 
     return {
       textStream: result.textStream,
+      fullStream: result.fullStream,
       text: result.text,
     };
   }
