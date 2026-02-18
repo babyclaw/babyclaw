@@ -1,6 +1,7 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ZodIssue } from "zod";
+import { getLogger } from "../logging/index.js";
 import { getConfigPath } from "./paths.js";
 import { simpleclawConfigSchema } from "./schema.js";
 import { getDefaultConfigTemplate } from "./template.js";
@@ -9,7 +10,10 @@ import type { SimpleclawConfig } from "./types.js";
 const MISSING_SECRET_PLACEHOLDER = "REPLACE_ME";
 
 export async function loadConfig(): Promise<SimpleclawConfig> {
+  const log = getLogger();
   const configPath = getConfigPath();
+
+  log.debug({ configPath }, "Loading configuration");
 
   await ensureConfigFileExists({ configPath });
 
@@ -22,12 +26,15 @@ export async function loadConfig(): Promise<SimpleclawConfig> {
   const parsed = simpleclawConfigSchema.safeParse(json);
   if (!parsed.success) {
     const issues = parsed.error.issues.map(formatIssue).join("\n");
+    log.error({ configPath, issueCount: parsed.error.issues.length }, "Configuration validation failed");
     throw new Error(
       `Invalid configuration at ${configPath}:\n${issues}`,
     );
   }
 
   ensureRequiredSecrets({ config: parsed.data, configPath });
+
+  log.info({ configPath }, "Configuration validated successfully");
 
   return parsed.data;
 }
@@ -78,8 +85,9 @@ async function ensureConfigFileExists({
 
     await mkdir(dirname(configPath), { recursive: true });
     await writeFile(configPath, getDefaultConfigTemplate(), "utf8");
-    console.warn(
-      `[config] Created config file at ${configPath}. Fill required secrets and restart.`,
+    getLogger().warn(
+      { configPath },
+      "Created config file. Fill required secrets and restart.",
     );
   }
 }

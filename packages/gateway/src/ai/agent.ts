@@ -10,6 +10,7 @@ import {
   type ToolSet,
 } from "ai";
 import type { z } from "zod";
+import { getLogger } from "../logging/index.js";
 
 type CreateAgentInput = {
   model: LanguageModel;
@@ -94,7 +95,7 @@ export class AiAgent {
       stopWhen: [stepCountIs(maxSteps), ...(extraStopConditions ?? [])],
       abortSignal,
       onAbort: ({ steps }) => {
-        console.log(`Agent turn aborted after ${steps.length} step(s).`);
+        getLogger().info({ steps: steps.length }, "Agent turn aborted");
       },
     });
 

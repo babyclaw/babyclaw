@@ -1,5 +1,7 @@
 import { ScheduleStatus, ScheduleType } from "@prisma/client";
 import { CronJob } from "cron";
+import { getLogger } from "../logging/index.js";
+import type { Logger } from "../logging/index.js";
 import { SchedulerExecutor } from "./executor.js";
 import { SchedulerService } from "./service.js";
 import type { ScheduleForRuntime } from "./types.js";
@@ -16,16 +18,19 @@ export class SchedulerRuntime {
   private readonly schedulerExecutor: SchedulerExecutor;
   private readonly jobs = new Map<string, CronJob>();
   private cleanupJob: CronJob | null = null;
+  private readonly log: Logger;
 
   constructor({ schedulerService, schedulerExecutor }: SchedulerRuntimeInput) {
     this.schedulerService = schedulerService;
     this.schedulerExecutor = schedulerExecutor;
+    this.log = getLogger().child({ component: "scheduler" });
   }
 
   async start(): Promise<void> {
     await this.schedulerService.cleanupOldRuns();
 
     const schedules = await this.schedulerService.listActiveSchedulesForRuntime();
+    this.log.info({ activeSchedules: schedules.length }, "Loading active schedules");
     for (const schedule of schedules) {
       await this.syncScheduleRecord({ schedule });
     }
@@ -97,6 +102,11 @@ export class SchedulerRuntime {
         return;
       }
 
+      this.log.debug(
+        { scheduleId: schedule.id, type: "recurring", cron: schedule.cronExpression },
+        "Registering recurring schedule",
+      );
+
       const job = CronJob.from({
         cronTime: schedule.cronExpression,
         timeZone: schedule.timezone,
@@ -113,6 +123,11 @@ export class SchedulerRuntime {
     if (!schedule.runAt) {
       return;
     }
+
+    this.log.debug(
+      { scheduleId: schedule.id, type: "one_off", runAt: schedule.runAt.toISOString() },
+      "Registering one-off schedule",
+    );
 
     const job = CronJob.from({
       cronTime: schedule.runAt,
@@ -135,10 +150,19 @@ export class SchedulerRuntime {
   }
 
   private async fireSchedule({ scheduleId }: { scheduleId: string }): Promise<void> {
+    const startedAt = Date.now();
+    this.log.info({ scheduleId }, "Firing schedule");
     try {
       await this.schedulerExecutor.executeSchedule({ scheduleId });
+      this.log.info(
+        { scheduleId, durationMs: Date.now() - startedAt },
+        "Schedule execution completed",
+      );
     } catch (error) {
-      console.error(`Failed to execute schedule ${scheduleId}:`, error);
+      this.log.error(
+        { err: error, scheduleId, durationMs: Date.now() - startedAt },
+        "Schedule execution failed",
+      );
     } finally {
       await this.syncSchedule({ scheduleId });
     }

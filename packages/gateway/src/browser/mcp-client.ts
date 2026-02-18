@@ -1,5 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { getLogger } from "../logging/index.js";
+import type { Logger } from "../logging/index.js";
 
 type BrowserMcpClientConfig = {
   /** API key passed as OPENAI_API_KEY to browser-use */
@@ -56,9 +58,11 @@ export class BrowserMcpClient {
   private transport: StdioClientTransport | null = null;
   private connecting: Promise<Client> | null = null;
   private readonly config: BrowserMcpClientConfig;
+  private readonly log: Logger;
 
   constructor(config: BrowserMcpClientConfig) {
     this.config = config;
+    this.log = getLogger().child({ component: "browser-mcp" });
   }
 
   async ensureConnected(): Promise<Client> {
@@ -93,11 +97,12 @@ export class BrowserMcpClient {
   }
 
   async shutdown(): Promise<void> {
+    this.log.info("Shutting down MCP client");
     if (this.client) {
       try {
         await this.client.close();
       } catch (error) {
-        console.error("[browser-mcp] Error closing MCP client:", error);
+        this.log.error({ err: error }, "Error closing MCP client");
       }
       this.client = null;
     }
@@ -106,14 +111,15 @@ export class BrowserMcpClient {
       try {
         await this.transport.close();
       } catch (error) {
-        console.error("[browser-mcp] Error closing MCP transport:", error);
+        this.log.error({ err: error }, "Error closing MCP transport");
       }
       this.transport = null;
     }
+    this.log.debug("MCP client shutdown complete");
   }
 
   private async connect(): Promise<Client> {
-    console.log("[browser-mcp] Spawning browser-use MCP server...");
+    this.log.info("Spawning browser-use MCP server");
 
     const env = buildBrowserMcpEnv({
       baseEnv: process.env as Record<string, string>,
@@ -132,17 +138,17 @@ export class BrowserMcpClient {
     });
 
     this.transport.onclose = () => {
-      console.log("[browser-mcp] MCP transport closed, clearing client reference.");
+      this.log.info("MCP transport closed, clearing client reference");
       this.client = null;
       this.transport = null;
     };
 
     this.transport.onerror = (error) => {
-      console.error("[browser-mcp] MCP transport error:", error);
+      this.log.error({ err: error }, "MCP transport error");
     };
 
     await this.client.connect(this.transport);
-    console.log("[browser-mcp] MCP client connected to browser-use server.");
+    this.log.info("MCP client connected to browser-use server");
 
     return this.client;
   }

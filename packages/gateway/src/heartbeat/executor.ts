@@ -16,6 +16,8 @@ import type { CrossChatDeliveryService } from "../chat/delivery.js";
 import type { ChannelSender } from "../channel/types.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
+import { getLogger } from "../logging/index.js";
+import type { Logger } from "../logging/index.js";
 import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
 import type { SkillsConfig } from "../workspace/skills/types.js";
 import {
@@ -74,6 +76,7 @@ export class HeartbeatExecutor {
   private readonly historyLimit: number;
   private readonly skillsConfig: SkillsConfig;
   private readonly fullConfig: Record<string, unknown>;
+  private readonly log: Logger;
   private running = false;
 
   constructor({
@@ -114,6 +117,7 @@ export class HeartbeatExecutor {
     this.historyLimit = historyLimit;
     this.skillsConfig = skillsConfig;
     this.fullConfig = fullConfig;
+    this.log = getLogger().child({ component: "heartbeat-executor" });
   }
 
   async execute(): Promise<void> {
@@ -129,10 +133,12 @@ export class HeartbeatExecutor {
 
     this.running = true;
     const startedAt = new Date();
+    this.log.info("Heartbeat execution starting");
 
     try {
       const mainChat = await this.chatRegistry.getMainChat();
       if (!mainChat) {
+        this.log.warn("No main chat found, skipping heartbeat");
         return;
       }
 
@@ -236,6 +242,11 @@ export class HeartbeatExecutor {
         inputSchema: heartbeatResultSchema,
       });
 
+      this.log.info(
+        { action: verdict.action, durationMs: new Date().getTime() - startedAt.getTime() },
+        "Heartbeat verdict reached",
+      );
+
       if (verdict.action === "alert" && verdict.message) {
         await this.channelSender.sendMessage({
           chatId: platformChatId,
@@ -278,7 +289,10 @@ export class HeartbeatExecutor {
         summary: verdict.summary,
       });
     } catch (error) {
-      console.error("Heartbeat execution failed:", error);
+      this.log.error(
+        { err: error, durationMs: new Date().getTime() - startedAt.getTime() },
+        "Heartbeat execution failed",
+      );
       await this.heartbeatService.recordRun({
         startedAt,
         finishedAt: new Date(),

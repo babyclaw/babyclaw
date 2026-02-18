@@ -9,3 +9,5 @@ export { getSimpleclawConfigJsonSchema, writeSimpleclawConfigJsonSchema } from "
 export { getDefaultConfigTemplate } from "./config/template.js";
 export type { SimpleclawConfig } from "./config/types.js";
 export { SUPPORTED_PROVIDERS } from "./ai/provider-registry.js";
+export { createLogger, getLogger, createChildLogger } from "./logging/index.js";
+export type { Logger, LoggingConfig, LogLevel, LogFormat } from "./logging/index.js";

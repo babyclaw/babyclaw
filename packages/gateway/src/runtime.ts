@@ -22,6 +22,8 @@ import type { SimpleclawConfig } from "./config/types.js";
 import { HeartbeatExecutor } from "./heartbeat/executor.js";
 import { HeartbeatRuntime } from "./heartbeat/runtime.js";
 import { HeartbeatService } from "./heartbeat/service.js";
+import { createLogger, getLogger } from "./logging/index.js";
+import type { Logger } from "./logging/index.js";
 import { SchedulerExecutor } from "./scheduler/executor.js";
 import { SchedulerRuntime } from "./scheduler/runtime.js";
 import { SchedulerService } from "./scheduler/service.js";
@@ -40,6 +42,7 @@ export class GatewayRuntime {
   private state: GatewayStatus["state"] = "stopped";
   private startedAt: number | null = null;
   private config: SimpleclawConfig | null = null;
+  private log: Logger | null = null;
 
   private prisma: PrismaClient | null = null;
   private schedulerRuntime: SchedulerRuntime | null = null;
@@ -58,6 +61,19 @@ export class GatewayRuntime {
     try {
       const config = await loadConfig();
       this.config = config;
+
+      const log = createLogger({ config: config.logging });
+      this.log = log;
+
+      log.info({ configPath: getConfigPath() }, "Configuration loaded");
+      log.debug({
+        workspace: config.workspace.root,
+        providers: Object.keys(config.ai.providers),
+        chatModel: config.ai.models.chat,
+        shellMode: config.tools.shell.mode,
+        heartbeatEnabled: config.heartbeat.enabled,
+        logLevel: config.logging.level,
+      }, "Gateway configuration summary");
 
       const workspacePath = resolve(process.cwd(), config.workspace.root);
 
@@ -129,10 +145,7 @@ export class GatewayRuntime {
 
       const shellConfig = config.tools.shell;
       if (shellConfig.mode === "full-access") {
-        console.warn(
-          "[config] WARNING: Shell tool is running in full-access mode. " +
-            "Command allowlist validation is disabled. Any shell command can be executed.",
-        );
+        log.warn("Shell tool is running in full-access mode. Command allowlist validation is disabled.");
       }
 
       const chatRegistry = new ChatRegistry({ prisma });
@@ -226,6 +239,7 @@ export class GatewayRuntime {
       this.schedulerRuntime = schedulerRuntime;
 
       await schedulerRuntime.start();
+      log.info("Scheduler runtime started");
 
       const heartbeatExecutor = new HeartbeatExecutor({
         workspacePath,
@@ -257,6 +271,7 @@ export class GatewayRuntime {
       this.heartbeatRuntime = heartbeatRuntime;
 
       await heartbeatRuntime.start();
+      log.info({ enabled: config.heartbeat.enabled }, "Heartbeat runtime started");
 
       this.adminServer = new AdminServer({
         socketPath: getAdminSocketPath(),
@@ -276,12 +291,16 @@ export class GatewayRuntime {
       await channelRouter.startAll({
         onInboundEvent: orchestrator.handleInboundEvent.bind(orchestrator),
       });
+      log.info({ platforms: channelRouter.listPlatforms() }, "Channel adapters started");
 
       this.startedAt = Date.now();
       this.state = "running";
-      console.log("Gateway is running.");
+      log.info({ pid: process.pid }, "Gateway is running");
     } catch (error) {
       this.state = "stopped";
+      if (this.log) {
+        this.log.fatal({ err: error }, "Gateway failed to start");
+      }
       throw error;
     }
   }
@@ -291,25 +310,33 @@ export class GatewayRuntime {
       return;
     }
 
+    const log = this.log ?? getLogger();
+    log.info("Gateway shutting down...");
     this.state = "stopping";
 
     if (this.heartbeatRuntime) {
       this.heartbeatRuntime.stop();
+      log.debug("Heartbeat runtime stopped");
     }
     if (this.schedulerRuntime) {
       this.schedulerRuntime.stop();
+      log.debug("Scheduler runtime stopped");
     }
     if (this.channelRouter) {
       await this.channelRouter.stopAll();
+      log.debug("Channel adapters stopped");
     }
     if (this.browserMcpClient) {
       await this.browserMcpClient.shutdown();
+      log.debug("Browser MCP client shut down");
     }
     if (this.prisma) {
       await this.prisma.$disconnect();
+      log.debug("Database disconnected");
     }
     if (this.adminServer) {
       await this.adminServer.stop();
+      log.debug("Admin server stopped");
     }
 
     this.prisma = null;
@@ -320,6 +347,7 @@ export class GatewayRuntime {
     this.channelRouter = null;
     this.startedAt = null;
     this.config = null;
+    this.log = null;
     this.state = "stopped";
   }
 
@@ -338,12 +366,13 @@ export class GatewayRuntime {
   }
 
   registerSignalHandlers(): void {
-    const shutdown = async () => {
-      console.log("Received shutdown signal, stopping gateway...");
+    const shutdown = async (signal: string) => {
+      const log = this.log ?? getLogger();
+      log.info({ signal }, "Received shutdown signal");
       await this.stop();
       process.exit(0);
     };
-    process.once("SIGINT", shutdown);
-    process.once("SIGTERM", shutdown);
+    process.once("SIGINT", () => shutdown("SIGINT"));
+    process.once("SIGTERM", () => shutdown("SIGTERM"));
   }
 }

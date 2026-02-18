@@ -4,6 +4,8 @@ import type { ChannelSender } from "../channel/types.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
+import { getLogger } from "../logging/index.js";
+import type { Logger } from "../logging/index.js";
 import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
 import type { SkillsConfig } from "../workspace/skills/types.js";
 import {
@@ -62,6 +64,7 @@ export class SchedulerExecutor {
   private readonly skillsConfig: SkillsConfig;
   private readonly fullConfig: Record<string, unknown>;
   private readonly runningScheduleIds = new Set<string>();
+  private readonly log: Logger;
 
   constructor({
     channelSender,
@@ -95,6 +98,7 @@ export class SchedulerExecutor {
     this.browserMcpClient = browserMcpClient;
     this.skillsConfig = skillsConfig;
     this.fullConfig = fullConfig;
+    this.log = getLogger().child({ component: "scheduler-executor" });
   }
 
   async executeSchedule({
@@ -106,10 +110,17 @@ export class SchedulerExecutor {
   }): Promise<void> {
     const schedule = await this.schedulerService.getScheduleForRuntime({ scheduleId });
     if (!schedule || schedule.status !== "active") {
+      this.log.debug({ scheduleId }, "Schedule not found or inactive, skipping");
       return;
     }
 
+    this.log.info(
+      { scheduleId, title: schedule.title, taskPrompt: schedule.taskPrompt },
+      "Executing schedule",
+    );
+
     if (this.runningScheduleIds.has(scheduleId)) {
+      this.log.warn({ scheduleId }, "Skipping schedule - previous run still in progress");
       await this.schedulerService.createRun({
         scheduleId,
         scheduledFor,
@@ -391,7 +402,7 @@ export class SchedulerExecutor {
         threadId: threadId !== null ? String(threadId) : undefined,
       });
     } catch (error) {
-      console.error("Failed to send schedule failure notification:", error);
+      this.log.error({ err: error, title }, "Failed to send schedule failure notification");
     }
   }
 }

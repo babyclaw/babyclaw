@@ -21,6 +21,8 @@ import type { MessageLinkRepository } from "../channel/message-link.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
+import { getLogger } from "../logging/index.js";
+import type { Logger } from "../logging/index.js";
 import {
   hasCompletePersonalityFiles,
   readPersonalityFiles,
@@ -89,6 +91,7 @@ export class AgentTurnOrchestrator {
   private readonly fullConfig: Record<string, unknown>;
   private readonly activeTurnManager = new ActiveTurnManager();
   private readonly continuationManager = new ContinuationManager();
+  private readonly log: Logger;
 
   constructor({
     workspacePath,
@@ -128,6 +131,7 @@ export class AgentTurnOrchestrator {
     this.historyLimit = historyLimit;
     this.skillsConfig = skillsConfig;
     this.fullConfig = fullConfig;
+    this.log = getLogger().child({ component: "orchestrator" });
   }
 
   async handleInboundEvent({
@@ -140,6 +144,15 @@ export class AgentTurnOrchestrator {
 
     if (isCommandText({ text })) return;
 
+    this.log.debug({
+      platform: event.platform,
+      chatId: event.chatId,
+      senderId: event.senderId,
+      isEdited: event.isEdited,
+      hasThread: !!event.threadId,
+      textLength: text.length,
+    }, "Inbound event received");
+
     if (isStopMessage({ text })) {
       const sessionIdentity = this.deriveSessionIdentity({ event });
       this.continuationManager.cancel({ sessionKey: sessionIdentity.key });
@@ -147,6 +160,7 @@ export class AgentTurnOrchestrator {
         sessionKey: sessionIdentity.key,
       });
       if (cancelled !== undefined) {
+        this.log.info({ sessionKey: sessionIdentity.key }, "Agent turn cancelled by user");
         const adapter = this.channelRouter.getAdapter({ platform: event.platform });
         await adapter.sendMessage({
           chatId: event.chatId,
@@ -248,6 +262,15 @@ export class AgentTurnOrchestrator {
   }): void {
     const sessionKey = sessionIdentity.key;
     const abortController = new AbortController();
+    const turnStartedAt = Date.now();
+
+    const turnLog = this.log.child({
+      sessionKey,
+      chatId: event.chatId,
+      platform: event.platform,
+    });
+
+    turnLog.info({ isMainSession, messageLength: userMessage.length }, "Agent turn starting");
 
     const completion = this.processAgentTurn({
       event,
@@ -258,9 +281,18 @@ export class AgentTurnOrchestrator {
       isMainSession,
       linkedChats,
     })
+      .then(() => {
+        turnLog.info(
+          { durationMs: Date.now() - turnStartedAt },
+          "Agent turn completed",
+        );
+      })
       .catch((err) => {
         if (abortController.signal.aborted) return;
-        console.error("Agent turn error:", err);
+        turnLog.error(
+          { err, durationMs: Date.now() - turnStartedAt },
+          "Agent turn failed",
+        );
         const adapter = this.channelRouter.getAdapter({ platform: event.platform });
         adapter
           .sendMessage({
@@ -269,7 +301,7 @@ export class AgentTurnOrchestrator {
             threadId: event.threadId,
           })
           .catch((replyErr: unknown) => {
-            console.error("Failed to send error reply:", replyErr);
+            turnLog.error({ err: replyErr }, "Failed to send error reply");
           });
       })
       .finally(() => {
@@ -414,6 +446,11 @@ export class AgentTurnOrchestrator {
       turnSignals,
     });
 
+    this.log.debug(
+      { sessionKey: sessionIdentity.key, messageCount: messages.length },
+      "Sending messages to AI model",
+    );
+
     const streamResult = this.aiAgent.chatStreamWithTools({
       messages,
       tools,
@@ -448,6 +485,10 @@ export class AgentTurnOrchestrator {
 
     if (turnSignals.continuation && !abortSignal.aborted) {
       const { seconds, note } = turnSignals.continuation;
+      this.log.info(
+        { sessionKey: sessionIdentity.key, waitSeconds: seconds, note },
+        "Agent requesting continuation wait",
+      );
       const waitingMessage = `Waiting ${formatWaitDuration({ seconds })} -- ${note}`;
 
       await adapter.sendMessage({
@@ -512,6 +553,11 @@ export class AgentTurnOrchestrator {
       threadId: event.threadId,
     });
 
+    this.log.debug(
+      { sessionKey: sessionIdentity.key, responseLength: assistantResponse.length, messageId: sendResult.platformMessageId },
+      "Response sent to channel",
+    );
+
     await this.messageLinkRepository.upsertMessageLink({
       platform: event.platform,
       platformChatId: event.chatId,
@@ -537,8 +583,9 @@ export class AgentTurnOrchestrator {
       sessionKey: sessionIdentity.key,
     });
     if (existing) {
-      console.log(
-        `[continuation] Skipping resume for ${sessionIdentity.key} -- active turn exists`,
+      this.log.debug(
+        { sessionKey: sessionIdentity.key },
+        "Skipping continuation resume - active turn exists",
       );
       return;
     }
@@ -548,6 +595,11 @@ export class AgentTurnOrchestrator {
       `Your previous continuation note: ${continuationNote}`,
       "Check on any processes you were waiting for and continue your task.",
     ].join("\n");
+
+    this.log.info(
+      { sessionKey: sessionIdentity.key, waitedSeconds },
+      "Resuming continuation",
+    );
 
     this.chatRegistry
       .listLinkedChats({ platform: event.platform })
@@ -562,7 +614,7 @@ export class AgentTurnOrchestrator {
         });
       })
       .catch((err) => {
-        console.error("[continuation] Failed to resume:", err);
+        this.log.error({ err, sessionKey: sessionIdentity.key }, "Failed to resume continuation");
       });
   }
 

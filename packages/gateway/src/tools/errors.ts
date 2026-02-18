@@ -1,3 +1,5 @@
+import { getLogger } from "../logging/index.js";
+import { redactToolInput, truncateOutput } from "../logging/redact.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 
 export type ToolErrorPayload = {
@@ -57,31 +59,70 @@ export function toolFailure({
   };
 }
 
+let callIdCounter = 0;
+
 export async function withToolLogging<TSuccess extends object>({
   context,
   toolName,
   action,
   defaultCode = "TOOL_EXECUTION_FAILED",
+  input,
 }: {
   context: ToolExecutionContext;
   toolName: string;
   action: () => Promise<TSuccess>;
   defaultCode?: string;
+  input?: Record<string, unknown>;
 }): Promise<TSuccess | ToolFailureResult> {
-  console.log(`[tool:${toolName}] source=${context.runSource} start`);
+  const log = getLogger();
+  const callId = `tool-${++callIdCounter}`;
+  const startedAt = Date.now();
+
+  const toolLog = log.child({
+    component: "tool",
+    toolName,
+    callId,
+    runSource: context.runSource,
+    chatId: context.chatId,
+  });
+
+  toolLog.info(
+    {
+      ...(input ? { input: redactToolInput({ input }) } : {}),
+    },
+    `Tool call started: ${toolName}`,
+  );
 
   try {
     const result = await action();
-    console.log(`[tool:${toolName}] source=${context.runSource} success`);
+    const durationMs = Date.now() - startedAt;
+
+    toolLog.info(
+      { durationMs, success: true },
+      `Tool call completed: ${toolName}`,
+    );
+
+    if (toolLog.isLevelEnabled("debug")) {
+      const resultStr = JSON.stringify(result);
+      toolLog.debug(
+        { output: truncateOutput({ output: resultStr, maxLength: 300 }) },
+        `Tool result: ${toolName}`,
+      );
+    }
+
     return result;
   } catch (error) {
+    const durationMs = Date.now() - startedAt;
     const payload = toToolErrorPayload({
       error,
       defaultCode,
     });
-    console.error(
-      `[tool:${toolName}] source=${context.runSource} error code=${payload.code} message=${payload.message}`,
+
+    toolLog.error(
+      { durationMs, errorCode: payload.code, errorMessage: payload.message },
+      `Tool call failed: ${toolName}`,
     );
+
     return {
       ok: false,
       error: payload,

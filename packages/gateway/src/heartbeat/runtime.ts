@@ -1,4 +1,6 @@
 import { CronJob } from "cron";
+import { getLogger } from "../logging/index.js";
+import type { Logger } from "../logging/index.js";
 import type { HeartbeatExecutor } from "./executor.js";
 import type { HeartbeatService } from "./service.js";
 import type { HeartbeatConfig } from "./types.js";
@@ -22,6 +24,7 @@ export class HeartbeatRuntime {
   private nextRunAt: Date | null = null;
   private masterTimer: ReturnType<typeof setInterval> | null = null;
   private cleanupJob: CronJob | null = null;
+  private readonly log: Logger;
 
   constructor({
     heartbeatService,
@@ -33,6 +36,7 @@ export class HeartbeatRuntime {
     this.heartbeatExecutor = heartbeatExecutor;
     this.heartbeatConfig = heartbeatConfig;
     this.timezone = timezone;
+    this.log = getLogger().child({ component: "heartbeat" });
   }
 
   async start(): Promise<void> {
@@ -63,8 +67,9 @@ export class HeartbeatRuntime {
       },
     });
 
-    console.log(
-      `[heartbeat] Started. Interval: ${this.heartbeatConfig.intervalMinutes}m. Next run at: ${this.nextRunAt.toISOString()}`,
+    this.log.info(
+      { intervalMinutes: this.heartbeatConfig.intervalMinutes, nextRunAt: this.nextRunAt.toISOString() },
+      "Heartbeat runtime started",
     );
   }
 
@@ -98,10 +103,11 @@ export class HeartbeatRuntime {
 
     this.bumpNextRun();
 
+    this.log.debug("Heartbeat tick firing");
     try {
       await this.heartbeatExecutor.execute();
     } catch (error) {
-      console.error("[heartbeat] Tick failed:", error);
+      this.log.error({ err: error }, "Heartbeat tick failed");
     }
   }
 
