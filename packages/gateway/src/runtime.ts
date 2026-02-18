@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
+import type { LanguageModel } from "ai";
 import { AiAgent } from "./ai/agent.js";
 import {
   buildProviderRegistry,
@@ -89,6 +90,18 @@ export class GatewayRuntime {
         chatModelRef as `${string}:${string}`,
       );
 
+      let visionModel: LanguageModel | undefined;
+      if (config.ai.models.vision) {
+        const visionModelRef = resolveModelRef({
+          ref: config.ai.models.vision,
+          aliases: config.ai.aliases,
+        });
+        visionModel = registry.languageModel(
+          visionModelRef as `${string}:${string}`,
+        );
+        log.info({ visionModel: config.ai.models.vision }, "Vision model configured");
+      }
+
       let browserMcpClient: BrowserMcpClient | undefined;
       if (config.tools.enableBrowserTools) {
         const browserModelRef = resolveModelRef({
@@ -168,6 +181,7 @@ export class GatewayRuntime {
 
       const telegramAdapter = new TelegramAdapter({
         token: telegramBotToken,
+        workspacePath,
         chatRegistry,
         schedulerService,
         messageLinkRepository,
@@ -212,6 +226,7 @@ export class GatewayRuntime {
         workspacePath,
         sessionManager,
         aiAgent,
+        visionModel,
         schedulerService,
         messageLinkRepository,
         chatRegistry,

@@ -248,6 +248,49 @@ describe("loadConfig", () => {
     }
   });
 
+  it("accepts optional vision model in ai.models", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-vision-"));
+
+    try {
+      const configPath = join(tempDir, "runtime.json");
+      const configWithVision = {
+        ...createValidConfig(),
+        ai: {
+          ...createValidConfig().ai as Record<string, unknown>,
+          models: {
+            chat: "anthropic:claude-sonnet-4-20250514",
+            browser: "anthropic:claude-sonnet-4-20250514",
+            vision: "anthropic:claude-sonnet-4-20250514",
+          },
+        },
+      };
+      await writeFile(configPath, JSON.stringify(configWithVision), "utf8");
+      vi.stubEnv(CONFIG_PATH_ENV_VAR, configPath);
+
+      const config = await loadConfig();
+
+      expect(config.ai.models.vision).toBe("anthropic:claude-sonnet-4-20250514");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("defaults vision model to undefined when not provided", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-no-vision-"));
+
+    try {
+      const configPath = join(tempDir, "runtime.json");
+      await writeFile(configPath, JSON.stringify(createValidConfig()), "utf8");
+      vi.stubEnv(CONFIG_PATH_ENV_VAR, configPath);
+
+      const config = await loadConfig();
+
+      expect(config.ai.models.vision).toBeUndefined();
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects unknown keys due to strict schema", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-strict-"));
 

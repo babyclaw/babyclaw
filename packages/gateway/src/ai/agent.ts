@@ -35,6 +35,7 @@ type ChatStreamWithToolsInput<TTools extends ToolSet = ToolSet> = {
   maxSteps?: number;
   abortSignal?: AbortSignal;
   extraStopConditions?: StopCondition[];
+  model?: LanguageModel;
 };
 
 type ChatWithToolsInput<TTools extends ToolSet = ToolSet> = {
@@ -90,9 +91,10 @@ export class AiAgent {
     maxSteps = 50,
     abortSignal,
     extraStopConditions,
+    model,
   }: ChatStreamWithToolsInput<TTools>): ChatStreamResult {
     const result = streamText({
-      model: this.model,
+      model: model ?? this.model,
       messages,
       tools,
       stopWhen: [stepCountIs(maxSteps), ...(extraStopConditions ?? [])],

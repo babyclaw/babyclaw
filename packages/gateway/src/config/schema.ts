@@ -37,6 +37,7 @@ const modelAliasesSchema = z.record(
 const aiModelsSchema = z.object({
   chat: z.string().min(1),
   browser: z.string().min(1),
+  vision: z.string().min(1).optional(),
 }).strict();
 
 const toolsSchema = z.object({
