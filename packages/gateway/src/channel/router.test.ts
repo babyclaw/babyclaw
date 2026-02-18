@@ -12,6 +12,8 @@ function createMockAdapter(platform: string): ChannelAdapter {
       supportsEditing: false,
     },
     sendMessage: vi.fn(async () => ({ platformMessageId: "1" })),
+    sendImage: vi.fn(async () => ({ platformMessageId: "1" })),
+    sendFile: vi.fn(async () => ({ platformMessageId: "1" })),
     start: vi.fn(async () => {}),
     stop: vi.fn(async () => {}),
   };

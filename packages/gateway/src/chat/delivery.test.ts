@@ -8,6 +8,12 @@ function createMockChannelSender(): ChannelSender {
     sendMessage: vi.fn(async () => ({
       platformMessageId: "100",
     })),
+    sendImage: vi.fn(async () => ({
+      platformMessageId: "101",
+    })),
+    sendFile: vi.fn(async () => ({
+      platformMessageId: "102",
+    })),
   };
 }
 

@@ -6,6 +6,8 @@ function createMockChannelSender(): any {
   return {
     platform: "telegram",
     sendMessage: vi.fn(async () => ({ platformMessageId: "999" })),
+    sendImage: vi.fn(async () => ({ platformMessageId: "999" })),
+    sendFile: vi.fn(async () => ({ platformMessageId: "999" })),
   };
 }
 

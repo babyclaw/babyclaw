@@ -91,6 +91,8 @@ describe("ChannelRouter multi-adapter", () => {
         supportsEditing: false,
       },
       sendMessage: vi.fn(async () => ({ platformMessageId: "1" })),
+      sendImage: vi.fn(async () => ({ platformMessageId: "1" })),
+      sendFile: vi.fn(async () => ({ platformMessageId: "1" })),
       start: vi.fn(async () => {}),
       stop: vi.fn(async () => {}),
     };

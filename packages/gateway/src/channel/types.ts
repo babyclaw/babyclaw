@@ -5,6 +5,11 @@ export type ChannelCapabilities = {
   supportsEditing: boolean;
 };
 
+export type ImageAttachment = {
+  localPath: string;
+  mimeType: string;
+};
+
 export type NormalizedInboundEvent = {
   platform: string;
   chatId: string;
@@ -13,6 +18,7 @@ export type NormalizedInboundEvent = {
   senderName?: string;
   messageId: string;
   messageText: string;
+  images?: ImageAttachment[];
   replyToMessageId?: string;
   replyToText?: string;
   isEdited: boolean;
@@ -26,6 +32,23 @@ export type ChannelOutboundMessage = {
   chatId: string;
   threadId?: string;
   text: string;
+};
+
+export type ChannelOutboundImage = {
+  chatId: string;
+  threadId?: string;
+  filePath: string;
+  caption?: string;
+};
+
+export type FileType = "image" | "document" | "audio" | "video" | "animation";
+
+export type ChannelOutboundFile = {
+  chatId: string;
+  threadId?: string;
+  filePath: string;
+  fileType: FileType;
+  caption?: string;
 };
 
 export type ChannelSendResult = {
@@ -71,6 +94,8 @@ export interface ChannelAdapter {
   stop(): Promise<void>;
 
   sendMessage(input: ChannelOutboundMessage): Promise<ChannelSendResult>;
+  sendImage(input: ChannelOutboundImage): Promise<ChannelSendResult>;
+  sendFile(input: ChannelOutboundFile): Promise<ChannelSendResult>;
   streamDraft?(input: StreamDraftInput): Promise<string>;
   streamTurn?(input: StreamTurnInput): Promise<StreamTurnResult>;
 }
@@ -79,4 +104,4 @@ export interface ChannelAdapter {
  * Convenience type for consumers that only need the outbound send capability
  * (e.g. delivery service, heartbeat executor, messaging tools).
  */
-export type ChannelSender = Pick<ChannelAdapter, "platform" | "sendMessage">;
+export type ChannelSender = Pick<ChannelAdapter, "platform" | "sendMessage" | "sendImage" | "sendFile">;
