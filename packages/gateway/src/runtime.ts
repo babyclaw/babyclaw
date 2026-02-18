@@ -193,6 +193,21 @@ export class GatewayRuntime {
       channelRouter.register({ adapter: telegramAdapter });
       this.channelRouter = channelRouter;
 
+      const adminSocketPath = getAdminSocketPath();
+
+      const selfToolDeps = {
+        getStatus: () => this.getStatus(),
+        adminSocketPath,
+        logOutput: config.logging.output,
+        logLevel: config.logging.level,
+        schedulerActive: true,
+        heartbeatActive: config.heartbeat.enabled,
+        restartGateway: async () => {
+          await this.stop();
+          process.exit(0);
+        },
+      };
+
       const orchestrator = new AgentTurnOrchestrator({
         workspacePath,
         sessionManager,
@@ -212,6 +227,7 @@ export class GatewayRuntime {
         historyLimit: config.session.historyLimit,
         skillsConfig: config.skills,
         fullConfig: config as unknown as Record<string, unknown>,
+        ...selfToolDeps,
       });
 
       const schedulerExecutor = new SchedulerExecutor({
@@ -230,6 +246,7 @@ export class GatewayRuntime {
         browserMcpClient,
         skillsConfig: config.skills,
         fullConfig: config as unknown as Record<string, unknown>,
+        ...selfToolDeps,
       });
 
       schedulerRuntime = new SchedulerRuntime({
@@ -260,6 +277,7 @@ export class GatewayRuntime {
         historyLimit: config.session.historyLimit,
         skillsConfig: config.skills,
         fullConfig: config as unknown as Record<string, unknown>,
+        ...selfToolDeps,
       });
 
       heartbeatRuntime = new HeartbeatRuntime({
@@ -274,7 +292,7 @@ export class GatewayRuntime {
       log.info({ enabled: config.heartbeat.enabled }, "Heartbeat runtime started");
 
       this.adminServer = new AdminServer({
-        socketPath: getAdminSocketPath(),
+        socketPath: adminSocketPath,
         routes: {
           "/status": () => this.getStatus(),
           "/health": () => ({ ok: true }),

@@ -7,6 +7,7 @@ import type { ChannelSender } from "../channel/types.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
 import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
+import type { GatewayStatus } from "../runtime.js";
 import { SchedulerService } from "../scheduler/service.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { createBrowserTools } from "./browser.js";
@@ -14,6 +15,7 @@ import { createClawhubTools } from "./clawhub.js";
 import { createContinuationTools } from "./continuation.js";
 import { createMessagingTools } from "./messaging.js";
 import { createSchedulerTools } from "./scheduler.js";
+import { createSelfTools } from "./self.js";
 import { createShellTools } from "./shell.js";
 import { createStateTools } from "./state.js";
 import { createWebSearchTools } from "./web-search.js";
@@ -35,6 +37,14 @@ type CreateUnifiedToolsInput = {
   deliveryService?: CrossChatDeliveryService;
   commandApprovalService?: CommandApprovalService;
   turnSignals?: TurnSignals;
+  getStatus: () => GatewayStatus;
+  adminSocketPath: string;
+  logOutput: string;
+  logLevel: string;
+  schedulerActive: boolean;
+  heartbeatActive: boolean;
+  getActiveTurnCount: () => number;
+  restartGateway: () => Promise<void>;
 };
 
 export function createUnifiedTools({
@@ -52,6 +62,14 @@ export function createUnifiedTools({
   deliveryService,
   commandApprovalService,
   turnSignals,
+  getStatus,
+  adminSocketPath,
+  logOutput,
+  logLevel,
+  schedulerActive,
+  heartbeatActive,
+  getActiveTurnCount,
+  restartGateway,
 }: CreateUnifiedToolsInput): ToolSet {
   if (!executionContext.chatId) {
     throw new Error("Tool execution context must include chatId");
@@ -69,8 +87,20 @@ export function createUnifiedTools({
     chatRegistry,
   });
 
+  const selfTools = createSelfTools({
+    context: executionContext,
+    getStatus,
+    adminSocketPath,
+    logOutput,
+    logLevel,
+    schedulerActive,
+    heartbeatActive,
+    getActiveTurnCount,
+    restartGateway,
+  });
+
   if (!enableGenericTools) {
-    return schedulerTools;
+    return { ...schedulerTools, ...selfTools };
   }
 
   const browserTools = browserMcpClient
@@ -96,6 +126,7 @@ export function createUnifiedTools({
 
   return {
     ...schedulerTools,
+    ...selfTools,
     ...createStateTools({
       context: executionContext,
     }),

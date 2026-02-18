@@ -24,6 +24,7 @@ import {
   hasCompletePersonalityFiles,
   readPersonalityFiles,
 } from "../onboarding/personality.js";
+import type { GatewayStatus } from "../runtime.js";
 import type { SchedulerService } from "../scheduler/service.js";
 import { SessionManager } from "../session/manager.js";
 import type { MessageLinkRepository } from "../channel/message-link.js";
@@ -55,6 +56,13 @@ type HeartbeatExecutorInput = {
   historyLimit: number;
   skillsConfig: SkillsConfig;
   fullConfig: Record<string, unknown>;
+  getStatus: () => GatewayStatus;
+  adminSocketPath: string;
+  logOutput: string;
+  logLevel: string;
+  schedulerActive: boolean;
+  heartbeatActive: boolean;
+  restartGateway: () => Promise<void>;
 };
 
 export class HeartbeatExecutor {
@@ -76,6 +84,13 @@ export class HeartbeatExecutor {
   private readonly historyLimit: number;
   private readonly skillsConfig: SkillsConfig;
   private readonly fullConfig: Record<string, unknown>;
+  private readonly getStatus: () => GatewayStatus;
+  private readonly adminSocketPath: string;
+  private readonly logOutput: string;
+  private readonly logLevel: string;
+  private readonly schedulerActive: boolean;
+  private readonly heartbeatActive: boolean;
+  private readonly restartGateway: () => Promise<void>;
   private readonly log: Logger;
   private running = false;
 
@@ -98,6 +113,13 @@ export class HeartbeatExecutor {
     historyLimit,
     skillsConfig,
     fullConfig,
+    getStatus,
+    adminSocketPath,
+    logOutput,
+    logLevel,
+    schedulerActive,
+    heartbeatActive,
+    restartGateway,
   }: HeartbeatExecutorInput) {
     this.workspacePath = workspacePath;
     this.aiAgent = aiAgent;
@@ -117,6 +139,13 @@ export class HeartbeatExecutor {
     this.historyLimit = historyLimit;
     this.skillsConfig = skillsConfig;
     this.fullConfig = fullConfig;
+    this.getStatus = getStatus;
+    this.adminSocketPath = adminSocketPath;
+    this.logOutput = logOutput;
+    this.logLevel = logLevel;
+    this.schedulerActive = schedulerActive;
+    this.heartbeatActive = heartbeatActive;
+    this.restartGateway = restartGateway;
     this.log = getLogger().child({ component: "heartbeat-executor" });
   }
 
@@ -222,6 +251,14 @@ export class HeartbeatExecutor {
         chatRegistry: this.chatRegistry,
         channelSender: this.channelSender,
         deliveryService: this.deliveryService,
+        getStatus: this.getStatus,
+        adminSocketPath: this.adminSocketPath,
+        logOutput: this.logOutput,
+        logLevel: this.logLevel,
+        schedulerActive: this.schedulerActive,
+        heartbeatActive: this.heartbeatActive,
+        getActiveTurnCount: () => 0,
+        restartGateway: this.restartGateway,
       });
 
       const phase1Response = await this.aiAgent.chatWithTools({

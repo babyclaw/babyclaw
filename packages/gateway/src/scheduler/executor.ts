@@ -24,6 +24,7 @@ import {
 import { SessionManager } from "../session/manager.js";
 import { MessageLinkRepository } from "../channel/message-link.js";
 import { createUnifiedTools } from "../tools/registry.js";
+import type { GatewayStatus } from "../runtime.js";
 import { toErrorMessage } from "../utils/errors.js";
 import { SchedulerService } from "./service.js";
 
@@ -45,6 +46,13 @@ type SchedulerExecutorInput = {
   browserMcpClient?: import("../browser/mcp-client.js").BrowserMcpClient;
   skillsConfig: SkillsConfig;
   fullConfig: Record<string, unknown>;
+  getStatus: () => GatewayStatus;
+  adminSocketPath: string;
+  logOutput: string;
+  logLevel: string;
+  schedulerActive: boolean;
+  heartbeatActive: boolean;
+  restartGateway: () => Promise<void>;
 };
 
 export class SchedulerExecutor {
@@ -63,6 +71,13 @@ export class SchedulerExecutor {
   private readonly browserMcpClient?: import("../browser/mcp-client.js").BrowserMcpClient;
   private readonly skillsConfig: SkillsConfig;
   private readonly fullConfig: Record<string, unknown>;
+  private readonly getStatus: () => GatewayStatus;
+  private readonly adminSocketPath: string;
+  private readonly logOutput: string;
+  private readonly logLevel: string;
+  private readonly schedulerActive: boolean;
+  private readonly heartbeatActive: boolean;
+  private readonly restartGateway: () => Promise<void>;
   private readonly runningScheduleIds = new Set<string>();
   private readonly log: Logger;
 
@@ -82,6 +97,13 @@ export class SchedulerExecutor {
     browserMcpClient,
     skillsConfig,
     fullConfig,
+    getStatus,
+    adminSocketPath,
+    logOutput,
+    logLevel,
+    schedulerActive,
+    heartbeatActive,
+    restartGateway,
   }: SchedulerExecutorInput) {
     this.channelSender = channelSender;
     this.workspacePath = workspacePath;
@@ -98,6 +120,13 @@ export class SchedulerExecutor {
     this.browserMcpClient = browserMcpClient;
     this.skillsConfig = skillsConfig;
     this.fullConfig = fullConfig;
+    this.getStatus = getStatus;
+    this.adminSocketPath = adminSocketPath;
+    this.logOutput = logOutput;
+    this.logLevel = logLevel;
+    this.schedulerActive = schedulerActive;
+    this.heartbeatActive = heartbeatActive;
+    this.restartGateway = restartGateway;
     this.log = getLogger().child({ component: "scheduler-executor" });
   }
 
@@ -352,6 +381,14 @@ export class SchedulerExecutor {
       braveSearchApiKey: this.braveSearchApiKey,
       shellConfig: this.shellConfig,
       browserMcpClient: this.browserMcpClient,
+      getStatus: this.getStatus,
+      adminSocketPath: this.adminSocketPath,
+      logOutput: this.logOutput,
+      logLevel: this.logLevel,
+      schedulerActive: this.schedulerActive,
+      heartbeatActive: this.heartbeatActive,
+      getActiveTurnCount: () => 0,
+      restartGateway: this.restartGateway,
     });
 
     const text = await this.aiAgent.chatWithTools({

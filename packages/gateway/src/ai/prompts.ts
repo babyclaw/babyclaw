@@ -207,6 +207,36 @@ export function getWorkspaceGuideSystemMessage({
   };
 }
 
+export function getSelfManagementSystemMessage({
+  configPath,
+  adminSocketPath,
+  logOutput,
+}: {
+  configPath: string;
+  adminSocketPath: string;
+  logOutput: string;
+}): ModelMessage {
+  const logLine =
+    logOutput === "stdout"
+      ? "Logs go to stdout and aren't accessible from here. To inspect logs, edit config to set logging.output to a file path, then restart."
+      : `Tail recent logs: tail -n 100 ${logOutput}`;
+
+  return {
+    role: "system",
+    content: [
+      "You can manage your own runtime.",
+      "Use self_status to check gateway state, uptime, and configuration paths.",
+      "Use self_restart to gracefully restart (requires confirm: true). The process manager will bring you back.",
+      `Your config is JSON at: ${configPath}`,
+      `Read it: cat ${configPath} | jq .`,
+      `Edit it: jq '<expression>' ${configPath} > /tmp/sc-cfg.json && mv /tmp/sc-cfg.json ${configPath}`,
+      "After editing config, restart for changes to take effect.",
+      `Check health: curl -s --unix-socket ${adminSocketPath} http://localhost/health`,
+      logLine,
+    ].join("\n"),
+  };
+}
+
 export function getBrowserToolsSystemMessage(): ModelMessage {
   return {
     role: "system",

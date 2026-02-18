@@ -69,6 +69,19 @@ function createExecutor(overrides: Record<string, any> = {}) {
     shellConfig: { mode: "allowlist" as const, allowedCommands: [] },
     skillsConfig: { entries: {} },
     fullConfig: {},
+    getStatus: () => ({
+      state: "running" as const,
+      uptimeMs: 1000,
+      configPath: "/tmp/test-config.json",
+      pid: process.pid,
+      version: "1.0.0",
+    }),
+    adminSocketPath: "/tmp/test.sock",
+    logOutput: "stdout",
+    logLevel: "info",
+    schedulerActive: true,
+    heartbeatActive: false,
+    restartGateway: vi.fn(async () => {}),
     ...overrides,
   });
 }

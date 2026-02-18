@@ -9,6 +9,7 @@ import {
   getMainSessionSystemMessage,
   getNonMainSessionSystemMessage,
   getSchedulerGuidanceSystemMessage,
+  getSelfManagementSystemMessage,
   getSharedSystemMessage,
   getSkillsSystemMessage,
   getWorkspaceGuideSystemMessage,
@@ -48,6 +49,7 @@ import {
 import type { TurnSignals } from "./types.js";
 import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
 import type { SkillsConfig } from "../workspace/skills/types.js";
+import type { GatewayStatus } from "../runtime.js";
 
 type AgentTurnOrchestratorInput = {
   workspacePath: string;
@@ -68,6 +70,13 @@ type AgentTurnOrchestratorInput = {
   historyLimit: number;
   skillsConfig: SkillsConfig;
   fullConfig: Record<string, unknown>;
+  getStatus: () => GatewayStatus;
+  adminSocketPath: string;
+  logOutput: string;
+  logLevel: string;
+  schedulerActive: boolean;
+  heartbeatActive: boolean;
+  restartGateway: () => Promise<void>;
 };
 
 export class AgentTurnOrchestrator {
@@ -89,6 +98,13 @@ export class AgentTurnOrchestrator {
   private readonly historyLimit: number;
   private readonly skillsConfig: SkillsConfig;
   private readonly fullConfig: Record<string, unknown>;
+  private readonly getStatus: () => GatewayStatus;
+  private readonly adminSocketPath: string;
+  private readonly logOutput: string;
+  private readonly logLevel: string;
+  private readonly schedulerActive: boolean;
+  private readonly heartbeatActive: boolean;
+  private readonly restartGateway: () => Promise<void>;
   private readonly activeTurnManager = new ActiveTurnManager();
   private readonly continuationManager = new ContinuationManager();
   private readonly log: Logger;
@@ -112,6 +128,13 @@ export class AgentTurnOrchestrator {
     historyLimit,
     skillsConfig,
     fullConfig,
+    getStatus,
+    adminSocketPath,
+    logOutput,
+    logLevel,
+    schedulerActive,
+    heartbeatActive,
+    restartGateway,
   }: AgentTurnOrchestratorInput) {
     this.workspacePath = workspacePath;
     this.sessionManager = sessionManager;
@@ -131,6 +154,13 @@ export class AgentTurnOrchestrator {
     this.historyLimit = historyLimit;
     this.skillsConfig = skillsConfig;
     this.fullConfig = fullConfig;
+    this.getStatus = getStatus;
+    this.adminSocketPath = adminSocketPath;
+    this.logOutput = logOutput;
+    this.logLevel = logLevel;
+    this.schedulerActive = schedulerActive;
+    this.heartbeatActive = heartbeatActive;
+    this.restartGateway = restartGateway;
     this.log = getLogger().child({ component: "orchestrator" });
   }
 
@@ -392,6 +422,11 @@ export class AgentTurnOrchestrator {
         toolNotesContent: toolsIndexContent,
       }),
       getSchedulerGuidanceSystemMessage(),
+      getSelfManagementSystemMessage({
+        configPath: this.getStatus().configPath ?? "~/.simpleclaw/simpleclaw.json",
+        adminSocketPath: this.adminSocketPath,
+        logOutput: this.logOutput,
+      }),
       ...(isMainSession
         ? [getMainSessionSystemMessage({ linkedChats })]
         : currentChatRecord
@@ -444,6 +479,14 @@ export class AgentTurnOrchestrator {
       deliveryService: this.deliveryService,
       commandApprovalService: this.commandApprovalService,
       turnSignals,
+      getStatus: this.getStatus,
+      adminSocketPath: this.adminSocketPath,
+      logOutput: this.logOutput,
+      logLevel: this.logLevel,
+      schedulerActive: this.schedulerActive,
+      heartbeatActive: this.heartbeatActive,
+      getActiveTurnCount: () => this.activeTurnManager.count(),
+      restartGateway: this.restartGateway,
     });
 
     this.log.debug(

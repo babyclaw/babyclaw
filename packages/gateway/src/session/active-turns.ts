@@ -49,4 +49,8 @@ export class ActiveTurnManager {
       this.turns.delete(sessionKey);
     }
   }
+
+  count(): number {
+    return this.turns.size;
+  }
 }

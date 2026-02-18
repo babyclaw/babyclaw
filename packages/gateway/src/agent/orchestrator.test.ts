@@ -21,6 +21,7 @@ vi.mock("../ai/prompts.js", () => ({
   getWorkspaceGuideSystemMessage: vi.fn(() => ({ role: "system", content: "workspace" })),
   getSkillsSystemMessage: vi.fn(() => ({ role: "system", content: "skills" })),
   getSchedulerGuidanceSystemMessage: vi.fn(() => ({ role: "system", content: "scheduler" })),
+  getSelfManagementSystemMessage: vi.fn(() => ({ role: "system", content: "self" })),
   getMainSessionSystemMessage: vi.fn(() => ({ role: "system", content: "main" })),
   getNonMainSessionSystemMessage: vi.fn(() => ({ role: "system", content: "non-main" })),
   getBrowserToolsSystemMessage: vi.fn(() => ({ role: "system", content: "browser" })),
@@ -126,6 +127,19 @@ function createOrchestrator(deps: ReturnType<typeof createMockDeps>) {
     historyLimit: 40,
     skillsConfig: { entries: {} },
     fullConfig: {},
+    getStatus: () => ({
+      state: "running" as const,
+      uptimeMs: 1000,
+      configPath: "/tmp/test-config.json",
+      pid: process.pid,
+      version: "1.0.0",
+    }),
+    adminSocketPath: "/tmp/test.sock",
+    logOutput: "stdout",
+    logLevel: "info",
+    schedulerActive: true,
+    heartbeatActive: false,
+    restartGateway: vi.fn(async () => {}),
   });
 }
 
