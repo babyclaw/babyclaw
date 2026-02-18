@@ -41,6 +41,7 @@ export function getSchedulerGuidanceSystemMessage(): ModelMessage {
       "Write a thorough continuation_note so your future self knows exactly what to do.",
       "The tool ends your current turn and resumes automatically after the delay.",
       "For waits longer than 10 minutes, use create_schedule instead.",
+      "Never use `sleep` inside shell_exec to wait or poll. Always use wait_and_continue instead.",
     ].join("\n"),
   };
 }
