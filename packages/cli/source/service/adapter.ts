@@ -48,10 +48,29 @@ function getGatewayEntryPath(): string {
   }
 }
 
+function getShellPath(): string {
+  const fallback = `/usr/local/bin:/usr/bin:/bin`;
+  try {
+    const shell = process.env.SHELL || "/bin/zsh";
+    return execSync(`${shell} -ilc 'echo $PATH'`, {
+      encoding: "utf8",
+      timeout: 5000,
+    }).trim();
+  } catch {
+    return process.env.PATH || fallback;
+  }
+}
+
 function generateLaunchdPlist(): string {
   const nodePath = execSync("which node", { encoding: "utf8" }).trim();
   const entryPath = getGatewayEntryPath();
   const logDir = join(homedir(), ".simpleclaw", "logs");
+
+  const shellPath = getShellPath();
+  const nodeDir = dirname(nodePath);
+  const path = shellPath.includes(nodeDir)
+    ? shellPath
+    : `${shellPath}:${nodeDir}`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -75,7 +94,7 @@ function generateLaunchdPlist(): string {
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/usr/local/bin:/usr/bin:/bin:${dirname(nodePath)}</string>
+    <string>${path}</string>
   </dict>
 </dict>
 </plist>`;
