@@ -97,6 +97,17 @@ export class AiAgent {
       onAbort: ({ steps }) => {
         getLogger().info({ steps: steps.length }, "Agent turn aborted");
       },
+      onStepFinish({
+        text,
+        reasoningText,
+        toolCalls,
+      }) {
+        getLogger().info({ 
+          text,
+          reasoningText,
+          toolCallsCount: toolCalls.length,
+         }, "Agent step finished");
+      }
     });
 
     return {
@@ -115,6 +126,9 @@ export class AiAgent {
       messages,
       tools,
       stopWhen: stepCountIs(maxSteps),
+      onStepFinish(stepResult) {
+        getLogger().info({ stepResult }, "Agent step finished");
+      }
     });
 
     return result.text.trim();
