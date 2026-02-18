@@ -123,6 +123,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
 
     const keyboard = new InlineKeyboard()
       .text("Approve", `cmd_approve:${input.requestId}`)
+      .text("Approve All", `cmd_approve_session:${input.requestId}`)
       .text("Deny", `cmd_deny:${input.requestId}`);
 
     const options: Record<string, unknown> = {
@@ -142,10 +143,15 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     messageId: string;
     command: string;
     approved: boolean;
+    approvedForSession?: boolean;
   }): Promise<void> {
     const api = this.getApi();
-    const status = input.approved ? "Approved" : "Denied";
-    const text = `Shell command ${status.toLowerCase()}.\n\nCommand: \`${input.command}\`\n\nStatus: ${status}`;
+    const status = input.approvedForSession
+      ? "Approved (all commands for this session)"
+      : input.approved
+        ? "Approved"
+        : "Denied";
+    const text = `Shell command ${input.approved ? "approved" : "denied"}.\n\nCommand: \`${input.command}\`\n\nStatus: ${status}`;
 
     try {
       await api.editMessageText(
@@ -370,7 +376,10 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
 
     bot.on("callback_query:data", async (ctx) => {
       const data = ctx.callbackQuery.data;
-      if (!data.startsWith("cmd_approve:") && !data.startsWith("cmd_deny:")) {
+      const isApproval = data.startsWith("cmd_approve:")
+        || data.startsWith("cmd_approve_session:")
+        || data.startsWith("cmd_deny:");
+      if (!isApproval) {
         return;
       }
 
@@ -393,13 +402,22 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
         return;
       }
 
-      const approved = data.startsWith("cmd_approve:");
+      const approveSession = data.startsWith("cmd_approve_session:");
+      const approved = data.startsWith("cmd_approve:") || approveSession;
       const requestId = data.split(":")[1];
 
-      await this.commandApprovalService.handleResponse({ requestId, approved });
-      await ctx.answerCallbackQuery({
-        text: approved ? "Command approved." : "Command denied.",
+      await this.commandApprovalService.handleResponse({
+        requestId,
+        approved,
+        approveSession,
       });
+
+      const feedbackText = approveSession
+        ? "All commands approved for this session."
+        : approved
+          ? "Command approved."
+          : "Command denied.";
+      await ctx.answerCallbackQuery({ text: feedbackText });
     });
   }
 

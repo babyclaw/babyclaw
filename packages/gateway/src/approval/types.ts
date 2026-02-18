@@ -12,6 +12,7 @@ export type ApprovalSender = {
     messageId: string;
     command: string;
     approved: boolean;
+    approvedForSession?: boolean;
   }): Promise<void>;
 };
 
@@ -20,4 +21,9 @@ export type CommandApprovalRequest = {
   disallowedNames: string[];
   chatId: string;
   threadId?: string;
+};
+
+export type ApprovalResponse = {
+  approved: boolean;
+  approvedForSession?: boolean;
 };
