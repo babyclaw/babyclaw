@@ -1,11 +1,20 @@
-import { Context, Bot, InlineKeyboard, type BotError } from "grammy";
+import { createWriteStream } from "node:fs";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { pipeline } from "node:stream/promises";
+import { Readable } from "node:stream";
+import { randomUUID } from "node:crypto";
+import { Context, Bot, InlineKeyboard, InputFile, type BotError } from "grammy";
 import type { CommandApprovalService } from "../approval/service.js";
 import type { ApprovalSender } from "../approval/types.js";
 import type {
   ChannelAdapter,
   ChannelCapabilities,
+  ChannelOutboundFile,
+  ChannelOutboundImage,
   ChannelOutboundMessage,
   ChannelSendResult,
+  ImageAttachment,
   InboundEventHandler,
   NormalizedInboundEvent,
   StreamDraftInput,
@@ -18,6 +27,7 @@ import type { ChatRegistry } from "../chat/registry.js";
 import type { SchedulerService } from "../scheduler/service.js";
 import { formatSchedulesForCommand } from "../scheduler/formatter.js";
 import type { SessionState } from "../session/types.js";
+import { getLogger } from "../logging/index.js";
 import { sendMessageMarkdownV2, replyMarkdownV2 } from "./markdown.js";
 import { streamDraftToChat, streamTurnToChat } from "./draft.js";
 
@@ -34,6 +44,7 @@ class TelegramBotContext extends Context {
 
 type TelegramAdapterInput = {
   token: string;
+  workspacePath: string;
   chatRegistry: ChatRegistry;
   schedulerService: SchedulerService;
   messageLinkRepository: MessageLinkRepository;
@@ -55,6 +66,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
   };
 
   private readonly token: string;
+  private readonly workspacePath: string;
   private readonly chatRegistry: ChatRegistry;
   private readonly schedulerService: SchedulerService;
   private readonly messageLinkRepository: MessageLinkRepository;
@@ -64,12 +76,14 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
 
   constructor({
     token,
+    workspacePath,
     chatRegistry,
     schedulerService,
     messageLinkRepository,
     getHeartbeatStatus,
   }: TelegramAdapterInput) {
     this.token = token;
+    this.workspacePath = workspacePath;
     this.chatRegistry = chatRegistry;
     this.schedulerService = schedulerService;
     this.messageLinkRepository = messageLinkRepository;
@@ -93,6 +107,61 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
       text: input.text,
       options,
     });
+
+    return { platformMessageId: String(sent.message_id) };
+  }
+
+  async sendImage(input: ChannelOutboundImage): Promise<ChannelSendResult> {
+    const api = this.getApi();
+    const options: Record<string, unknown> = {};
+    if (input.threadId !== undefined) {
+      options.message_thread_id = Number(input.threadId);
+    }
+    if (input.caption !== undefined) {
+      options.caption = input.caption;
+    }
+
+    const sent = await api.sendPhoto(
+      input.chatId,
+      new InputFile(input.filePath),
+      options,
+    );
+
+    return { platformMessageId: String(sent.message_id) };
+  }
+
+  async sendFile(input: ChannelOutboundFile): Promise<ChannelSendResult> {
+    const api = this.getApi();
+    const options: Record<string, unknown> = {};
+    if (input.threadId !== undefined) {
+      options.message_thread_id = Number(input.threadId);
+    }
+    if (input.caption !== undefined) {
+      options.caption = input.caption;
+    }
+
+    const file = new InputFile(input.filePath);
+    let sent;
+
+    switch (input.fileType) {
+      case "image":
+        sent = await api.sendPhoto(input.chatId, file, options);
+        break;
+      case "document":
+        sent = await api.sendDocument(input.chatId, file, options);
+        break;
+      case "audio":
+        sent = await api.sendAudio(input.chatId, file, options);
+        break;
+      case "video":
+        sent = await api.sendVideo(input.chatId, file, options);
+        break;
+      case "animation":
+        sent = await api.sendAnimation(input.chatId, file, options);
+        break;
+      default:
+        throw new Error(`Unsupported file type: ${input.fileType as string}`);
+    }
 
     return { platformMessageId: String(sent.message_id) };
   }
@@ -403,6 +472,12 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
       await onInboundEvent({ event });
     });
 
+    bot.on("message:photo", async (ctx) => {
+      const event = await this.normalizePhotoMessage({ ctx });
+      if (!event) return;
+      await onInboundEvent({ event });
+    });
+
     bot.on("callback_query:data", async (ctx) => {
       const data = ctx.callbackQuery.data;
       const isApproval = data.startsWith("cmd_approve:")
@@ -523,6 +598,107 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
       draftSupported: ctx.chat.type === "private",
     };
   }
+
+  private async normalizePhotoMessage({
+    ctx,
+  }: {
+    ctx: TelegramBotContext;
+  }): Promise<NormalizedInboundEvent | null> {
+    if (!ctx.chat || !ctx.message) return null;
+
+    const message = ctx.message;
+    const rawMessage = message as unknown as Record<string, unknown>;
+    const photos = rawMessage.photo as Array<Record<string, unknown>> | undefined;
+    if (!photos || photos.length === 0) return null;
+
+    const largest = photos[photos.length - 1];
+    const fileId = largest.file_id as string;
+
+    let images: ImageAttachment[];
+    try {
+      const downloaded = await this.downloadTelegramFile({ fileId });
+      images = [downloaded];
+    } catch (err) {
+      getLogger().error({ err, fileId }, "Failed to download Telegram photo");
+      return null;
+    }
+
+    const caption = typeof rawMessage.caption === "string"
+      ? rawMessage.caption.trim()
+      : "";
+
+    const messageThreadId = typeof rawMessage.message_thread_id === "number"
+      ? rawMessage.message_thread_id
+      : undefined;
+
+    const replyToMessage = rawMessage.reply_to_message as Record<string, unknown> | undefined;
+    const replyToMessageId = typeof replyToMessage?.message_id === "number"
+      ? String(replyToMessage.message_id)
+      : undefined;
+    const replyToText = typeof replyToMessage?.text === "string"
+      ? replyToMessage.text
+      : typeof replyToMessage?.caption === "string"
+        ? (replyToMessage.caption as string)
+        : undefined;
+
+    const directMessagesTopic = rawMessage.direct_messages_topic as Record<string, unknown> | undefined;
+    const dmTopicId = typeof directMessagesTopic?.topic_id === "number"
+      ? String(directMessagesTopic.topic_id)
+      : undefined;
+
+    const from = rawMessage.from as Record<string, unknown> | undefined;
+    const senderName = buildSenderName({ from });
+
+    return {
+      platform: "telegram",
+      chatId: String(ctx.chat.id),
+      threadId: messageThreadId !== undefined ? String(messageThreadId) : undefined,
+      senderId: from ? String(from.id) : String(ctx.chat.id),
+      senderName,
+      messageId: String(rawMessage.message_id),
+      messageText: caption,
+      images,
+      replyToMessageId,
+      replyToText,
+      isEdited: false,
+      chatType: ctx.chat.type,
+      chatTitle: getChatTitle({ ctx }) ?? undefined,
+      directMessagesTopicId: dmTopicId,
+      draftSupported: ctx.chat.type === "private",
+    };
+  }
+
+  private async downloadTelegramFile({
+    fileId,
+  }: {
+    fileId: string;
+  }): Promise<ImageAttachment> {
+    const api = this.getApi();
+    const file = await api.getFile(fileId);
+    if (!file.file_path) {
+      throw new Error(`Telegram getFile returned no file_path for ${fileId}`);
+    }
+
+    const ext = extFromFilePath(file.file_path);
+    const mimeType = mimeFromExt(ext);
+    const localName = `${randomUUID()}${ext}`;
+    const imagesDir = join(this.workspacePath, ".simpleclaw", "images");
+    await mkdir(imagesDir, { recursive: true });
+    const localPath = join(imagesDir, localName);
+
+    const url = `https://api.telegram.org/file/bot${this.token}/${file.file_path}`;
+    const res = await fetch(url);
+    if (!res.ok || !res.body) {
+      throw new Error(`Failed to download file from Telegram: ${res.status}`);
+    }
+
+    await pipeline(
+      Readable.fromWeb(res.body as import("node:stream/web").ReadableStream),
+      createWriteStream(localPath),
+    );
+
+    return { localPath, mimeType };
+  }
 }
 
 function getChatTitle({ ctx }: { ctx: TelegramBotContext }): string | null {
@@ -550,4 +726,22 @@ function buildSenderName({ from }: { from: Record<string, unknown> | undefined }
   if (firstName && lastName) return `${firstName} ${lastName}`;
   if (firstName) return firstName;
   return undefined;
+}
+
+const EXT_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+};
+
+function extFromFilePath(filePath: string): string {
+  const dot = filePath.lastIndexOf(".");
+  return dot >= 0 ? filePath.slice(dot).toLowerCase() : ".jpg";
+}
+
+function mimeFromExt(ext: string): string {
+  return EXT_TO_MIME[ext] ?? "image/jpeg";
 }

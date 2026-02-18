@@ -30,6 +30,7 @@ function createMockMessageLinkRepository(): any {
 function createAdapter() {
   return new TelegramAdapter({
     token: "test-token",
+    workspacePath: "/tmp/test-workspace",
     chatRegistry: createMockChatRegistry(),
     schedulerService: createMockSchedulerService(),
     messageLinkRepository: createMockMessageLinkRepository(),
@@ -52,9 +53,11 @@ describe("TelegramAdapter", () => {
     });
   });
 
-  it("implements ChannelAdapter interface (has sendMessage + start + stop)", () => {
+  it("implements ChannelAdapter interface (has sendMessage + sendImage + sendFile + start + stop)", () => {
     const adapter = createAdapter();
     expect(typeof adapter.sendMessage).toBe("function");
+    expect(typeof adapter.sendImage).toBe("function");
+    expect(typeof adapter.sendFile).toBe("function");
     expect(typeof adapter.streamDraft).toBe("function");
     expect(typeof adapter.start).toBe("function");
     expect(typeof adapter.stop).toBe("function");
@@ -66,6 +69,20 @@ describe("TelegramAdapter", () => {
     const adapter = createAdapter();
     await expect(
       adapter.sendMessage({ chatId: "123", text: "hello" }),
+    ).rejects.toThrow("bot not started");
+  });
+
+  it("sendImage throws if bot not started", async () => {
+    const adapter = createAdapter();
+    await expect(
+      adapter.sendImage({ chatId: "123", filePath: "/tmp/photo.jpg" }),
+    ).rejects.toThrow("bot not started");
+  });
+
+  it("sendFile throws if bot not started", async () => {
+    const adapter = createAdapter();
+    await expect(
+      adapter.sendFile({ chatId: "123", filePath: "/tmp/photo.jpg", fileType: "image" }),
     ).rejects.toThrow("bot not started");
   });
 
