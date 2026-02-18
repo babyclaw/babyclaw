@@ -47,6 +47,11 @@ const DEFAULT_CONFIG_TEMPLATE = {
       braveApiKey: null,
     },
   },
+  api: {
+    enabled: false,
+    port: 4800,
+    apiKey: null,
+  },
   heartbeat: {
     enabled: false,
     intervalMinutes: 30,

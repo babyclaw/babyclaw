@@ -111,6 +111,16 @@ const loggingSchema = z.object({
   includeHostname: false,
 });
 
+const apiSchema = z.object({
+  enabled: z.boolean().default(false),
+  port: z.number().int().min(1).max(65535).default(4800),
+  apiKey: z.string().min(1).nullable().default(null),
+}).strict().default({
+  enabled: false,
+  port: 4800,
+  apiKey: null,
+});
+
 export const simpleclawConfigSchema = z.object({
   version: z.literal(1),
   telegram: z.object({
@@ -151,6 +161,7 @@ export const simpleclawConfigSchema = z.object({
     replyChainMode: "default",
   }),
   tools: toolsSchema,
+  api: apiSchema,
   skills: skillsSchema,
   logging: loggingSchema,
   heartbeat: z.object({

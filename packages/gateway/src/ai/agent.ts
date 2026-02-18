@@ -36,6 +36,10 @@ type ChatStreamWithToolsInput<TTools extends ToolSet = ToolSet> = {
   abortSignal?: AbortSignal;
   extraStopConditions?: StopCondition[];
   model?: LanguageModel;
+  temperature?: number;
+  topP?: number;
+  maxOutputTokens?: number;
+  stopSequences?: string[];
 };
 
 type ChatWithToolsInput<TTools extends ToolSet = ToolSet> = {
@@ -92,13 +96,21 @@ export class AiAgent {
     abortSignal,
     extraStopConditions,
     model,
+    temperature,
+    topP,
+    maxOutputTokens,
+    stopSequences,
   }: ChatStreamWithToolsInput<TTools>): ChatStreamResult {
-    const result = streamText({
+    const request = {
       model: model ?? this.model,
       messages,
       tools,
       stopWhen: [stepCountIs(maxSteps), ...(extraStopConditions ?? [])],
       abortSignal,
+      ...(temperature !== undefined ? { temperature } : {}),
+      ...(topP !== undefined ? { topP } : {}),
+      ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
+      ...(stopSequences && stopSequences.length > 0 ? { stopSequences } : {}),
       onAbort: ({ steps }) => {
         getLogger().info({ steps: steps.length }, "Agent turn aborted");
       },
@@ -113,7 +125,9 @@ export class AiAgent {
           toolCallsCount: toolCalls.length,
          }, "Agent step finished");
       }
-    });
+    } as Parameters<typeof streamText>[0];
+
+    const result = streamText(request);
 
     return {
       textStream: result.textStream,
