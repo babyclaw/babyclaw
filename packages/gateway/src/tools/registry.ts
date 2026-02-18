@@ -10,6 +10,7 @@ import type { ShellConfig } from "../config/shell-defaults.js";
 import { SchedulerService } from "../scheduler/service.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { createBrowserTools } from "./browser.js";
+import { createClawhubTools } from "./clawhub.js";
 import { createContinuationTools } from "./continuation.js";
 import { createMessagingTools } from "./messaging.js";
 import { createSchedulerTools } from "./scheduler.js";
@@ -109,6 +110,9 @@ export function createUnifiedTools({
     ...createWebSearchTools({
       context: executionContext,
       braveApiKey: braveSearchApiKey,
+    }),
+    ...createClawhubTools({
+      context: executionContext,
     }),
     ...browserTools,
     ...messagingTools,
