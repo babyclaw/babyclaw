@@ -1,6 +1,7 @@
 import {
   generateObject,
   generateText,
+  hasToolCall,
   stepCountIs,
   streamText,
   tool,
@@ -23,11 +24,14 @@ type ChatStreamResult = {
   text: PromiseLike<string>;
 };
 
+type StopCondition = ReturnType<typeof hasToolCall>;
+
 type ChatStreamWithToolsInput<TTools extends ToolSet = ToolSet> = {
   messages: ModelMessage[];
   tools: TTools;
   maxSteps?: number;
   abortSignal?: AbortSignal;
+  extraStopConditions?: StopCondition[];
 };
 
 type ChatWithToolsInput<TTools extends ToolSet = ToolSet> = {
@@ -81,12 +85,13 @@ export class AiAgent {
     tools,
     maxSteps = 50,
     abortSignal,
+    extraStopConditions,
   }: ChatStreamWithToolsInput<TTools>): ChatStreamResult {
     const result = streamText({
       model: this.model,
       messages,
       tools,
-      stopWhen: stepCountIs(maxSteps),
+      stopWhen: [stepCountIs(maxSteps), ...(extraStopConditions ?? [])],
       abortSignal,
       onAbort: ({ steps }) => {
         console.log(`Agent turn aborted after ${steps.length} step(s).`);

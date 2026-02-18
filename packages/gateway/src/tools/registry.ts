@@ -1,4 +1,5 @@
 import type { ToolSet } from "ai";
+import type { TurnSignals } from "../agent/types.js";
 import type { CommandApprovalService } from "../approval/service.js";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { ChannelRouter } from "../channel/router.js";
@@ -9,6 +10,7 @@ import type { ShellConfig } from "../config/shell-defaults.js";
 import { SchedulerService } from "../scheduler/service.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { createBrowserTools } from "./browser.js";
+import { createContinuationTools } from "./continuation.js";
 import { createMessagingTools } from "./messaging.js";
 import { createSchedulerTools } from "./scheduler.js";
 import { createShellTools } from "./shell.js";
@@ -31,6 +33,7 @@ type CreateUnifiedToolsInput = {
   channelRouter?: ChannelRouter;
   deliveryService?: CrossChatDeliveryService;
   commandApprovalService?: CommandApprovalService;
+  turnSignals?: TurnSignals;
 };
 
 export function createUnifiedTools({
@@ -47,6 +50,7 @@ export function createUnifiedTools({
   channelSender,
   deliveryService,
   commandApprovalService,
+  turnSignals,
 }: CreateUnifiedToolsInput): ToolSet {
   if (!executionContext.chatId) {
     throw new Error("Tool execution context must include chatId");
@@ -85,6 +89,10 @@ export function createUnifiedTools({
         })
       : {};
 
+  const continuationTools = turnSignals
+    ? createContinuationTools({ turnSignals, context: executionContext })
+    : {};
+
   return {
     ...schedulerTools,
     ...createStateTools({
@@ -104,5 +112,6 @@ export function createUnifiedTools({
     }),
     ...browserTools,
     ...messagingTools,
+    ...continuationTools,
   };
 }

@@ -1,6 +1,6 @@
 import { MessageRole } from "@prisma/client";
 import type { Chat } from "@prisma/client";
-import type { ModelMessage } from "ai";
+import { hasToolCall, type ModelMessage } from "ai";
 import { AiAgent } from "../ai/agent.js";
 import type { CommandApprovalService } from "../approval/service.js";
 import {
@@ -35,6 +35,7 @@ import { ActiveTurnManager } from "../session/active-turns.js";
 import { SessionManager } from "../session/manager.js";
 import type { SessionIdentity } from "../session/types.js";
 import { createUnifiedTools } from "../tools/registry.js";
+import { ContinuationManager } from "./continuation.js";
 import {
   buildUserContent,
   getUserMetadata,
@@ -42,7 +43,9 @@ import {
   isStopMessage,
   type ReplyReference,
 } from "./helpers.js";
-import { scanWorkspaceSkills } from "../workspace/skills/scanner.js";
+import type { TurnSignals } from "./types.js";
+import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
+import type { SkillsConfig } from "../workspace/skills/types.js";
 
 type AgentTurnOrchestratorInput = {
   workspacePath: string;
@@ -61,6 +64,8 @@ type AgentTurnOrchestratorInput = {
   commandApprovalService?: CommandApprovalService;
   useReplyChainKey: boolean;
   historyLimit: number;
+  skillsConfig: SkillsConfig;
+  fullConfig: Record<string, unknown>;
 };
 
 export class AgentTurnOrchestrator {
@@ -80,7 +85,10 @@ export class AgentTurnOrchestrator {
   private readonly commandApprovalService?: CommandApprovalService;
   private readonly useReplyChainKey: boolean;
   private readonly historyLimit: number;
+  private readonly skillsConfig: SkillsConfig;
+  private readonly fullConfig: Record<string, unknown>;
   private readonly activeTurnManager = new ActiveTurnManager();
+  private readonly continuationManager = new ContinuationManager();
 
   constructor({
     workspacePath,
@@ -99,6 +107,8 @@ export class AgentTurnOrchestrator {
     commandApprovalService,
     useReplyChainKey,
     historyLimit,
+    skillsConfig,
+    fullConfig,
   }: AgentTurnOrchestratorInput) {
     this.workspacePath = workspacePath;
     this.sessionManager = sessionManager;
@@ -116,6 +126,8 @@ export class AgentTurnOrchestrator {
     this.commandApprovalService = commandApprovalService;
     this.useReplyChainKey = useReplyChainKey;
     this.historyLimit = historyLimit;
+    this.skillsConfig = skillsConfig;
+    this.fullConfig = fullConfig;
   }
 
   async handleInboundEvent({
@@ -130,6 +142,7 @@ export class AgentTurnOrchestrator {
 
     if (isStopMessage({ text })) {
       const sessionIdentity = this.deriveSessionIdentity({ event });
+      this.continuationManager.cancel({ sessionKey: sessionIdentity.key });
       const cancelled = await this.activeTurnManager.cancel({
         sessionKey: sessionIdentity.key,
       });
@@ -163,6 +176,7 @@ export class AgentTurnOrchestrator {
     const sessionIdentity =
       linkedSessionIdentity ?? this.deriveSessionIdentity({ event });
 
+    this.continuationManager.cancel({ sessionKey: sessionIdentity.key });
     const existingMessage = await this.activeTurnManager.cancel({
       sessionKey: sessionIdentity.key,
     });
@@ -291,7 +305,7 @@ export class AgentTurnOrchestrator {
 
     const adapter = this.channelRouter.getAdapter({ platform: event.platform });
 
-    const [personalityFiles, toolsIndexContent, agentsContent, bootstrapContent, skills] =
+    const [personalityFiles, toolsIndexContent, agentsContent, bootstrapContent, allSkills] =
       await Promise.all([
         readPersonalityFiles({ workspacePath: this.workspacePath }),
         readToolNotes({ workspacePath: this.workspacePath }),
@@ -301,6 +315,12 @@ export class AgentTurnOrchestrator {
       ]);
 
     if (abortSignal.aborted) return;
+
+    const skills = getEligibleSkills({
+      skills: allSkills,
+      skillsConfig: this.skillsConfig,
+      fullConfig: this.fullConfig,
+    });
 
     const completePersonality = hasCompletePersonalityFiles(personalityFiles)
       ? personalityFiles
@@ -335,7 +355,7 @@ export class AgentTurnOrchestrator {
         personalityFiles: completePersonality,
       }),
       getWorkspaceGuideSystemMessage({ agentsContent, bootstrapContent }),
-      getSkillsSystemMessage({ 
+      getSkillsSystemMessage({
         skills,
         toolNotesContent: toolsIndexContent,
       }),
@@ -366,6 +386,8 @@ export class AgentTurnOrchestrator {
       { role: "user", content: userContent },
     ];
 
+    const turnSignals: TurnSignals = { continuation: null };
+
     const tools = createUnifiedTools({
       executionContext: {
         workspaceRoot: this.workspacePath,
@@ -389,6 +411,7 @@ export class AgentTurnOrchestrator {
       channelSender: adapter,
       deliveryService: this.deliveryService,
       commandApprovalService: this.commandApprovalService,
+      turnSignals,
     });
 
     const streamResult = this.aiAgent.chatStreamWithTools({
@@ -396,6 +419,7 @@ export class AgentTurnOrchestrator {
       tools,
       maxSteps: 50,
       abortSignal,
+      extraStopConditions: [hasToolCall("wait_and_continue")],
     });
 
     (streamResult.text as Promise<string>).catch(() => {});
@@ -420,6 +444,47 @@ export class AgentTurnOrchestrator {
 
     if (assistantResponse.length === 0) {
       assistantResponse = (await streamResult.text).trim();
+    }
+
+    if (turnSignals.continuation && !abortSignal.aborted) {
+      const { seconds, note } = turnSignals.continuation;
+      const waitingMessage = `Waiting ${formatWaitDuration({ seconds })} -- ${note}`;
+
+      await adapter.sendMessage({
+        chatId: event.chatId,
+        text: waitingMessage,
+        threadId: event.threadId,
+      });
+
+      await this.sessionManager.appendMessages({
+        identity: sessionIdentity,
+        messages: [
+          {
+            role: MessageRole.user,
+            content: userContent,
+            metadata: getUserMetadata({ replyReference }),
+          },
+          {
+            role: MessageRole.assistant,
+            content: waitingMessage,
+          },
+        ],
+      });
+
+      this.continuationManager.schedule({
+        sessionKey: sessionIdentity.key,
+        delayMs: seconds * 1000,
+        onResume: () =>
+          this.resumeContinuation({
+            event,
+            sessionIdentity,
+            isMainSession,
+            continuationNote: note,
+            waitedSeconds: seconds,
+          }),
+      });
+
+      return;
     }
 
     if (assistantResponse.length === 0) {
@@ -453,6 +518,52 @@ export class AgentTurnOrchestrator {
       platformMessageId: sendResult.platformMessageId,
       sessionKey: sessionIdentity.key,
     });
+  }
+
+  private resumeContinuation({
+    event,
+    sessionIdentity,
+    isMainSession,
+    continuationNote,
+    waitedSeconds,
+  }: {
+    event: NormalizedInboundEvent;
+    sessionIdentity: SessionIdentity;
+    isMainSession: boolean;
+    continuationNote: string;
+    waitedSeconds: number;
+  }): void {
+    const existing = this.activeTurnManager.get({
+      sessionKey: sessionIdentity.key,
+    });
+    if (existing) {
+      console.log(
+        `[continuation] Skipping resume for ${sessionIdentity.key} -- active turn exists`,
+      );
+      return;
+    }
+
+    const continuationMessage = [
+      `[CONTINUATION] Resuming after ${waitedSeconds}s wait.`,
+      `Your previous continuation note: ${continuationNote}`,
+      "Check on any processes you were waiting for and continue your task.",
+    ].join("\n");
+
+    this.chatRegistry
+      .listLinkedChats({ platform: event.platform })
+      .then((linkedChats) => {
+        this.launchAgentTurn({
+          event,
+          sessionIdentity,
+          userMessage: continuationMessage,
+          replyReference: null,
+          isMainSession,
+          linkedChats,
+        });
+      })
+      .catch((err) => {
+        console.error("[continuation] Failed to resume:", err);
+      });
   }
 
   private deriveSessionIdentity({
@@ -514,4 +625,11 @@ export class AgentTurnOrchestrator {
     if (!mainChat) return false;
     return mainChat.platformChatId === event.chatId;
   }
+}
+
+function formatWaitDuration({ seconds }: { seconds: number }): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remaining = seconds % 60;
+  return remaining > 0 ? `${minutes}m ${remaining}s` : `${minutes}m`;
 }

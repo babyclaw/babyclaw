@@ -197,6 +197,8 @@ export class GatewayRuntime {
         commandApprovalService,
         useReplyChainKey: config.session.replyChainMode === "reply-chain",
         historyLimit: config.session.historyLimit,
+        skillsConfig: config.skills,
+        fullConfig: config as unknown as Record<string, unknown>,
       });
 
       const schedulerExecutor = new SchedulerExecutor({
@@ -213,6 +215,8 @@ export class GatewayRuntime {
         braveSearchApiKey: config.tools.webSearch.braveApiKey,
         shellConfig,
         browserMcpClient,
+        skillsConfig: config.skills,
+        fullConfig: config as unknown as Record<string, unknown>,
       });
 
       schedulerRuntime = new SchedulerRuntime({
@@ -240,6 +244,8 @@ export class GatewayRuntime {
         browserMcpClient,
         heartbeatConfig: config.heartbeat,
         historyLimit: config.session.historyLimit,
+        skillsConfig: config.skills,
+        fullConfig: config as unknown as Record<string, unknown>,
       });
 
       heartbeatRuntime = new HeartbeatRuntime({

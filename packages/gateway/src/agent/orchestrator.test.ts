@@ -1,5 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { AgentTurnOrchestrator } from "./orchestrator.js";
+import type { TurnSignals } from "./types.js";
 import type { ChannelAdapter, NormalizedInboundEvent } from "../channel/types.js";
 import { ChannelRouter } from "../channel/router.js";
 
@@ -31,6 +32,16 @@ vi.mock("../ai/prompts.js", () => ({
 vi.mock("../workspace/skills/index.js", () => ({
   scanWorkspaceSkills: vi.fn(async () => []),
   getEligibleSkills: vi.fn(({ skills }: any) => skills),
+}));
+let capturedTurnSignals: TurnSignals | null = null;
+
+vi.mock("../tools/registry.js", () => ({
+  createUnifiedTools: vi.fn(({ turnSignals }: { turnSignals?: TurnSignals }) => {
+    if (turnSignals) {
+      capturedTurnSignals = turnSignals;
+    }
+    return {};
+  }),
 }));
 
 function createMockAdapter(): ChannelAdapter {
@@ -132,6 +143,10 @@ function makeEvent(overrides: Partial<NormalizedInboundEvent> = {}): NormalizedI
 }
 
 describe("AgentTurnOrchestrator", () => {
+  afterEach(() => {
+    capturedTurnSignals = null;
+  });
+
   describe("handleInboundEvent", () => {
     it("ignores empty messages", async () => {
       const deps = createMockDeps();
@@ -349,6 +364,253 @@ describe("AgentTurnOrchestrator", () => {
         },
         { timeout: 3000 },
       );
+    });
+  });
+
+  describe("wait_and_continue continuation", () => {
+    function mockChatStreamWithContinuation({
+      deps,
+      seconds,
+      note,
+    }: {
+      deps: ReturnType<typeof createMockDeps>;
+      seconds: number;
+      note: string;
+    }): void {
+      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
+        (): { textStream: AsyncIterable<string>; text: Promise<string> } => {
+          if (capturedTurnSignals) {
+            capturedTurnSignals.continuation = { seconds, note };
+          }
+          return {
+            textStream: (async function* (): AsyncGenerator<string> {})(),
+            text: Promise.resolve(""),
+          };
+        },
+      );
+      deps.adapter.streamDraft = vi.fn(async () => "");
+    }
+
+    it("sends a waiting message when the tool sets continuation", async () => {
+      const deps = createMockDeps();
+      mockChatStreamWithContinuation({ deps, seconds: 30, note: "build running" });
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "run build" }),
+      });
+
+      await vi.waitFor(() => {
+        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+        const waitCall = calls.find((c: any) => c[0].text.includes("Waiting"));
+        expect(waitCall).toBeDefined();
+        expect(waitCall![0].text).toContain("30s");
+        expect(waitCall![0].text).toContain("build running");
+      });
+    });
+
+    it("saves the waiting message to session history", async () => {
+      const deps = createMockDeps();
+      mockChatStreamWithContinuation({ deps, seconds: 60, note: "deploying" });
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "deploy" }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.sessionManager.appendMessages).toHaveBeenCalled();
+      });
+
+      const calls = (deps.sessionManager.appendMessages as any).mock.calls;
+      const call = calls[calls.length - 1]?.[0];
+      expect(call.messages).toHaveLength(2);
+      expect(call.messages[0].role).toBe("user");
+      expect(call.messages[1].role).toBe("assistant");
+      expect(call.messages[1].content).toContain("Waiting");
+      expect(call.messages[1].content).toContain("deploying");
+    });
+
+    it("does not store a message link (returns early before send)", async () => {
+      const deps = createMockDeps();
+      mockChatStreamWithContinuation({ deps, seconds: 10, note: "waiting" });
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "do thing" }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.adapter.sendMessage).toHaveBeenCalled();
+      });
+
+      expect(deps.messageLinkRepository.upsertMessageLink).not.toHaveBeenCalled();
+    });
+
+    it("formats duration in minutes for waits >= 60s", async () => {
+      const deps = createMockDeps();
+      mockChatStreamWithContinuation({ deps, seconds: 150, note: "long task" });
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "start" }),
+      });
+
+      await vi.waitFor(() => {
+        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+        const waitCall = calls.find((c: any) => c[0].text.includes("Waiting"));
+        expect(waitCall).toBeDefined();
+        expect(waitCall![0].text).toContain("2m 30s");
+      });
+    });
+
+    it("resumes with a continuation turn after the timer fires", async () => {
+      vi.useFakeTimers();
+
+      const deps = createMockDeps();
+      let callCount = 0;
+      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
+        (): { textStream: AsyncIterable<string>; text: Promise<string> } => {
+          callCount++;
+          if (callCount === 1 && capturedTurnSignals) {
+            capturedTurnSignals.continuation = { seconds: 5, note: "check output" };
+            return {
+              textStream: (async function* (): AsyncGenerator<string> {})(),
+              text: Promise.resolve(""),
+            };
+          }
+          return {
+            textStream: (async function* (): AsyncGenerator<string> {
+              yield "Done checking";
+            })(),
+            text: Promise.resolve("Done checking"),
+          };
+        },
+      );
+      deps.adapter.streamDraft = vi.fn(async ({ textStream }: any) => {
+        let result = "";
+        for await (const chunk of textStream) {
+          result += chunk;
+        }
+        return result;
+      });
+
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "start process" }),
+      });
+
+      await vi.waitFor(() => {
+        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+        expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
+      });
+
+      expect(callCount).toBe(1);
+
+      vi.advanceTimersByTime(5000);
+
+      await vi.waitFor(() => {
+        expect(callCount).toBe(2);
+      });
+
+      await vi.waitFor(() => {
+        const calls = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls;
+        const lastCall = calls[calls.length - 1]?.[0];
+        const userMsg = lastCall?.messages?.find(
+          (m: any) => m.role === "user" && m.content?.includes("[CONTINUATION]"),
+        );
+        expect(userMsg).toBeDefined();
+        expect(userMsg.content).toContain("check output");
+      });
+
+      vi.useRealTimers();
+    });
+
+    it("cancels pending continuation when user sends a stop message", async () => {
+      const deps = createMockDeps();
+      mockChatStreamWithContinuation({ deps, seconds: 600, note: "waiting" });
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "start" }),
+      });
+
+      await vi.waitFor(() => {
+        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+        expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
+      });
+
+      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockClear();
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "stop", messageId: "101" }),
+      });
+
+      // The continuation was cancelled by the stop handler. Since the delay is
+      // 600s the timer cannot fire during this test even with real timers.
+      // Verify no continuation turn was launched.
+      expect(deps.aiAgent.chatStreamWithTools).not.toHaveBeenCalled();
+    });
+
+    it("cancels pending continuation when user sends a new message", async () => {
+      const deps = createMockDeps();
+      let callCount = 0;
+      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
+        (): { textStream: AsyncIterable<string>; text: Promise<string> } => {
+          callCount++;
+          if (callCount === 1 && capturedTurnSignals) {
+            capturedTurnSignals.continuation = { seconds: 600, note: "waiting" };
+            return {
+              textStream: (async function* (): AsyncGenerator<string> {})(),
+              text: Promise.resolve(""),
+            };
+          }
+          return {
+            textStream: (async function* (): AsyncGenerator<string> {
+              yield "response";
+            })(),
+            text: Promise.resolve("response"),
+          };
+        },
+      );
+      deps.adapter.streamDraft = vi.fn(async ({ textStream }: any) => {
+        let result = "";
+        for await (const chunk of textStream) {
+          result += chunk;
+        }
+        return result;
+      });
+
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "start" }),
+      });
+
+      await vi.waitFor(() => {
+        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+        expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
+      });
+
+      expect(callCount).toBe(1);
+
+      // New message should cancel the pending continuation and start a fresh turn
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "actually do this instead", messageId: "102" }),
+      });
+
+      await vi.waitFor(() => {
+        expect(callCount).toBe(2);
+      });
+
+      // The second call should be a normal turn (from the new user message),
+      // NOT a continuation turn. Check the user message content.
+      const secondCallMessages = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>)
+        .mock.calls[1]?.[0]?.messages;
+      const userMsg = secondCallMessages?.find((m: any) => m.role === "user");
+      expect(userMsg?.content).toContain("actually do this instead");
+      expect(userMsg?.content).not.toContain("[CONTINUATION]");
     });
   });
 });

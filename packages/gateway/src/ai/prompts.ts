@@ -36,6 +36,11 @@ export function getSchedulerGuidanceSystemMessage(): ModelMessage {
       "After create or cancel, confirm schedule id and next run in your reply.",
       "If cancel_schedule returns ambiguous, ask user to choose one candidate id.",
       "You can run shell commands via the shell_exec tool for tasks like checking git status, running scripts, fetching URLs, etc.",
+      "You have a wait_and_continue tool for waiting on long-running processes.",
+      "Use it when you start a process (e.g. build, deployment, script) and need to check back later.",
+      "Write a thorough continuation_note so your future self knows exactly what to do.",
+      "The tool ends your current turn and resumes automatically after the delay.",
+      "For waits longer than 10 minutes, use create_schedule instead.",
     ].join("\n"),
   };
 }
