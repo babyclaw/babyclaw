@@ -92,6 +92,24 @@ const channelsSchema = z.object({
   telegram: telegramChannelConfigSchema.optional(),
 }).strict().default({});
 
+const loggingSchema = z.object({
+  level: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  format: z.enum(["json", "pretty"]).default(
+    process.env.NODE_ENV === "production" ? "json" : "pretty",
+  ),
+  output: z.string().min(1).default("stdout"),
+  redact: z.array(z.string().min(1)).default([]),
+  includeTimestamps: z.boolean().default(true),
+  includeHostname: z.boolean().default(false),
+}).strict().default({
+  level: "info",
+  format: process.env.NODE_ENV === "production" ? "json" : "pretty",
+  output: "stdout",
+  redact: [],
+  includeTimestamps: true,
+  includeHostname: false,
+});
+
 export const simpleclawConfigSchema = z.object({
   version: z.literal(1),
   telegram: z.object({
@@ -133,6 +151,7 @@ export const simpleclawConfigSchema = z.object({
   }),
   tools: toolsSchema,
   skills: skillsSchema,
+  logging: loggingSchema,
   heartbeat: z.object({
     enabled: z.boolean().default(false),
     intervalMinutes: z.number().int().min(5).default(30),
