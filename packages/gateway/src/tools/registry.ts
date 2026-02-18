@@ -13,6 +13,7 @@ import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { createBrowserTools } from "./browser.js";
 import { createClawhubTools } from "./clawhub.js";
 import { createContinuationTools } from "./continuation.js";
+import { createMediaTools } from "./media.js";
 import { createMessagingTools } from "./messaging.js";
 import { createSchedulerTools } from "./scheduler.js";
 import { createSelfTools } from "./self.js";
@@ -120,6 +121,13 @@ export function createUnifiedTools({
         })
       : {};
 
+  const mediaTools = channelSender
+    ? createMediaTools({
+        channelSender,
+        executionContext,
+      })
+    : {};
+
   const continuationTools = turnSignals
     ? createContinuationTools({ turnSignals, context: executionContext })
     : {};
@@ -147,6 +155,7 @@ export function createUnifiedTools({
     }),
     ...browserTools,
     ...messagingTools,
+    ...mediaTools,
     ...continuationTools,
   };
 }
