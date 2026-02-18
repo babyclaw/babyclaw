@@ -43,6 +43,7 @@ export function createContinuationTools({
           context,
           toolName: "wait_and_continue",
           defaultCode: "WAIT_FAILED",
+          input: { seconds, noteLength: continuation_note.length },
           action: async () => {
             turnSignals.continuation = {
               seconds,

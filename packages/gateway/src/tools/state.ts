@@ -33,6 +33,7 @@ export function createStateTools({ context }: CreateStateToolsInput): ToolSet {
           context,
           toolName: "state_get",
           defaultCode: "STATE_GET_FAILED",
+          input: { key },
           action: async () => {
             const normalizedKey = normalizeStateKey({ key });
             const stateRoot = await ensureStateRoot({ context });
@@ -79,6 +80,7 @@ export function createStateTools({ context }: CreateStateToolsInput): ToolSet {
           context,
           toolName: "state_set",
           defaultCode: "STATE_SET_FAILED",
+          input: { key, mode, expected_version },
           action: async () => {
             const normalizedKey = normalizeStateKey({ key });
             ensureJsonWithinLimit({
@@ -157,6 +159,7 @@ export function createStateTools({ context }: CreateStateToolsInput): ToolSet {
           context,
           toolName: "state_patch",
           defaultCode: "STATE_PATCH_FAILED",
+          input: { key, expected_version },
           action: async () => {
             const normalizedKey = normalizeStateKey({ key });
             const stateRoot = await ensureStateRoot({ context });
@@ -228,6 +231,7 @@ export function createStateTools({ context }: CreateStateToolsInput): ToolSet {
           context,
           toolName: "state_list",
           defaultCode: "STATE_LIST_FAILED",
+          input: { prefix, cursor, limit },
           action: async () => {
             const normalizedPrefix = normalizeOptionalPrefix({ prefix });
             const stateRoot = await ensureStateRoot({ context });

@@ -101,6 +101,7 @@ export function createSchedulerTools({
           context: executionContext,
           toolName: "create_schedule",
           defaultCode: "CREATE_SCHEDULE_FAILED",
+          input: { job_type, task, run_at_iso, cron_expression, title, target_alias },
           action: async () => {
             let targetChatRef: string | null = null;
 
@@ -193,6 +194,7 @@ export function createSchedulerTools({
           context: executionContext,
           toolName: "list_schedules",
           defaultCode: "LIST_SCHEDULES_FAILED",
+          input: { include_inactive },
           action: async () => {
             const schedules = await schedulerService.listSchedules({
               chatId,
@@ -230,6 +232,7 @@ export function createSchedulerTools({
           context: executionContext,
           toolName: "cancel_schedule",
           defaultCode: "CANCEL_SCHEDULE_FAILED",
+          input: { schedule_id, query },
           action: async () => {
             const result = await schedulerService.cancelSchedule({
               chatId,

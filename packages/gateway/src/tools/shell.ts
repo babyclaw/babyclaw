@@ -66,6 +66,7 @@ export function createShellTools({ context, shellConfig, commandApprovalService 
           context,
           toolName: "shell_exec",
           defaultCode: "SHELL_EXEC_FAILED",
+          input: { command, timeout_ms, working_directory },
           action: async () => {
             let approvedByOwner = false;
 

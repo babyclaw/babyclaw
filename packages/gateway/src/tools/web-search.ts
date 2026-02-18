@@ -61,6 +61,7 @@ export function createWebSearchTools({
           context,
           toolName: "web_search",
           defaultCode: "WEB_SEARCH_FAILED",
+          input: { query, count, freshness },
           action: async () => {
             if (!braveApiKey) {
               throw new ToolExecutionError({

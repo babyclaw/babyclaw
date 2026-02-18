@@ -27,6 +27,7 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
           context,
           toolName: "workspace_read",
           defaultCode: "WORKSPACE_READ_FAILED",
+          input: { path, format },
           action: async () => {
             const absolutePath = resolveWorkspacePath({
               workspaceRoot: context.workspaceRoot,
@@ -88,6 +89,7 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
           context,
           toolName: "workspace_write",
           defaultCode: "WORKSPACE_WRITE_FAILED",
+          input: { path, format, mode, contentLength: content?.length, hasValue: value !== undefined },
           action: async () => {
             const absolutePath = resolveWorkspacePath({
               workspaceRoot: context.workspaceRoot,
@@ -187,6 +189,7 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
           context,
           toolName: "workspace_list",
           defaultCode: "WORKSPACE_LIST_FAILED",
+          input: { path, recursive, cursor, limit },
           action: async () => {
             const absolutePath = resolveWorkspacePath({
               workspaceRoot: context.workspaceRoot,
@@ -244,6 +247,7 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
           context,
           toolName: "workspace_delete",
           defaultCode: "WORKSPACE_DELETE_FAILED",
+          input: { path, recursive },
           action: async () => {
             const absolutePath = resolveWorkspacePath({
               workspaceRoot: context.workspaceRoot,
@@ -284,6 +288,7 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
           context,
           toolName: "workspace_move",
           defaultCode: "WORKSPACE_MOVE_FAILED",
+          input: { from_path, to_path, overwrite },
           action: async () => {
             const fromAbsolute = resolveWorkspacePath({
               workspaceRoot: context.workspaceRoot,

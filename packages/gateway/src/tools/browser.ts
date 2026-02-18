@@ -78,6 +78,7 @@ export function createBrowserTools({ mcpClient, context }: CreateBrowserToolsInp
           context,
           toolName: "browser_navigate",
           defaultCode: "BROWSER_NAVIGATE_FAILED",
+          input: { url },
           action: () => callMcp({ name: "browser_navigate", args: { url } }),
         }),
     }),
@@ -112,6 +113,7 @@ export function createBrowserTools({ mcpClient, context }: CreateBrowserToolsInp
           context,
           toolName: "browser_click",
           defaultCode: "BROWSER_CLICK_FAILED",
+          input: { index },
           action: () => callMcp({ name: "browser_click", args: { index } }),
         }),
     }),
@@ -132,6 +134,7 @@ export function createBrowserTools({ mcpClient, context }: CreateBrowserToolsInp
           context,
           toolName: "browser_type",
           defaultCode: "BROWSER_TYPE_FAILED",
+          input: { index, textLength: text.length },
           action: () => callMcp({ name: "browser_type", args: { index, text } }),
         }),
     }),
@@ -155,6 +158,7 @@ export function createBrowserTools({ mcpClient, context }: CreateBrowserToolsInp
           context,
           toolName: "browser_scroll",
           defaultCode: "BROWSER_SCROLL_FAILED",
+          input: { direction, amount },
           action: () =>
             callMcp({
               name: "browser_scroll",
@@ -179,6 +183,7 @@ export function createBrowserTools({ mcpClient, context }: CreateBrowserToolsInp
           context,
           toolName: "browser_extract_content",
           defaultCode: "BROWSER_EXTRACT_FAILED",
+          input: { instruction },
           action: () =>
             callMcp({ name: "browser_extract_content", args: { instruction } }),
         }),
@@ -226,6 +231,7 @@ export function createBrowserTools({ mcpClient, context }: CreateBrowserToolsInp
           context,
           toolName: "browser_close_session",
           defaultCode: "BROWSER_CLOSE_SESSION_FAILED",
+          input: { session_id },
           action: () =>
             callMcp({ name: "browser_close_session", args: { session_id } }),
         }),

@@ -59,6 +59,7 @@ export function createMessagingTools({
           context: executionContext,
           toolName: "send_message",
           defaultCode: "SEND_MESSAGE_FAILED",
+          input: { alias, chat_id, textLength: text.length, thread_id },
           action: async () => {
             if (!alias && !chat_id) {
               throw new ToolExecutionError({
