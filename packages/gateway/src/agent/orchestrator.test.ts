@@ -34,6 +34,25 @@ vi.mock("../workspace/skills/index.js", () => ({
   scanWorkspaceSkills: vi.fn(async () => []),
   getEligibleSkills: vi.fn(({ skills }: any) => skills),
 }));
+
+vi.mock("ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("ai")>();
+  return {
+    ...actual,
+    generateText: vi.fn(async () => ({ text: "A detailed description of the image contents." })),
+  };
+});
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    readFileSync: vi.fn(() => Buffer.from("fake-image-data")),
+    existsSync: vi.fn(() => true),
+  };
+});
+const { generateText } = await import("ai");
+
 let capturedTurnSignals: TurnSignals | null = null;
 
 vi.mock("../tools/registry.js", () => ({
@@ -55,6 +74,8 @@ function createMockAdapter(): ChannelAdapter {
       supportsEditing: false,
     },
     sendMessage: vi.fn(async () => ({ platformMessageId: "msg-1" })),
+    sendImage: vi.fn(async () => ({ platformMessageId: "img-1" })),
+    sendFile: vi.fn(async () => ({ platformMessageId: "file-1" })),
     streamDraft: vi.fn(async () => "streamed response"),
     streamTurn: vi.fn(async ({ agentStream }: any) => {
       const texts: string[] = [];
@@ -131,7 +152,10 @@ function createMockDeps(overrides: Record<string, any> = {}) {
   };
 }
 
-function createOrchestrator(deps: ReturnType<typeof createMockDeps>) {
+function createOrchestrator(
+  deps: ReturnType<typeof createMockDeps>,
+  orchestratorOverrides: Record<string, any> = {},
+) {
   return new AgentTurnOrchestrator({
     workspacePath: "/tmp/test-workspace",
     sessionManager: deps.sessionManager as any,
@@ -162,6 +186,7 @@ function createOrchestrator(deps: ReturnType<typeof createMockDeps>) {
     schedulerActive: true,
     heartbeatActive: false,
     restartGateway: vi.fn(async () => {}),
+    ...orchestratorOverrides,
   });
 }
 
@@ -181,6 +206,7 @@ function makeEvent(overrides: Partial<NormalizedInboundEvent> = {}): NormalizedI
 describe("AgentTurnOrchestrator", () => {
   afterEach(() => {
     capturedTurnSignals = null;
+    vi.mocked(generateText).mockClear();
   });
 
   describe("handleInboundEvent", () => {
@@ -374,6 +400,171 @@ describe("AgentTurnOrchestrator", () => {
       const call = calls[calls.length - 1]?.[0];
       expect(call.messages[0].content).toContain("Reply context");
       expect(call.messages[0].content).toContain("Previous message");
+    });
+
+    it("processes a message with images through the agent", async () => {
+      const deps = createMockDeps();
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          messageText: "What is in this photo?",
+          images: [{ localPath: "/tmp/test.jpg", mimeType: "image/jpeg" }],
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.aiAgent.chatStreamWithTools).toHaveBeenCalled();
+      });
+
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      const userMsg = call?.messages?.find((m: any) => m.role === "user");
+      expect(userMsg).toBeDefined();
+      expect(Array.isArray(userMsg.content)).toBe(true);
+      expect(userMsg.content).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: "text" }),
+          expect.objectContaining({ type: "image" }),
+        ]),
+      );
+    });
+
+    it("accepts image-only messages with empty text", async () => {
+      const deps = createMockDeps();
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          messageText: "",
+          images: [{ localPath: "/tmp/test.jpg", mimeType: "image/jpeg" }],
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.aiAgent.chatStreamWithTools).toHaveBeenCalled();
+      });
+    });
+
+    it("stores image paths in user message metadata", async () => {
+      const deps = createMockDeps();
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          messageText: "Describe this",
+          images: [{ localPath: "/tmp/photo.png", mimeType: "image/png" }],
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.sessionManager.appendMessages).toHaveBeenCalled();
+      });
+
+      const calls = (deps.sessionManager.appendMessages as any).mock.calls;
+      const call = calls[calls.length - 1]?.[0];
+      const userMsg = call.messages[0];
+      expect(userMsg.metadata).toBeDefined();
+      const meta = JSON.parse(userMsg.metadata);
+      expect(meta.images).toEqual([
+        { localPath: "/tmp/photo.png", mimeType: "image/png" },
+      ]);
+    });
+
+    it("describes images via vision model and sends text-only to main model", async () => {
+      const deps = createMockDeps();
+      const mockVisionModel = { modelId: "vision-model" } as any;
+      const orchestrator = createOrchestrator(deps, { visionModel: mockVisionModel });
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          messageText: "What is this?",
+          images: [{ localPath: "/tmp/test.jpg", mimeType: "image/jpeg" }],
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.aiAgent.chatStreamWithTools).toHaveBeenCalled();
+      });
+
+      expect(generateText).toHaveBeenCalledWith(
+        expect.objectContaining({ model: mockVisionModel }),
+      );
+
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      expect(call.model).toBeUndefined();
+
+      const userMsg = call?.messages?.find((m: any) => m.role === "user");
+      expect(typeof userMsg.content).toBe("string");
+      expect(userMsg.content).toContain("What is this?");
+      expect(userMsg.content).toContain("[The user attached 1 image to this message. Contents of the image:]");
+      expect(userMsg.content).toContain("A detailed description of the image contents.");
+    });
+
+    it("does not store image metadata when visionModel describes images", async () => {
+      const deps = createMockDeps();
+      const mockVisionModel = { modelId: "vision-model" } as any;
+      const orchestrator = createOrchestrator(deps, { visionModel: mockVisionModel });
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          messageText: "Describe this",
+          images: [{ localPath: "/tmp/photo.png", mimeType: "image/png" }],
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.sessionManager.appendMessages).toHaveBeenCalled();
+      });
+
+      const calls = (deps.sessionManager.appendMessages as any).mock.calls;
+      const call = calls[calls.length - 1]?.[0];
+      const userMsg = call.messages[0];
+      if (userMsg.metadata) {
+        const meta = JSON.parse(userMsg.metadata);
+        expect(meta.images).toBeUndefined();
+      }
+    });
+
+    it("describes image-only messages (empty text) via vision model", async () => {
+      const deps = createMockDeps();
+      const mockVisionModel = { modelId: "vision-model" } as any;
+      const orchestrator = createOrchestrator(deps, { visionModel: mockVisionModel });
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          messageText: "",
+          images: [{ localPath: "/tmp/test.jpg", mimeType: "image/jpeg" }],
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.aiAgent.chatStreamWithTools).toHaveBeenCalled();
+      });
+
+      expect(generateText).toHaveBeenCalled();
+
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      const userMsg = call?.messages?.find((m: any) => m.role === "user");
+      expect(typeof userMsg.content).toBe("string");
+      expect(userMsg.content).toContain("[The user sent 1 image with no accompanying text. Contents of the image:]");
+    });
+
+    it("does not call generateText for text-only messages even with visionModel", async () => {
+      const deps = createMockDeps();
+      const mockVisionModel = { modelId: "vision-model" } as any;
+      const orchestrator = createOrchestrator(deps, { visionModel: mockVisionModel });
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({ messageText: "No images here" }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.aiAgent.chatStreamWithTools).toHaveBeenCalled();
+      });
+
+      expect(generateText).not.toHaveBeenCalled();
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      expect(call.model).toBeUndefined();
     });
 
     it("sends error reply when agent turn fails", async () => {

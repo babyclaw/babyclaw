@@ -1,5 +1,6 @@
 import { MessageRole, PrismaClient, type Message } from "@prisma/client";
 import type { ModelMessage } from "ai";
+import { buildUserContentFromMetadata } from "../agent/helpers.js";
 import type {
   DeriveSessionIdentityInput,
   PersistedMessageInput,
@@ -118,6 +119,7 @@ export class SessionManager {
       where: { sessionId: session.id },
       orderBy: { createdAt: "desc" },
       take,
+      select: { role: true, content: true, metadata: true },
     });
 
     records.reverse();
@@ -235,7 +237,7 @@ function getEffectiveLimit({
 function toCoreMessage({
   record,
 }: {
-  record: Pick<Message, "role" | "content">;
+  record: Pick<Message, "role" | "content" | "metadata">;
 }): ModelMessage {
   if (record.role === MessageRole.system) {
     return {
@@ -247,7 +249,10 @@ function toCoreMessage({
   if (record.role === MessageRole.user) {
     return {
       role: "user",
-      content: record.content,
+      content: buildUserContentFromMetadata({
+        content: record.content,
+        metadata: record.metadata,
+      }),
     };
   }
 

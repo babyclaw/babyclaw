@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 import { MessageRole } from "@prisma/client";
 import type { Chat } from "@prisma/client";
-import { hasToolCall, type ModelMessage, type TextStreamPart, type ToolSet } from "ai";
+import { generateText, hasToolCall, type ImagePart, type LanguageModel, type ModelMessage, type TextPart, type TextStreamPart, type ToolSet } from "ai";
 import { AiAgent } from "../ai/agent.js";
 import type { CommandApprovalService } from "../approval/service.js";
 import {
@@ -17,7 +18,7 @@ import {
 } from "../ai/prompts.js";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { ChannelRouter } from "../channel/router.js";
-import type { AgentStreamEvent, NormalizedInboundEvent } from "../channel/types.js";
+import type { AgentStreamEvent, ImageAttachment, NormalizedInboundEvent } from "../channel/types.js";
 import type { MessageLinkRepository } from "../channel/message-link.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
 import type { ChatRegistry } from "../chat/registry.js";
@@ -41,6 +42,7 @@ import { createUnifiedTools } from "../tools/registry.js";
 import { ContinuationManager } from "./continuation.js";
 import {
   buildUserContent,
+  extractTextFromUserContent,
   getUserMetadata,
   isCommandText,
   isStopMessage,
@@ -55,6 +57,7 @@ type AgentTurnOrchestratorInput = {
   workspacePath: string;
   sessionManager: SessionManager;
   aiAgent: AiAgent;
+  visionModel?: LanguageModel;
   schedulerService: SchedulerService;
   messageLinkRepository: MessageLinkRepository;
   chatRegistry: ChatRegistry;
@@ -83,6 +86,7 @@ export class AgentTurnOrchestrator {
   private readonly workspacePath: string;
   private readonly sessionManager: SessionManager;
   private readonly aiAgent: AiAgent;
+  private readonly visionModel?: LanguageModel;
   private readonly schedulerService: SchedulerService;
   private readonly messageLinkRepository: MessageLinkRepository;
   private readonly chatRegistry: ChatRegistry;
@@ -113,6 +117,7 @@ export class AgentTurnOrchestrator {
     workspacePath,
     sessionManager,
     aiAgent,
+    visionModel,
     schedulerService,
     messageLinkRepository,
     chatRegistry,
@@ -139,6 +144,7 @@ export class AgentTurnOrchestrator {
     this.workspacePath = workspacePath;
     this.sessionManager = sessionManager;
     this.aiAgent = aiAgent;
+    this.visionModel = visionModel;
     this.schedulerService = schedulerService;
     this.messageLinkRepository = messageLinkRepository;
     this.chatRegistry = chatRegistry;
@@ -170,9 +176,10 @@ export class AgentTurnOrchestrator {
     event: NormalizedInboundEvent;
   }): Promise<void> {
     const text = event.messageText.trim();
-    if (text.length === 0) return;
+    const hasImages = event.images && event.images.length > 0;
+    if (text.length === 0 && !hasImages) return;
 
-    if (isCommandText({ text })) return;
+    if (text.length > 0 && isCommandText({ text })) return;
 
     this.log.debug({
       platform: event.platform,
@@ -388,10 +395,39 @@ export class AgentTurnOrchestrator {
       ? personalityFiles
       : undefined;
 
-    const userContent = buildUserContent({
-      messageText: userMessage,
-      replyReference,
-    });
+    const hasImages = event.images && event.images.length > 0;
+
+    let userContent: ReturnType<typeof buildUserContent>;
+    let persistImages: ImageAttachment[] | undefined;
+
+    if (hasImages && this.visionModel) {
+      const description = await describeImages({
+        model: this.visionModel,
+        images: event.images!,
+        userText: userMessage,
+      });
+
+      if (abortSignal.aborted) return;
+
+      const imageCount = event.images!.length;
+      const imageNoun = imageCount === 1 ? "image" : "images";
+      const enrichedText =
+        userMessage.length > 0
+          ? `${userMessage}\n\n[The user attached ${imageCount} ${imageNoun} to this message. Contents of the ${imageNoun}:]\n${description}`
+          : `[The user sent ${imageCount} ${imageNoun} with no accompanying text. Contents of the ${imageNoun}:]\n${description}`;
+
+      userContent = buildUserContent({
+        messageText: enrichedText,
+        replyReference,
+      });
+    } else {
+      userContent = buildUserContent({
+        messageText: userMessage,
+        replyReference,
+        images: event.images,
+      });
+      persistImages = event.images;
+    }
 
     const history = await this.sessionManager.getMessages({
       identity: sessionIdentity,
@@ -490,7 +526,7 @@ export class AgentTurnOrchestrator {
     });
 
     this.log.debug(
-      { sessionKey: sessionIdentity.key, messageCount: messages.length },
+      { sessionKey: sessionIdentity.key, messageCount: messages.length, hasImages },
       "Sending messages to AI model",
     );
 
@@ -554,8 +590,8 @@ export class AgentTurnOrchestrator {
         messages: [
           {
             role: MessageRole.user,
-            content: userContent,
-            metadata: getUserMetadata({ replyReference }),
+            content: extractTextFromUserContent({ content: userContent }),
+            metadata: getUserMetadata({ replyReference, images: persistImages }),
           },
           {
             role: MessageRole.assistant,
@@ -589,8 +625,8 @@ export class AgentTurnOrchestrator {
       messages: [
         {
           role: MessageRole.user,
-          content: userContent,
-          metadata: getUserMetadata({ replyReference }),
+          content: extractTextFromUserContent({ content: userContent }),
+          metadata: getUserMetadata({ replyReference, images: persistImages }),
         },
         {
           role: MessageRole.assistant,
@@ -735,6 +771,39 @@ export class AgentTurnOrchestrator {
     if (!mainChat) return false;
     return mainChat.platformChatId === event.chatId;
   }
+}
+
+async function describeImages({
+  model,
+  images,
+  userText,
+}: {
+  model: LanguageModel;
+  images: ImageAttachment[];
+  userText: string;
+}): Promise<string> {
+  const imageParts: Array<TextPart | ImagePart> = images.map((img) => ({
+    type: "image" as const,
+    image: readFileSync(img.localPath),
+    mediaType: img.mimeType,
+  }));
+
+  const prompt =
+    userText.length > 0
+      ? `The user sent the following message along with ${images.length} image(s):\n"${userText}"\n\nDescribe each image in detail, including any text, UI elements, code, errors, or other relevant content visible in the image.`
+      : `The user sent ${images.length} image(s) without any text. Describe each image in detail, including any text, UI elements, code, errors, or other relevant content visible in the image.`;
+
+  const result = await generateText({
+    model,
+    messages: [
+      {
+        role: "user",
+        content: [{ type: "text", text: prompt }, ...imageParts],
+      },
+    ],
+  });
+
+  return result.text.trim();
 }
 
 function formatWaitDuration({ seconds }: { seconds: number }): string {
