@@ -30,8 +30,11 @@ import type { Logger } from "./logging/index.js";
 import { SchedulerExecutor } from "./scheduler/executor.js";
 import { SchedulerRuntime } from "./scheduler/runtime.js";
 import { SchedulerService } from "./scheduler/service.js";
+import { MemoryExtractor } from "./memory/extractor.js";
+import { MemoryExtractionQueue } from "./memory/queue.js";
 import { SessionManager } from "./session/manager.js";
 import { bootstrapWorkspace } from "./workspace/bootstrap.js";
+import { applyMigrations } from "./database/migrate.js";
 
 export type GatewayStatus = {
   state: "stopped" | "starting" | "running" | "stopping";
@@ -54,6 +57,7 @@ export class GatewayRuntime {
   private adminServer: AdminServer | null = null;
   private apiServer: ApiServer | null = null;
   private channelRouter: ChannelRouter | null = null;
+  private memoryExtractionQueue: MemoryExtractionQueue | null = null;
 
   async start(): Promise<void> {
     if (this.state !== "stopped") {
@@ -80,6 +84,10 @@ export class GatewayRuntime {
       }, "Gateway configuration summary");
 
       const workspacePath = resolve(process.cwd(), config.workspace.root);
+
+      log.info("Applying database migrations...");
+      applyMigrations({ databaseUrl: config.database.url });
+      log.info("Database migrations applied");
 
       const registry = buildProviderRegistry({
         providers: config.ai.providers,
@@ -225,6 +233,30 @@ export class GatewayRuntime {
         },
       };
 
+      const memoryExtractor = new MemoryExtractor({ aiAgent, workspacePath });
+      const memoryExtractionQueue = new MemoryExtractionQueue({
+        extractor: memoryExtractor,
+        sessionManager,
+      });
+      this.memoryExtractionQueue = memoryExtractionQueue;
+
+      log.info("Querying sessions for memory extraction catch-up...");
+      sessionManager
+        .findSessionsNeedingExtraction()
+        .then((sessions) => {
+          log.info(
+            { count: sessions.length },
+            "Memory extraction catch-up query complete",
+          );
+          for (const session of sessions) {
+            log.debug({ sessionKey: session.key }, "Enqueuing session for memory extraction");
+            memoryExtractionQueue.enqueueImmediate({ sessionKey: session.key });
+          }
+        })
+        .catch((err) => {
+          log.error({ err }, "Failed to query sessions for memory extraction catch-up");
+        });
+
       const orchestrator = new AgentTurnOrchestrator({
         workspacePath,
         sessionManager,
@@ -245,6 +277,7 @@ export class GatewayRuntime {
         historyLimit: config.session.historyLimit,
         skillsConfig: config.skills,
         fullConfig: config as unknown as Record<string, unknown>,
+        memoryExtractionQueue,
         ...selfToolDeps,
       });
 
@@ -385,6 +418,10 @@ export class GatewayRuntime {
     log.info("Gateway shutting down...");
     this.state = "stopping";
 
+    if (this.memoryExtractionQueue) {
+      this.memoryExtractionQueue.stop();
+      log.debug("Memory extraction queue stopped");
+    }
     if (this.heartbeatRuntime) {
       this.heartbeatRuntime.stop();
       log.debug("Heartbeat runtime stopped");
@@ -421,6 +458,7 @@ export class GatewayRuntime {
     this.adminServer = null;
     this.apiServer = null;
     this.channelRouter = null;
+    this.memoryExtractionQueue = null;
     this.startedAt = null;
     this.config = null;
     this.log = null;

@@ -1,6 +1,7 @@
 import { MessageRole, PrismaClient, type Message } from "@prisma/client";
 import type { ModelMessage } from "ai";
 import { buildUserContentFromMetadata } from "../agent/helpers.js";
+import { getLogger } from "../logging/index.js";
 import type {
   DeriveSessionIdentityInput,
   PersistedMessageInput,
@@ -161,6 +162,77 @@ export class SessionManager {
     );
 
     await this.trimOverflow({ sessionId: session.id });
+  }
+
+  async touchLastActivity({ sessionKey }: { sessionKey: string }): Promise<void> {
+    await this.prisma.session.updateMany({
+      where: { key: sessionKey },
+      data: { lastActivityAt: new Date() },
+    });
+  }
+
+  async updateMemoriesExtractedAt({ sessionKey }: { sessionKey: string }): Promise<void> {
+    await this.prisma.session.updateMany({
+      where: { key: sessionKey },
+      data: { memoriesLastExtractedAt: new Date() },
+    });
+  }
+
+  async findSessionsNeedingExtraction(): Promise<Array<{ key: string }>> {
+    const log = getLogger().child({ component: "session-manager" });
+
+    const sessions = await this.prisma.session.findMany({
+      where: {
+        key: { not: { startsWith: "schedule:" } },
+        OR: [
+          { memoriesLastExtractedAt: null },
+          {
+            lastActivityAt: { not: null },
+            memoriesLastExtractedAt: { not: null },
+          },
+        ],
+      },
+      select: { key: true, lastActivityAt: true, memoriesLastExtractedAt: true },
+    });
+
+    log.info(
+      { candidateCount: sessions.length },
+      "Found candidate sessions for memory extraction",
+    );
+
+    const result = sessions.filter((s) => {
+      if (!s.memoriesLastExtractedAt) return true;
+      if (!s.lastActivityAt) return false;
+      return s.memoriesLastExtractedAt < s.lastActivityAt;
+    });
+
+    log.info(
+      { candidateCount: sessions.length, qualifiedCount: result.length },
+      "Filtered sessions needing memory extraction",
+    );
+
+    return result;
+  }
+
+  async getRawMessages({ sessionKey }: { sessionKey: string }): Promise<{
+    sessionCreatedAt: Date;
+    messages: Array<{ role: string; content: string }>;
+  } | null> {
+    const session = await this.prisma.session.findUnique({
+      where: { key: sessionKey },
+    });
+    if (!session) return null;
+
+    const records = await this.prisma.message.findMany({
+      where: { sessionId: session.id },
+      orderBy: { createdAt: "asc" },
+      select: { role: true, content: true },
+    });
+
+    return {
+      sessionCreatedAt: session.createdAt,
+      messages: records.map((r) => ({ role: r.role, content: r.content })),
+    };
   }
 
   async clearSession({ identity }: ClearSessionInput): Promise<void> {

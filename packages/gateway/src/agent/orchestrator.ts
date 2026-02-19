@@ -51,6 +51,7 @@ import {
 import type { TurnSignals } from "./types.js";
 import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
 import type { SkillsConfig } from "../workspace/skills/types.js";
+import type { MemoryExtractionQueue } from "../memory/queue.js";
 import type { GatewayStatus } from "../runtime.js";
 
 type AgentTurnOrchestratorInput = {
@@ -80,6 +81,7 @@ type AgentTurnOrchestratorInput = {
   schedulerActive: boolean;
   heartbeatActive: boolean;
   restartGateway: () => Promise<void>;
+  memoryExtractionQueue?: MemoryExtractionQueue;
 };
 
 export class AgentTurnOrchestrator {
@@ -109,6 +111,7 @@ export class AgentTurnOrchestrator {
   private readonly schedulerActive: boolean;
   private readonly heartbeatActive: boolean;
   private readonly restartGateway: () => Promise<void>;
+  private readonly memoryExtractionQueue?: MemoryExtractionQueue;
   private readonly activeTurnManager = new ActiveTurnManager();
   private readonly continuationManager = new ContinuationManager();
   private readonly log: Logger;
@@ -140,6 +143,7 @@ export class AgentTurnOrchestrator {
     schedulerActive,
     heartbeatActive,
     restartGateway,
+    memoryExtractionQueue,
   }: AgentTurnOrchestratorInput) {
     this.workspacePath = workspacePath;
     this.sessionManager = sessionManager;
@@ -167,6 +171,7 @@ export class AgentTurnOrchestrator {
     this.schedulerActive = schedulerActive;
     this.heartbeatActive = heartbeatActive;
     this.restartGateway = restartGateway;
+    this.memoryExtractionQueue = memoryExtractionQueue;
     this.log = getLogger().child({ component: "orchestrator" });
   }
 
@@ -600,6 +605,11 @@ export class AgentTurnOrchestrator {
         ],
       });
 
+      if (isMainSession && this.memoryExtractionQueue) {
+        await this.sessionManager.touchLastActivity({ sessionKey: sessionIdentity.key });
+        this.memoryExtractionQueue.enqueue({ sessionKey: sessionIdentity.key });
+      }
+
       this.continuationManager.schedule({
         sessionKey: sessionIdentity.key,
         delayMs: seconds * 1000,
@@ -634,6 +644,11 @@ export class AgentTurnOrchestrator {
         },
       ],
     });
+
+    if (isMainSession && this.memoryExtractionQueue) {
+      await this.sessionManager.touchLastActivity({ sessionKey: sessionIdentity.key });
+      this.memoryExtractionQueue.enqueue({ sessionKey: sessionIdentity.key });
+    }
 
     let platformMessageId: string;
     if (alreadySentMessageId) {
