@@ -1,19 +1,23 @@
-import { tool, type ToolSet } from "ai";
+import { tool, type LanguageModel, type ToolSet } from "ai";
 import { z } from "zod";
 import { ClawHubError } from "../clawhub/client.js";
 import {
   installSkillFromClawHub,
   SkillAlreadyInstalledError,
 } from "../clawhub/installer.js";
+import { runSkillSetup } from "../clawhub/skill-setup.js";
+import { getLogger } from "../logging/index.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { ToolExecutionError, withToolLogging } from "./errors.js";
 
 type CreateClawhubToolsInput = {
   context: ToolExecutionContext;
+  model?: LanguageModel;
 };
 
 export function createClawhubTools({
   context,
+  model,
 }: CreateClawhubToolsInput): ToolSet {
   return {
     clawhub_install: tool({
@@ -39,13 +43,18 @@ export function createClawhubTools({
           .optional()
           .default(false)
           .describe("Overwrite if the skill is already installed"),
+        skipSetup: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe("Skip automatic dependency setup after installation"),
       }),
-      execute: async ({ slug, version, force }) =>
+      execute: async ({ slug, version, force, skipSetup }) =>
         withToolLogging({
           context,
           toolName: "clawhub_install",
           defaultCode: "CLAWHUB_INSTALL_FAILED",
-          input: { slug, version, force },
+          input: { slug, version, force, skipSetup },
           action: async () => {
             try {
               const result = await installSkillFromClawHub({
@@ -55,6 +64,39 @@ export function createClawhubTools({
                 force,
               });
 
+              let setupSummary: string | undefined;
+              const log = getLogger().child({ component: "clawhub-install", slug: result.slug });
+
+              if (skipSetup) {
+                log.debug("Skill setup skipped (skipSetup=true)");
+              } else if (!model) {
+                log.debug("Skill setup skipped (no model available)");
+              } else {
+                log.info({ skillPath: result.skillPath }, "Starting post-install setup");
+                try {
+                  const setupResult = await runSkillSetup({
+                    model,
+                    skillPath: result.skillPath,
+                    workspacePath: context.workspaceRoot,
+                  });
+                  if (setupResult.skipped) {
+                    log.info("Skill setup skipped (no setup steps detected)");
+                  } else {
+                    log.info(
+                      { responseLength: setupResult.agentResponse.length },
+                      "Skill setup completed successfully",
+                    );
+                    setupSummary = setupResult.agentResponse;
+                  }
+                } catch (err) {
+                  log.warn(
+                    { err },
+                    "Skill setup failed (non-fatal — files are still installed)",
+                  );
+                  setupSummary = `Setup failed: ${err instanceof Error ? err.message : String(err)}`;
+                }
+              }
+
               return {
                 ok: true as const,
                 slug: result.slug,
@@ -62,7 +104,10 @@ export function createClawhubTools({
                 displayName: result.displayName,
                 files: result.files,
                 skillPath: result.skillPath,
-                message: `Skill "${result.displayName}" (${result.version}) installed. It will be available on the next turn.`,
+                setupSummary,
+                message: setupSummary
+                  ? `Skill "${result.displayName}" (${result.version}) installed and set up. It will be available on the next turn.`
+                  : `Skill "${result.displayName}" (${result.version}) installed. It will be available on the next turn.`,
               };
             } catch (error) {
               if (error instanceof SkillAlreadyInstalledError) {

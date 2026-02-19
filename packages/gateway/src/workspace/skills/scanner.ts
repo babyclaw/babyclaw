@@ -4,11 +4,11 @@ import { parse as parseYaml } from "yaml";
 import type { SkillEntry, SkillFrontmatter, OpenClawSkillMetadata } from "./types.js";
 
 const SKILL_FILENAME = "SKILL.md";
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
+export const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
 
-type RawFrontmatter = Record<string, unknown>;
+export type RawFrontmatter = Record<string, unknown>;
 
-function parseFrontmatter({ content }: { content: string }): RawFrontmatter | null {
+export function parseFrontmatter({ content }: { content: string }): RawFrontmatter | null {
   const match = FRONTMATTER_RE.exec(content);
   if (!match?.[1]) return null;
 
@@ -44,7 +44,7 @@ function extractOpenclawMetadata({
   return undefined;
 }
 
-function buildFrontmatter({ raw }: { raw: RawFrontmatter }): SkillFrontmatter | null {
+export function buildFrontmatter({ raw }: { raw: RawFrontmatter }): SkillFrontmatter | null {
   const name = raw.name;
   const description = raw.description;
   if (typeof name !== "string" || typeof description !== "string") return null;

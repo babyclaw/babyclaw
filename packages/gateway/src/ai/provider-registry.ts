@@ -1,10 +1,11 @@
-import { createProviderRegistry, createGateway } from "ai";
+import { createProviderRegistry, createGateway, type LanguageModel } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMistral } from "@ai-sdk/mistral";
 import { createXai } from "@ai-sdk/xai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import type { SimpleclawConfig } from "../config/types.js";
 
 type AnyProvider = Parameters<typeof createProviderRegistry>[0][string];
 
@@ -159,4 +160,17 @@ export function parseModelRef({ ref }: { ref: string }): {
     providerKey: ref.slice(0, separatorIndex),
     modelId: ref.slice(separatorIndex + 1),
   };
+}
+
+export function resolveLanguageModel({
+  config,
+}: {
+  config: SimpleclawConfig;
+}): LanguageModel {
+  const registry = buildProviderRegistry({ providers: config.ai.providers });
+  const ref = resolveModelRef({
+    ref: config.ai.models.chat,
+    aliases: config.ai.aliases,
+  });
+  return registry.languageModel(ref as `${string}:${string}`);
 }
