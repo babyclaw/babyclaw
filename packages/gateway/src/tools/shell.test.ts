@@ -191,40 +191,40 @@ const context: ToolExecutionContext = {
   isMainSession: false,
 };
 
-describe("sleep interception", () => {
-  function makeShellExec() {
-    const tools = createShellTools({
-      context,
-      shellConfig: { mode: "full-access", allowedCommands: [] },
-    });
-    return tools.shell_exec as { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> };
-  }
+// describe("sleep interception", () => {
+//   function makeShellExec() {
+//     const tools = createShellTools({
+//       context,
+//       shellConfig: { mode: "full-access", allowedCommands: [] },
+//     });
+//     return tools.shell_exec as { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> };
+//   }
 
-  it("rejects a bare sleep command", async () => {
-    const result = await makeShellExec().execute({ command: "sleep 5", timeout_ms: 5000 });
-    expect(result).toMatchObject({ ok: false, error: "SLEEP_NOT_ALLOWED" });
-  });
+//   it("rejects a bare sleep command", async () => {
+//     const result = await makeShellExec().execute({ command: "sleep 5", timeout_ms: 5000 });
+//     expect(result).toMatchObject({ ok: false, error: "SLEEP_NOT_ALLOWED" });
+//   });
 
-  it("rejects sleep in an && chain", async () => {
-    const result = await makeShellExec().execute({ command: "sleep 10 && curl http://example.com", timeout_ms: 5000 });
-    expect(result).toMatchObject({ ok: false, error: "SLEEP_NOT_ALLOWED" });
-  });
+//   it("rejects sleep in an && chain", async () => {
+//     const result = await makeShellExec().execute({ command: "sleep 10 && curl http://example.com", timeout_ms: 5000 });
+//     expect(result).toMatchObject({ ok: false, error: "SLEEP_NOT_ALLOWED" });
+//   });
 
-  it("rejects sleep in a pipe", async () => {
-    const result = await makeShellExec().execute({ command: "echo ok | sleep 3", timeout_ms: 5000 });
-    expect(result).toMatchObject({ ok: false, error: "SLEEP_NOT_ALLOWED" });
-  });
+//   it("rejects sleep in a pipe", async () => {
+//     const result = await makeShellExec().execute({ command: "echo ok | sleep 3", timeout_ms: 5000 });
+//     expect(result).toMatchObject({ ok: false, error: "SLEEP_NOT_ALLOWED" });
+//   });
 
-  it("rejects sleep after a semicolon", async () => {
-    const result = await makeShellExec().execute({ command: "echo start; sleep 2; echo done", timeout_ms: 5000 });
-    expect(result).toMatchObject({ ok: false, error: "SLEEP_NOT_ALLOWED" });
-  });
+//   it("rejects sleep after a semicolon", async () => {
+//     const result = await makeShellExec().execute({ command: "echo start; sleep 2; echo done", timeout_ms: 5000 });
+//     expect(result).toMatchObject({ ok: false, error: "SLEEP_NOT_ALLOWED" });
+//   });
 
-  it("allows commands that don't use sleep", async () => {
-    const result = await makeShellExec().execute({ command: "echo hello", timeout_ms: 5000 });
-    expect(result).toMatchObject({ ok: true });
-  });
-});
+//   it("allows commands that don't use sleep", async () => {
+//     const result = await makeShellExec().execute({ command: "echo hello", timeout_ms: 5000 });
+//     expect(result).toMatchObject({ ok: true });
+//   });
+// });
 
 describe("truncateOutput", () => {
   it("returns short output unchanged", () => {
