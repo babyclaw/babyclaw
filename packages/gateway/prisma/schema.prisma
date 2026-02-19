@@ -54,6 +54,8 @@ model Session {
   key                     String    @unique
   chatId                  BigInt
   threadId                BigInt?
+  title                   String?
+  workingMemory           String?
   lastActivityAt          DateTime?
   memoriesLastExtractedAt DateTime?
   createdAt               DateTime  @default(now())
