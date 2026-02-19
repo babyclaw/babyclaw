@@ -6,10 +6,12 @@ import { resolve } from "node:path";
 import {
   loadConfigRaw,
   installSkillFromClawHub,
+  runSkillSetup,
+  resolveLanguageModel,
   SkillAlreadyInstalledError,
   ClawHubError,
 } from "@simpleclaw/gateway";
-import type { InstallSkillResult } from "@simpleclaw/gateway";
+import type { InstallSkillResult, SkillSetupResult } from "@simpleclaw/gateway";
 import { colors } from "../../ui/theme.js";
 import { useExit } from "../../ui/hooks.js";
 
@@ -31,6 +33,10 @@ export const options = zod.object({
     .boolean()
     .default(false)
     .describe("Overwrite if the skill is already installed"),
+  skipSetup: zod
+    .boolean()
+    .default(false)
+    .describe("Skip automatic dependency setup after installation"),
 });
 
 type Props = {
@@ -41,6 +47,7 @@ type Props = {
 type State =
   | "resolving"
   | "installing"
+  | "setting-up"
   | "done"
   | "already-installed"
   | "not-found"
@@ -50,9 +57,13 @@ export default function SkillInstall({ args: positional, options: opts }: Props)
   const slug = positional[0];
   const [state, setState] = useState<State>("resolving");
   const [result, setResult] = useState<InstallSkillResult | null>(null);
+  const [setupResult, setSetupResult] = useState<SkillSetupResult | null>(null);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  useExit({ done: state !== "resolving" && state !== "installing" });
+  const isTerminal =
+    state !== "resolving" && state !== "installing" && state !== "setting-up";
+  useExit({ done: isTerminal });
 
   useEffect(() => {
     void (async () => {
@@ -73,6 +84,23 @@ export default function SkillInstall({ args: positional, options: opts }: Props)
         });
 
         setResult(installResult);
+
+        if (!opts.skipSetup && config) {
+          try {
+            const model = resolveLanguageModel({ config });
+            setState("setting-up");
+
+            const setup = await runSkillSetup({
+              model,
+              skillPath: installResult.skillPath,
+              workspacePath,
+            });
+            setSetupResult(setup);
+          } catch (err) {
+            setSetupError(err instanceof Error ? err.message : String(err));
+          }
+        }
+
         setState("done");
       } catch (error) {
         if (error instanceof SkillAlreadyInstalledError) {
@@ -89,7 +117,7 @@ export default function SkillInstall({ args: positional, options: opts }: Props)
         setState("error");
       }
     })();
-  }, [slug, opts.version, opts.force]);
+  }, [slug, opts.version, opts.force, opts.skipSetup]);
 
   if (state === "resolving") {
     return <Text color={colors.muted}>Resolving skill "{slug}"...</Text>;
@@ -97,6 +125,10 @@ export default function SkillInstall({ args: positional, options: opts }: Props)
 
   if (state === "installing") {
     return <Text color={colors.muted}>Installing skill "{slug}"...</Text>;
+  }
+
+  if (state === "setting-up") {
+    return <Text color={colors.muted}>Running setup for "{slug}"...</Text>;
   }
 
   if (state === "not-found") {
@@ -142,6 +174,15 @@ export default function SkillInstall({ args: positional, options: opts }: Props)
         {"  "}{result!.files.length} file{result!.files.length !== 1 ? "s" : ""} →{" "}
         {result!.skillPath}
       </Text>
+      {setupResult && !setupResult.skipped && (
+        <Text color={colors.success}>{"  "}✓ Dependencies set up</Text>
+      )}
+      {setupError && (
+        <Box flexDirection="column">
+          <Text color={colors.warning}>{"  "}⚠ Setup failed (skill files are still installed)</Text>
+          <Text color={colors.muted}>{"    "}{setupError}</Text>
+        </Box>
+      )}
       <Text color={colors.muted}>
         {"  "}The skill will be available on the next agent session.
       </Text>
