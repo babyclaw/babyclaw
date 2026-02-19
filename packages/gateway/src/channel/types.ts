@@ -98,6 +98,7 @@ export interface ChannelAdapter {
   sendFile(input: ChannelOutboundFile): Promise<ChannelSendResult>;
   streamDraft?(input: StreamDraftInput): Promise<string>;
   streamTurn?(input: StreamTurnInput): Promise<StreamTurnResult>;
+  setSessionTitle?(input: { chatId: string; threadId?: string; title: string }): Promise<void>;
 }
 
 /**

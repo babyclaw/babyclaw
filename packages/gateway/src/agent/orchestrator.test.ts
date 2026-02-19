@@ -28,6 +28,7 @@ vi.mock("../ai/prompts.js", () => ({
   buildScheduleFollowupSystemNote: vi.fn(() => "schedule followup"),
   buildScheduledTaskUserContent: vi.fn(() => "scheduled task"),
   getScheduledExecutionSystemMessage: vi.fn(() => ({ role: "system", content: "scheduled" })),
+  getWorkingMemorySystemMessage: vi.fn(() => ({ role: "system", content: "working-memory" })),
 }));
 
 vi.mock("../workspace/skills/index.js", () => ({
@@ -109,6 +110,7 @@ function createMockDeps(overrides: Record<string, any> = {}) {
     sessionManager: {
       getMessages: vi.fn(async () => []),
       appendMessages: vi.fn(async () => {}),
+      getWorkingMemory: vi.fn(async () => null),
     },
     aiAgent: {
       chatStreamWithTools: vi.fn(() => ({
@@ -160,6 +162,7 @@ function createOrchestrator(
     workspacePath: "/tmp/test-workspace",
     sessionManager: deps.sessionManager as any,
     aiAgent: deps.aiAgent as any,
+    chatModel: {} as any,
     schedulerService: deps.schedulerService as any,
     messageLinkRepository: deps.messageLinkRepository as any,
     chatRegistry: deps.chatRegistry as any,
@@ -605,257 +608,339 @@ describe("AgentTurnOrchestrator", () => {
     });
   });
 
-  describe("wait_and_continue continuation", () => {
-    function mockChatStreamWithContinuation({
-      deps,
-      seconds,
-      note,
-    }: {
-      deps: ReturnType<typeof createMockDeps>;
-      seconds: number;
-      note: string;
-    }): void {
-      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-        () => {
-          if (capturedTurnSignals) {
-            capturedTurnSignals.continuation = { seconds, note };
-          }
-          return {
-            textStream: (async function* () {})(),
-            fullStream: (async function* () {
-              yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-              yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-            })(),
-            text: Promise.resolve(""),
-          };
-        },
-      );
-    }
+  // describe("wait_and_continue continuation", () => {
+  //   function mockChatStreamWithContinuation({
+  //     deps,
+  //     seconds,
+  //     note,
+  //   }: {
+  //     deps: ReturnType<typeof createMockDeps>;
+  //     seconds: number;
+  //     note: string;
+  //   }): void {
+  //     (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
+  //       () => {
+  //         if (capturedTurnSignals) {
+  //           capturedTurnSignals.continuation = { seconds, note };
+  //         }
+  //         return {
+  //           textStream: (async function* () {})(),
+  //           fullStream: (async function* () {
+  //             yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+  //             yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
+  //           })(),
+  //           text: Promise.resolve(""),
+  //         };
+  //       },
+  //     );
+  //   }
 
-    it("sends a waiting message when the tool sets continuation", async () => {
+  //   it("sends a waiting message when the tool sets continuation", async () => {
+  //     const deps = createMockDeps();
+  //     mockChatStreamWithContinuation({ deps, seconds: 30, note: "build running" });
+  //     const orchestrator = createOrchestrator(deps);
+
+  //     await orchestrator.handleInboundEvent({
+  //       event: makeEvent({ messageText: "run build" }),
+  //     });
+
+  //     await vi.waitFor(() => {
+  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+  //       const waitCall = calls.find((c: any) => c[0].text.includes("Waiting"));
+  //       expect(waitCall).toBeDefined();
+  //       expect(waitCall![0].text).toContain("30s");
+  //       expect(waitCall![0].text).toContain("build running");
+  //     });
+  //   });
+
+  //   it("saves the waiting message to session history", async () => {
+  //     const deps = createMockDeps();
+  //     mockChatStreamWithContinuation({ deps, seconds: 60, note: "deploying" });
+  //     const orchestrator = createOrchestrator(deps);
+
+  //     await orchestrator.handleInboundEvent({
+  //       event: makeEvent({ messageText: "deploy" }),
+  //     });
+
+  //     await vi.waitFor(() => {
+  //       expect(deps.sessionManager.appendMessages).toHaveBeenCalled();
+  //     });
+
+  //     const calls = (deps.sessionManager.appendMessages as any).mock.calls;
+  //     const call = calls[calls.length - 1]?.[0];
+  //     expect(call.messages).toHaveLength(2);
+  //     expect(call.messages[0].role).toBe("user");
+  //     expect(call.messages[1].role).toBe("assistant");
+  //     expect(call.messages[1].content).toContain("Waiting");
+  //     expect(call.messages[1].content).toContain("deploying");
+  //   });
+
+  //   it("does not store a message link (returns early before send)", async () => {
+  //     const deps = createMockDeps();
+  //     mockChatStreamWithContinuation({ deps, seconds: 10, note: "waiting" });
+  //     const orchestrator = createOrchestrator(deps);
+
+  //     await orchestrator.handleInboundEvent({
+  //       event: makeEvent({ messageText: "do thing" }),
+  //     });
+
+  //     await vi.waitFor(() => {
+  //       expect(deps.adapter.sendMessage).toHaveBeenCalled();
+  //     });
+
+  //     expect(deps.messageLinkRepository.upsertMessageLink).not.toHaveBeenCalled();
+  //   });
+
+  //   it("formats duration in minutes for waits >= 60s", async () => {
+  //     const deps = createMockDeps();
+  //     mockChatStreamWithContinuation({ deps, seconds: 150, note: "long task" });
+  //     const orchestrator = createOrchestrator(deps);
+
+  //     await orchestrator.handleInboundEvent({
+  //       event: makeEvent({ messageText: "start" }),
+  //     });
+
+  //     await vi.waitFor(() => {
+  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+  //       const waitCall = calls.find((c: any) => c[0].text.includes("Waiting"));
+  //       expect(waitCall).toBeDefined();
+  //       expect(waitCall![0].text).toContain("2m 30s");
+  //     });
+  //   });
+
+  //   it("resumes with a continuation turn after the timer fires", async () => {
+  //     vi.useFakeTimers();
+
+  //     const deps = createMockDeps();
+  //     let callCount = 0;
+  //     (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
+  //       () => {
+  //         callCount++;
+  //         if (callCount === 1 && capturedTurnSignals) {
+  //           capturedTurnSignals.continuation = { seconds: 5, note: "check output" };
+  //           return {
+  //             textStream: (async function* () {})(),
+  //             fullStream: (async function* () {
+  //               yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+  //               yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
+  //             })(),
+  //             text: Promise.resolve(""),
+  //           };
+  //         }
+  //         return {
+  //           textStream: (async function* () {
+  //             yield "Done checking";
+  //           })(),
+  //           fullStream: (async function* () {
+  //             yield { type: "text-delta", id: "1", text: "Done checking" };
+  //             yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+  //             yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
+  //           })(),
+  //           text: Promise.resolve("Done checking"),
+  //         };
+  //       },
+  //     );
+
+  //     const orchestrator = createOrchestrator(deps);
+
+  //     await orchestrator.handleInboundEvent({
+  //       event: makeEvent({ messageText: "start process" }),
+  //     });
+
+  //     await vi.waitFor(() => {
+  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+  //       expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
+  //     });
+
+  //     expect(callCount).toBe(1);
+
+  //     vi.advanceTimersByTime(5000);
+
+  //     await vi.waitFor(() => {
+  //       expect(callCount).toBe(2);
+  //     });
+
+  //     await vi.waitFor(() => {
+  //       const calls = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls;
+  //       const lastCall = calls[calls.length - 1]?.[0];
+  //       const userMsg = lastCall?.messages?.find(
+  //         (m: any) => m.role === "user" && m.content?.includes("[CONTINUATION]"),
+  //       );
+  //       expect(userMsg).toBeDefined();
+  //       expect(userMsg.content).toContain("check output");
+  //     });
+
+  //     vi.useRealTimers();
+  //   });
+
+  //   it("cancels pending continuation when user sends a stop message", async () => {
+  //     const deps = createMockDeps();
+  //     mockChatStreamWithContinuation({ deps, seconds: 600, note: "waiting" });
+  //     const orchestrator = createOrchestrator(deps);
+
+  //     await orchestrator.handleInboundEvent({
+  //       event: makeEvent({ messageText: "start" }),
+  //     });
+
+  //     await vi.waitFor(() => {
+  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+  //       expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
+  //     });
+
+  //     (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockClear();
+
+  //     await orchestrator.handleInboundEvent({
+  //       event: makeEvent({ messageText: "stop", messageId: "101" }),
+  //     });
+
+  //     // The continuation was cancelled by the stop handler. Since the delay is
+  //     // 600s the timer cannot fire during this test even with real timers.
+  //     // Verify no continuation turn was launched.
+  //     expect(deps.aiAgent.chatStreamWithTools).not.toHaveBeenCalled();
+  //   });
+
+  //   it("cancels pending continuation when user sends a new message", async () => {
+  //     const deps = createMockDeps();
+  //     let callCount = 0;
+  //     (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
+  //       () => {
+  //         callCount++;
+  //         if (callCount === 1 && capturedTurnSignals) {
+  //           capturedTurnSignals.continuation = { seconds: 600, note: "waiting" };
+  //           return {
+  //             textStream: (async function* () {})(),
+  //             fullStream: (async function* () {
+  //               yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+  //               yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
+  //             })(),
+  //             text: Promise.resolve(""),
+  //           };
+  //         }
+  //         return {
+  //           textStream: (async function* () {
+  //             yield "response";
+  //           })(),
+  //           fullStream: (async function* () {
+  //             yield { type: "text-delta", id: "1", text: "response" };
+  //             yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+  //             yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
+  //           })(),
+  //           text: Promise.resolve("response"),
+  //         };
+  //       },
+  //     );
+
+  //     const orchestrator = createOrchestrator(deps);
+
+  //     await orchestrator.handleInboundEvent({
+  //       event: makeEvent({ messageText: "start" }),
+  //     });
+
+  //     await vi.waitFor(() => {
+  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+  //       expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
+  //     });
+
+  //     expect(callCount).toBe(1);
+
+  //     // New message should cancel the pending continuation and start a fresh turn
+  //     await orchestrator.handleInboundEvent({
+  //       event: makeEvent({ messageText: "actually do this instead", messageId: "102" }),
+  //     });
+
+  //     await vi.waitFor(() => {
+  //       expect(callCount).toBe(2);
+  //     });
+
+  //     // The second call should be a normal turn (from the new user message),
+  //     // NOT a continuation turn. Check the user message content.
+  //     const secondCallMessages = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>)
+  //       .mock.calls[1]?.[0]?.messages;
+  //     const userMsg = secondCallMessages?.find((m: any) => m.role === "user");
+  //     expect(userMsg?.content).toContain("actually do this instead");
+  //     expect(userMsg?.content).not.toContain("[CONTINUATION]");
+  //   });
+  // });
+
+  describe("session title generation", () => {
+    it("generates title on first message when titleGenerator is provided", async () => {
       const deps = createMockDeps();
-      mockChatStreamWithContinuation({ deps, seconds: 30, note: "build running" });
-      const orchestrator = createOrchestrator(deps);
+      const titleGenerator = {
+        generate: vi.fn(async () => "Debug Postgres Connection"),
+      };
+      deps.sessionManager.setTitle = vi.fn(async () => {});
+      const orchestrator = createOrchestrator(deps, { titleGenerator });
 
       await orchestrator.handleInboundEvent({
-        event: makeEvent({ messageText: "run build" }),
+        event: makeEvent({ messageText: "Help me debug postgres" }),
       });
 
       await vi.waitFor(() => {
-        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-        const waitCall = calls.find((c: any) => c[0].text.includes("Waiting"));
-        expect(waitCall).toBeDefined();
-        expect(waitCall![0].text).toContain("30s");
-        expect(waitCall![0].text).toContain("build running");
+        expect(titleGenerator.generate).toHaveBeenCalledWith({
+          userMessage: "Help me debug postgres",
+        });
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.sessionManager.setTitle).toHaveBeenCalledWith({
+          sessionKey: "test:12345",
+          title: "Debug Postgres Connection",
+        });
       });
     });
 
-    it("saves the waiting message to session history", async () => {
+    it("calls adapter.setSessionTitle when available", async () => {
       const deps = createMockDeps();
-      mockChatStreamWithContinuation({ deps, seconds: 60, note: "deploying" });
-      const orchestrator = createOrchestrator(deps);
+      const titleGenerator = {
+        generate: vi.fn(async () => "Fix API Endpoint"),
+      };
+      deps.sessionManager.setTitle = vi.fn(async () => {});
+      deps.adapter.setSessionTitle = vi.fn(async () => {});
+      const orchestrator = createOrchestrator(deps, { titleGenerator });
 
       await orchestrator.handleInboundEvent({
-        event: makeEvent({ messageText: "deploy" }),
+        event: makeEvent({ messageText: "Fix my API endpoint", threadId: "999" }),
       });
 
       await vi.waitFor(() => {
-        expect(deps.sessionManager.appendMessages).toHaveBeenCalled();
-      });
-
-      const calls = (deps.sessionManager.appendMessages as any).mock.calls;
-      const call = calls[calls.length - 1]?.[0];
-      expect(call.messages).toHaveLength(2);
-      expect(call.messages[0].role).toBe("user");
-      expect(call.messages[1].role).toBe("assistant");
-      expect(call.messages[1].content).toContain("Waiting");
-      expect(call.messages[1].content).toContain("deploying");
-    });
-
-    it("does not store a message link (returns early before send)", async () => {
-      const deps = createMockDeps();
-      mockChatStreamWithContinuation({ deps, seconds: 10, note: "waiting" });
-      const orchestrator = createOrchestrator(deps);
-
-      await orchestrator.handleInboundEvent({
-        event: makeEvent({ messageText: "do thing" }),
-      });
-
-      await vi.waitFor(() => {
-        expect(deps.adapter.sendMessage).toHaveBeenCalled();
-      });
-
-      expect(deps.messageLinkRepository.upsertMessageLink).not.toHaveBeenCalled();
-    });
-
-    it("formats duration in minutes for waits >= 60s", async () => {
-      const deps = createMockDeps();
-      mockChatStreamWithContinuation({ deps, seconds: 150, note: "long task" });
-      const orchestrator = createOrchestrator(deps);
-
-      await orchestrator.handleInboundEvent({
-        event: makeEvent({ messageText: "start" }),
-      });
-
-      await vi.waitFor(() => {
-        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-        const waitCall = calls.find((c: any) => c[0].text.includes("Waiting"));
-        expect(waitCall).toBeDefined();
-        expect(waitCall![0].text).toContain("2m 30s");
+        expect(deps.adapter.setSessionTitle).toHaveBeenCalledWith({
+          chatId: "12345",
+          threadId: "999",
+          title: "Fix API Endpoint",
+        });
       });
     });
 
-    it("resumes with a continuation turn after the timer fires", async () => {
-      vi.useFakeTimers();
-
+    it("does not generate title when history is non-empty", async () => {
       const deps = createMockDeps();
-      let callCount = 0;
-      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-        () => {
-          callCount++;
-          if (callCount === 1 && capturedTurnSignals) {
-            capturedTurnSignals.continuation = { seconds: 5, note: "check output" };
-            return {
-              textStream: (async function* () {})(),
-              fullStream: (async function* () {
-                yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-                yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-              })(),
-              text: Promise.resolve(""),
-            };
-          }
-          return {
-            textStream: (async function* () {
-              yield "Done checking";
-            })(),
-            fullStream: (async function* () {
-              yield { type: "text-delta", id: "1", text: "Done checking" };
-              yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-              yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-            })(),
-            text: Promise.resolve("Done checking"),
-          };
-        },
-      );
-
-      const orchestrator = createOrchestrator(deps);
+      deps.sessionManager.getMessages = vi.fn(async () => [
+        { role: "user", content: "previous message" },
+        { role: "assistant", content: "previous response" },
+      ]);
+      const titleGenerator = {
+        generate: vi.fn(async () => "Should Not Generate"),
+      };
+      const orchestrator = createOrchestrator(deps, { titleGenerator });
 
       await orchestrator.handleInboundEvent({
-        event: makeEvent({ messageText: "start process" }),
+        event: makeEvent({ messageText: "Follow up question" }),
       });
 
-      await vi.waitFor(() => {
-        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-        expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
-      });
-
-      expect(callCount).toBe(1);
-
-      vi.advanceTimersByTime(5000);
-
-      await vi.waitFor(() => {
-        expect(callCount).toBe(2);
-      });
-
-      await vi.waitFor(() => {
-        const calls = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls;
-        const lastCall = calls[calls.length - 1]?.[0];
-        const userMsg = lastCall?.messages?.find(
-          (m: any) => m.role === "user" && m.content?.includes("[CONTINUATION]"),
-        );
-        expect(userMsg).toBeDefined();
-        expect(userMsg.content).toContain("check output");
-      });
-
-      vi.useRealTimers();
+      await new Promise((r) => setTimeout(r, 100));
+      expect(titleGenerator.generate).not.toHaveBeenCalled();
     });
 
-    it("cancels pending continuation when user sends a stop message", async () => {
+    it("does not generate title when titleGenerator is not provided", async () => {
       const deps = createMockDeps();
-      mockChatStreamWithContinuation({ deps, seconds: 600, note: "waiting" });
+      deps.sessionManager.setTitle = vi.fn(async () => {});
       const orchestrator = createOrchestrator(deps);
 
       await orchestrator.handleInboundEvent({
-        event: makeEvent({ messageText: "start" }),
+        event: makeEvent({ messageText: "Hello" }),
       });
 
-      await vi.waitFor(() => {
-        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-        expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
-      });
-
-      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockClear();
-
-      await orchestrator.handleInboundEvent({
-        event: makeEvent({ messageText: "stop", messageId: "101" }),
-      });
-
-      // The continuation was cancelled by the stop handler. Since the delay is
-      // 600s the timer cannot fire during this test even with real timers.
-      // Verify no continuation turn was launched.
-      expect(deps.aiAgent.chatStreamWithTools).not.toHaveBeenCalled();
-    });
-
-    it("cancels pending continuation when user sends a new message", async () => {
-      const deps = createMockDeps();
-      let callCount = 0;
-      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-        () => {
-          callCount++;
-          if (callCount === 1 && capturedTurnSignals) {
-            capturedTurnSignals.continuation = { seconds: 600, note: "waiting" };
-            return {
-              textStream: (async function* () {})(),
-              fullStream: (async function* () {
-                yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-                yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-              })(),
-              text: Promise.resolve(""),
-            };
-          }
-          return {
-            textStream: (async function* () {
-              yield "response";
-            })(),
-            fullStream: (async function* () {
-              yield { type: "text-delta", id: "1", text: "response" };
-              yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-              yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-            })(),
-            text: Promise.resolve("response"),
-          };
-        },
-      );
-
-      const orchestrator = createOrchestrator(deps);
-
-      await orchestrator.handleInboundEvent({
-        event: makeEvent({ messageText: "start" }),
-      });
-
-      await vi.waitFor(() => {
-        const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-        expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
-      });
-
-      expect(callCount).toBe(1);
-
-      // New message should cancel the pending continuation and start a fresh turn
-      await orchestrator.handleInboundEvent({
-        event: makeEvent({ messageText: "actually do this instead", messageId: "102" }),
-      });
-
-      await vi.waitFor(() => {
-        expect(callCount).toBe(2);
-      });
-
-      // The second call should be a normal turn (from the new user message),
-      // NOT a continuation turn. Check the user message content.
-      const secondCallMessages = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>)
-        .mock.calls[1]?.[0]?.messages;
-      const userMsg = secondCallMessages?.find((m: any) => m.role === "user");
-      expect(userMsg?.content).toContain("actually do this instead");
-      expect(userMsg?.content).not.toContain("[CONTINUATION]");
+      await new Promise((r) => setTimeout(r, 100));
+      expect(deps.sessionManager.setTitle).not.toHaveBeenCalled();
     });
   });
 });

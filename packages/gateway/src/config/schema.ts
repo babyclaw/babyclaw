@@ -155,10 +155,15 @@ export const simpleclawConfigSchema = z.object({
     maxMessagesPerSession: z.number().int().positive().default(120),
     historyLimit: z.number().int().positive().default(40),
     replyChainMode: z.enum(["default", "reply-chain"]).default("default"),
+    titleGeneration: z.object({
+      model: z.string().min(1).optional(),
+      prompt: z.string().min(1).optional(),
+    }).strict().default({}),
   }).strict().default({
     maxMessagesPerSession: 120,
     historyLimit: 40,
     replyChainMode: "default",
+    titleGeneration: {},
   }),
   tools: toolsSchema,
   api: apiSchema,

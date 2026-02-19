@@ -204,6 +204,16 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     });
   }
 
+  async setSessionTitle(input: { chatId: string; threadId?: string; title: string }): Promise<void> {
+    if (!input.threadId) return;
+    const api = this.getApi();
+    try {
+      await api.editForumTopic(Number(input.chatId), Number(input.threadId), { name: input.title });
+    } catch (err) {
+      getLogger().warn({ err, chatId: input.chatId, threadId: input.threadId }, "Failed to rename forum topic");
+    }
+  }
+
   async sendApprovalPrompt(input: {
     requestId: string;
     chatId: string;

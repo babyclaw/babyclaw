@@ -13,6 +13,7 @@ import {
   getSelfManagementSystemMessage,
   getSharedSystemMessage,
   getSkillsSystemMessage,
+  getWorkingMemorySystemMessage,
   getWorkspaceGuideSystemMessage,
   readToolNotes,
 } from "../ai/prompts.js";
@@ -52,12 +53,14 @@ import type { TurnSignals } from "./types.js";
 import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
 import type { SkillsConfig } from "../workspace/skills/types.js";
 import type { MemoryExtractionQueue } from "../memory/queue.js";
+import type { SessionTitleGenerator } from "../session/title-generator.js";
 import type { GatewayStatus } from "../runtime.js";
 
 type AgentTurnOrchestratorInput = {
   workspacePath: string;
   sessionManager: SessionManager;
   aiAgent: AiAgent;
+  chatModel: LanguageModel;
   visionModel?: LanguageModel;
   schedulerService: SchedulerService;
   messageLinkRepository: MessageLinkRepository;
@@ -82,12 +85,14 @@ type AgentTurnOrchestratorInput = {
   heartbeatActive: boolean;
   restartGateway: () => Promise<void>;
   memoryExtractionQueue?: MemoryExtractionQueue;
+  titleGenerator?: SessionTitleGenerator;
 };
 
 export class AgentTurnOrchestrator {
   private readonly workspacePath: string;
   private readonly sessionManager: SessionManager;
   private readonly aiAgent: AiAgent;
+  private readonly chatModel: LanguageModel;
   private readonly visionModel?: LanguageModel;
   private readonly schedulerService: SchedulerService;
   private readonly messageLinkRepository: MessageLinkRepository;
@@ -112,6 +117,7 @@ export class AgentTurnOrchestrator {
   private readonly heartbeatActive: boolean;
   private readonly restartGateway: () => Promise<void>;
   private readonly memoryExtractionQueue?: MemoryExtractionQueue;
+  private readonly titleGenerator?: SessionTitleGenerator;
   private readonly activeTurnManager = new ActiveTurnManager();
   private readonly continuationManager = new ContinuationManager();
   private readonly log: Logger;
@@ -120,6 +126,7 @@ export class AgentTurnOrchestrator {
     workspacePath,
     sessionManager,
     aiAgent,
+    chatModel,
     visionModel,
     schedulerService,
     messageLinkRepository,
@@ -144,10 +151,12 @@ export class AgentTurnOrchestrator {
     heartbeatActive,
     restartGateway,
     memoryExtractionQueue,
+    titleGenerator,
   }: AgentTurnOrchestratorInput) {
     this.workspacePath = workspacePath;
     this.sessionManager = sessionManager;
     this.aiAgent = aiAgent;
+    this.chatModel = chatModel;
     this.visionModel = visionModel;
     this.schedulerService = schedulerService;
     this.messageLinkRepository = messageLinkRepository;
@@ -172,6 +181,7 @@ export class AgentTurnOrchestrator {
     this.heartbeatActive = heartbeatActive;
     this.restartGateway = restartGateway;
     this.memoryExtractionQueue = memoryExtractionQueue;
+    this.titleGenerator = titleGenerator;
     this.log = getLogger().child({ component: "orchestrator" });
   }
 
@@ -379,13 +389,14 @@ export class AgentTurnOrchestrator {
 
     const adapter = this.channelRouter.getAdapter({ platform: event.platform });
 
-    const [personalityFiles, toolsIndexContent, agentsContent, bootstrapContent, allSkills] =
+    const [personalityFiles, toolsIndexContent, agentsContent, bootstrapContent, allSkills, workingMemory] =
       await Promise.all([
         readPersonalityFiles({ workspacePath: this.workspacePath }),
         readToolNotes({ workspacePath: this.workspacePath }),
         readWorkspaceGuide({ workspacePath: this.workspacePath }),
         readBootstrapGuide({ workspacePath: this.workspacePath }),
         scanWorkspaceSkills({ workspacePath: this.workspacePath }),
+        this.sessionManager.getWorkingMemory({ sessionKey: sessionIdentity.key }),
       ]);
 
     if (abortSignal.aborted) return;
@@ -490,6 +501,7 @@ export class AgentTurnOrchestrator {
             },
           ]
         : []),
+      getWorkingMemorySystemMessage({ workingMemory }),
       ...history,
       { role: "user", content: userContent },
     ];
@@ -514,6 +526,7 @@ export class AgentTurnOrchestrator {
       enableGenericTools: this.enableGenericTools,
       braveSearchApiKey: this.braveSearchApiKey,
       shellConfig: this.shellConfig,
+      chatModel: this.chatModel,
       browserMcpClient: this.browserMcpClient,
       chatRegistry: this.chatRegistry,
       channelSender: adapter,
@@ -528,6 +541,8 @@ export class AgentTurnOrchestrator {
       heartbeatActive: this.heartbeatActive,
       getActiveTurnCount: () => this.activeTurnManager.count(),
       restartGateway: this.restartGateway,
+      sessionManager: this.sessionManager,
+      sessionKey: sessionIdentity.key,
     });
 
     this.log.debug(
@@ -540,7 +555,7 @@ export class AgentTurnOrchestrator {
       tools,
       maxSteps: 50,
       abortSignal,
-      extraStopConditions: [hasToolCall("wait_and_continue")],
+      // extraStopConditions: [hasToolCall("wait_and_continue")],
     });
 
     (streamResult.text as Promise<string>).catch(() => {});
@@ -648,6 +663,27 @@ export class AgentTurnOrchestrator {
     if (isMainSession && this.memoryExtractionQueue) {
       await this.sessionManager.touchLastActivity({ sessionKey: sessionIdentity.key });
       this.memoryExtractionQueue.enqueue({ sessionKey: sessionIdentity.key });
+    }
+
+    if (history.length === 0 && this.titleGenerator) {
+      const titleUserMessage = userMessage;
+      const titleAdapter = adapter;
+      const titleEvent = event;
+      const titleSessionKey = sessionIdentity.key;
+      this.titleGenerator
+        .generate({ userMessage: titleUserMessage })
+        .then(async (title) => {
+          await this.sessionManager.setTitle({ sessionKey: titleSessionKey, title });
+          await titleAdapter.setSessionTitle?.({
+            chatId: titleEvent.chatId,
+            threadId: titleEvent.threadId,
+            title,
+          });
+          this.log.info({ sessionKey: titleSessionKey, title }, "Session title generated");
+        })
+        .catch((err) => {
+          this.log.warn({ err, sessionKey: titleSessionKey }, "Failed to generate session title");
+        });
     }
 
     let platformMessageId: string;

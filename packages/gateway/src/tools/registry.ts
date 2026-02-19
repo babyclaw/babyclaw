@@ -1,4 +1,4 @@
-import type { ToolSet } from "ai";
+import type { LanguageModel, ToolSet } from "ai";
 import type { TurnSignals } from "../agent/types.js";
 import type { CommandApprovalService } from "../approval/service.js";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
@@ -9,6 +9,7 @@ import type { ChatRegistry } from "../chat/registry.js";
 import type { ShellConfig } from "../config/shell-defaults.js";
 import type { GatewayStatus } from "../runtime.js";
 import { SchedulerService } from "../scheduler/service.js";
+import type { SessionManager } from "../session/manager.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { createBrowserTools } from "./browser.js";
 import { createClawhubTools } from "./clawhub.js";
@@ -20,6 +21,7 @@ import { createSelfTools } from "./self.js";
 import { createShellTools } from "./shell.js";
 import { createStateTools } from "./state.js";
 import { createWebSearchTools } from "./web-search.js";
+import { createWorkingMemoryTools } from "./working-memory.js";
 import { createWorkspaceTools } from "./workspace.js";
 
 type CreateUnifiedToolsInput = {
@@ -31,6 +33,7 @@ type CreateUnifiedToolsInput = {
   enableGenericTools: boolean;
   braveSearchApiKey: string | null;
   shellConfig: ShellConfig;
+  chatModel?: LanguageModel;
   browserMcpClient?: BrowserMcpClient;
   chatRegistry?: ChatRegistry;
   channelSender?: ChannelSender;
@@ -46,6 +49,8 @@ type CreateUnifiedToolsInput = {
   heartbeatActive: boolean;
   getActiveTurnCount: () => number;
   restartGateway: () => Promise<void>;
+  sessionManager?: SessionManager;
+  sessionKey?: string;
 };
 
 export function createUnifiedTools({
@@ -57,6 +62,7 @@ export function createUnifiedTools({
   enableGenericTools,
   braveSearchApiKey,
   shellConfig,
+  chatModel,
   browserMcpClient,
   chatRegistry,
   channelSender,
@@ -71,6 +77,8 @@ export function createUnifiedTools({
   heartbeatActive,
   getActiveTurnCount,
   restartGateway,
+  sessionManager,
+  sessionKey,
 }: CreateUnifiedToolsInput): ToolSet {
   if (!executionContext.chatId) {
     throw new Error("Tool execution context must include chatId");
@@ -128,9 +136,9 @@ export function createUnifiedTools({
       })
     : {};
 
-  const continuationTools = turnSignals
-    ? createContinuationTools({ turnSignals, context: executionContext })
-    : {};
+  // const continuationTools = turnSignals
+  //   ? createContinuationTools({ turnSignals, context: executionContext })
+  //   : {};
 
   return {
     ...schedulerTools,
@@ -152,10 +160,18 @@ export function createUnifiedTools({
     }),
     ...createClawhubTools({
       context: executionContext,
+      model: chatModel,
     }),
     ...browserTools,
     ...messagingTools,
     ...mediaTools,
-    ...continuationTools,
+    // ...continuationTools,
+    ...(sessionManager && sessionKey
+      ? createWorkingMemoryTools({
+          sessionManager,
+          sessionKey,
+          context: executionContext,
+        })
+      : {}),
   };
 }

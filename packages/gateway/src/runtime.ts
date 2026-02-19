@@ -33,6 +33,7 @@ import { SchedulerService } from "./scheduler/service.js";
 import { MemoryExtractor } from "./memory/extractor.js";
 import { MemoryExtractionQueue } from "./memory/queue.js";
 import { SessionManager } from "./session/manager.js";
+import { SessionTitleGenerator } from "./session/title-generator.js";
 import { bootstrapWorkspace } from "./workspace/bootstrap.js";
 import { applyMigrations } from "./database/migrate.js";
 
@@ -257,10 +258,27 @@ export class GatewayRuntime {
           log.error({ err }, "Failed to query sessions for memory extraction catch-up");
         });
 
+      let titleGenerator: SessionTitleGenerator | undefined;
+      if (config.session.titleGeneration.model) {
+        const titleModelRef = resolveModelRef({
+          ref: config.session.titleGeneration.model,
+          aliases: config.ai.aliases,
+        });
+        const titleModel = registry.languageModel(
+          titleModelRef as `${string}:${string}`,
+        );
+        titleGenerator = new SessionTitleGenerator({
+          model: titleModel,
+          prompt: config.session.titleGeneration.prompt,
+        });
+        log.info({ titleModel: config.session.titleGeneration.model }, "Session title generation enabled");
+      }
+
       const orchestrator = new AgentTurnOrchestrator({
         workspacePath,
         sessionManager,
         aiAgent,
+        chatModel,
         visionModel,
         schedulerService,
         messageLinkRepository,
@@ -278,6 +296,7 @@ export class GatewayRuntime {
         skillsConfig: config.skills,
         fullConfig: config as unknown as Record<string, unknown>,
         memoryExtractionQueue,
+        titleGenerator,
         ...selfToolDeps,
       });
 

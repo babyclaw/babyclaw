@@ -36,12 +36,12 @@ export function getSchedulerGuidanceSystemMessage(): ModelMessage {
       "After create or cancel, confirm schedule id and next run in your reply.",
       "If cancel_schedule returns ambiguous, ask user to choose one candidate id.",
       "You can run shell commands via the shell_exec tool for tasks like checking git status, running scripts, fetching URLs, etc.",
-      "You have a wait_and_continue tool for waiting on long-running processes.",
-      "Use it when you start a process (e.g. build, deployment, script) and need to check back later.",
-      "Write a thorough continuation_note so your future self knows exactly what to do.",
-      "The tool ends your current turn and resumes automatically after the delay.",
-      "For waits longer than 10 minutes, use create_schedule instead.",
-      "Never use `sleep` inside shell_exec to wait or poll. Always use wait_and_continue instead.",
+      // "You have a wait_and_continue tool for waiting on long-running processes.",
+      // "Use it when you start a process (e.g. build, deployment, script) and need to check back later.",
+      // "Write a thorough continuation_note so your future self knows exactly what to do.",
+      // "The tool ends your current turn and resumes automatically after the delay.",
+      // "For waits longer than 10 minutes, use create_schedule instead.",
+      // "Never use `sleep` inside shell_exec to wait or poll. Always use wait_and_continue instead.",
     ].join("\n"),
   };
 }
@@ -360,6 +360,24 @@ export function buildHeartbeatVerdictMessages({
       ].join("\n"),
     },
   ];
+}
+
+export function getWorkingMemorySystemMessage({
+  workingMemory,
+}: {
+  workingMemory: string | null;
+}): ModelMessage {
+  const lines = [
+    "<working_memory>",
+    workingMemory ?? "(empty)",
+    "</working_memory>",
+    "",
+    "Above is your working memory for this session. Use the update_working_memory tool to save important ephemeral information:",
+    "tmux/screen session names, temporary file paths, URLs, port numbers, container IDs, branch names, intermediate results,",
+    "or anything you need to remember to complete the current task efficiently.",
+    "Update it proactively whenever you encounter such information. Overwrite the full content each time (it replaces, not appends).",
+  ];
+  return { role: "system", content: lines.join("\n") };
 }
 
 function buildSharedSystemPrompt({

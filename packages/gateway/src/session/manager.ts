@@ -178,6 +178,36 @@ export class SessionManager {
     });
   }
 
+  async getWorkingMemory({ sessionKey }: { sessionKey: string }): Promise<string | null> {
+    const session = await this.prisma.session.findUnique({
+      where: { key: sessionKey },
+      select: { workingMemory: true },
+    });
+    return session?.workingMemory ?? null;
+  }
+
+  async updateWorkingMemory({ sessionKey, content }: { sessionKey: string; content: string }): Promise<void> {
+    await this.prisma.session.updateMany({
+      where: { key: sessionKey },
+      data: { workingMemory: content },
+    });
+  }
+
+  async getTitle({ sessionKey }: { sessionKey: string }): Promise<string | null> {
+    const session = await this.prisma.session.findUnique({
+      where: { key: sessionKey },
+      select: { title: true },
+    });
+    return session?.title ?? null;
+  }
+
+  async setTitle({ sessionKey, title }: { sessionKey: string; title: string }): Promise<void> {
+    await this.prisma.session.updateMany({
+      where: { key: sessionKey },
+      data: { title },
+    });
+  }
+
   async findSessionsNeedingExtraction(): Promise<Array<{ key: string }>> {
     const log = getLogger().child({ component: "session-manager" });
 

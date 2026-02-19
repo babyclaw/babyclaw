@@ -128,6 +128,9 @@ export class AiAgent {
     } as Parameters<typeof streamText>[0];
 
     const result = streamText(request);
+    result.response.then(async res => {
+      getLogger().info({ reason: await result.finishReason }, "Agent step finished");
+    })
 
     return {
       textStream: result.textStream,
@@ -147,7 +150,7 @@ export class AiAgent {
       tools,
       stopWhen: stepCountIs(maxSteps),
       onStepFinish(stepResult) {
-        getLogger().info({ stepResult }, "Agent step finished");
+        // getLogger().info({ stepResult }, "Agent step finished");
       }
     });
 
