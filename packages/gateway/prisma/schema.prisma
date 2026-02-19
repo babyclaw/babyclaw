@@ -50,13 +50,15 @@ model Chat {
 }
 
 model Session {
-  id        String    @id @default(cuid())
-  key       String    @unique
-  chatId    BigInt
-  threadId  BigInt?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  messages  Message[]
+  id                      String    @id @default(cuid())
+  key                     String    @unique
+  chatId                  BigInt
+  threadId                BigInt?
+  lastActivityAt          DateTime?
+  memoriesLastExtractedAt DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  messages                Message[]
 }
 
 model Message {
