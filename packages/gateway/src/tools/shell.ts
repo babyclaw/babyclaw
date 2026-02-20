@@ -102,16 +102,6 @@ export function createShellTools({ context, shellConfig, commandApprovalService 
               }
             }
 
-            // const commandNames = extractCommandNames({ command });
-            // if (commandNames.includes("sleep")) {
-            //   return {
-            //     ok: false,
-            //     error: "SLEEP_NOT_ALLOWED",
-            //     message:
-            //       "Do not use `sleep` in shell commands. Use the `wait_and_continue` tool to pause and resume after a delay.",
-            //   } as const;
-            // }
-
             const cwd = working_directory
               ? resolveWorkspacePath({
                   workspaceRoot: context.workspaceRoot,

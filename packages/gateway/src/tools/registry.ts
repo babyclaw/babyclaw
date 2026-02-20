@@ -1,5 +1,4 @@
 import type { LanguageModel, ToolSet } from "ai";
-import type { TurnSignals } from "../agent/types.js";
 import type { CommandApprovalService } from "../approval/service.js";
 import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { ChannelRouter } from "../channel/router.js";
@@ -13,7 +12,6 @@ import type { SessionManager } from "../session/manager.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { createBrowserTools } from "./browser.js";
 import { createClawhubTools } from "./clawhub.js";
-import { createContinuationTools } from "./continuation.js";
 import { createMediaTools } from "./media.js";
 import { createMessagingTools } from "./messaging.js";
 import { createSchedulerTools } from "./scheduler.js";
@@ -40,7 +38,6 @@ type CreateUnifiedToolsInput = {
   channelRouter?: ChannelRouter;
   deliveryService?: CrossChatDeliveryService;
   commandApprovalService?: CommandApprovalService;
-  turnSignals?: TurnSignals;
   getStatus: () => GatewayStatus;
   adminSocketPath: string;
   logOutput: string;
@@ -68,7 +65,6 @@ export function createUnifiedTools({
   channelSender,
   deliveryService,
   commandApprovalService,
-  turnSignals,
   getStatus,
   adminSocketPath,
   logOutput,
@@ -136,10 +132,6 @@ export function createUnifiedTools({
       })
     : {};
 
-  // const continuationTools = turnSignals
-  //   ? createContinuationTools({ turnSignals, context: executionContext })
-  //   : {};
-
   return {
     ...schedulerTools,
     ...selfTools,
@@ -165,7 +157,6 @@ export function createUnifiedTools({
     ...browserTools,
     ...messagingTools,
     ...mediaTools,
-    // ...continuationTools,
     ...(sessionManager && sessionKey
       ? createWorkingMemoryTools({
           sessionManager,

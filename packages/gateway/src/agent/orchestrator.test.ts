@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { AgentTurnOrchestrator } from "./orchestrator.js";
-import type { TurnSignals } from "./types.js";
 import type { ChannelAdapter, NormalizedInboundEvent } from "../channel/types.js";
 import { ChannelRouter } from "../channel/router.js";
 
@@ -54,15 +53,8 @@ vi.mock("node:fs", async (importOriginal) => {
 });
 const { generateText } = await import("ai");
 
-let capturedTurnSignals: TurnSignals | null = null;
-
 vi.mock("../tools/registry.js", () => ({
-  createUnifiedTools: vi.fn(({ turnSignals }: { turnSignals?: TurnSignals }) => {
-    if (turnSignals) {
-      capturedTurnSignals = turnSignals;
-    }
-    return {};
-  }),
+  createUnifiedTools: vi.fn(() => ({})),
 }));
 
 function createMockAdapter(): ChannelAdapter {
@@ -208,7 +200,6 @@ function makeEvent(overrides: Partial<NormalizedInboundEvent> = {}): NormalizedI
 
 describe("AgentTurnOrchestrator", () => {
   afterEach(() => {
-    capturedTurnSignals = null;
     vi.mocked(generateText).mockClear();
   });
 
@@ -608,260 +599,6 @@ describe("AgentTurnOrchestrator", () => {
     });
   });
 
-  // describe("wait_and_continue continuation", () => {
-  //   function mockChatStreamWithContinuation({
-  //     deps,
-  //     seconds,
-  //     note,
-  //   }: {
-  //     deps: ReturnType<typeof createMockDeps>;
-  //     seconds: number;
-  //     note: string;
-  //   }): void {
-  //     (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-  //       () => {
-  //         if (capturedTurnSignals) {
-  //           capturedTurnSignals.continuation = { seconds, note };
-  //         }
-  //         return {
-  //           textStream: (async function* () {})(),
-  //           fullStream: (async function* () {
-  //             yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-  //             yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-  //           })(),
-  //           text: Promise.resolve(""),
-  //         };
-  //       },
-  //     );
-  //   }
-
-  //   it("sends a waiting message when the tool sets continuation", async () => {
-  //     const deps = createMockDeps();
-  //     mockChatStreamWithContinuation({ deps, seconds: 30, note: "build running" });
-  //     const orchestrator = createOrchestrator(deps);
-
-  //     await orchestrator.handleInboundEvent({
-  //       event: makeEvent({ messageText: "run build" }),
-  //     });
-
-  //     await vi.waitFor(() => {
-  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-  //       const waitCall = calls.find((c: any) => c[0].text.includes("Waiting"));
-  //       expect(waitCall).toBeDefined();
-  //       expect(waitCall![0].text).toContain("30s");
-  //       expect(waitCall![0].text).toContain("build running");
-  //     });
-  //   });
-
-  //   it("saves the waiting message to session history", async () => {
-  //     const deps = createMockDeps();
-  //     mockChatStreamWithContinuation({ deps, seconds: 60, note: "deploying" });
-  //     const orchestrator = createOrchestrator(deps);
-
-  //     await orchestrator.handleInboundEvent({
-  //       event: makeEvent({ messageText: "deploy" }),
-  //     });
-
-  //     await vi.waitFor(() => {
-  //       expect(deps.sessionManager.appendMessages).toHaveBeenCalled();
-  //     });
-
-  //     const calls = (deps.sessionManager.appendMessages as any).mock.calls;
-  //     const call = calls[calls.length - 1]?.[0];
-  //     expect(call.messages).toHaveLength(2);
-  //     expect(call.messages[0].role).toBe("user");
-  //     expect(call.messages[1].role).toBe("assistant");
-  //     expect(call.messages[1].content).toContain("Waiting");
-  //     expect(call.messages[1].content).toContain("deploying");
-  //   });
-
-  //   it("does not store a message link (returns early before send)", async () => {
-  //     const deps = createMockDeps();
-  //     mockChatStreamWithContinuation({ deps, seconds: 10, note: "waiting" });
-  //     const orchestrator = createOrchestrator(deps);
-
-  //     await orchestrator.handleInboundEvent({
-  //       event: makeEvent({ messageText: "do thing" }),
-  //     });
-
-  //     await vi.waitFor(() => {
-  //       expect(deps.adapter.sendMessage).toHaveBeenCalled();
-  //     });
-
-  //     expect(deps.messageLinkRepository.upsertMessageLink).not.toHaveBeenCalled();
-  //   });
-
-  //   it("formats duration in minutes for waits >= 60s", async () => {
-  //     const deps = createMockDeps();
-  //     mockChatStreamWithContinuation({ deps, seconds: 150, note: "long task" });
-  //     const orchestrator = createOrchestrator(deps);
-
-  //     await orchestrator.handleInboundEvent({
-  //       event: makeEvent({ messageText: "start" }),
-  //     });
-
-  //     await vi.waitFor(() => {
-  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-  //       const waitCall = calls.find((c: any) => c[0].text.includes("Waiting"));
-  //       expect(waitCall).toBeDefined();
-  //       expect(waitCall![0].text).toContain("2m 30s");
-  //     });
-  //   });
-
-  //   it("resumes with a continuation turn after the timer fires", async () => {
-  //     vi.useFakeTimers();
-
-  //     const deps = createMockDeps();
-  //     let callCount = 0;
-  //     (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-  //       () => {
-  //         callCount++;
-  //         if (callCount === 1 && capturedTurnSignals) {
-  //           capturedTurnSignals.continuation = { seconds: 5, note: "check output" };
-  //           return {
-  //             textStream: (async function* () {})(),
-  //             fullStream: (async function* () {
-  //               yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-  //               yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-  //             })(),
-  //             text: Promise.resolve(""),
-  //           };
-  //         }
-  //         return {
-  //           textStream: (async function* () {
-  //             yield "Done checking";
-  //           })(),
-  //           fullStream: (async function* () {
-  //             yield { type: "text-delta", id: "1", text: "Done checking" };
-  //             yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-  //             yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-  //           })(),
-  //           text: Promise.resolve("Done checking"),
-  //         };
-  //       },
-  //     );
-
-  //     const orchestrator = createOrchestrator(deps);
-
-  //     await orchestrator.handleInboundEvent({
-  //       event: makeEvent({ messageText: "start process" }),
-  //     });
-
-  //     await vi.waitFor(() => {
-  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-  //       expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
-  //     });
-
-  //     expect(callCount).toBe(1);
-
-  //     vi.advanceTimersByTime(5000);
-
-  //     await vi.waitFor(() => {
-  //       expect(callCount).toBe(2);
-  //     });
-
-  //     await vi.waitFor(() => {
-  //       const calls = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls;
-  //       const lastCall = calls[calls.length - 1]?.[0];
-  //       const userMsg = lastCall?.messages?.find(
-  //         (m: any) => m.role === "user" && m.content?.includes("[CONTINUATION]"),
-  //       );
-  //       expect(userMsg).toBeDefined();
-  //       expect(userMsg.content).toContain("check output");
-  //     });
-
-  //     vi.useRealTimers();
-  //   });
-
-  //   it("cancels pending continuation when user sends a stop message", async () => {
-  //     const deps = createMockDeps();
-  //     mockChatStreamWithContinuation({ deps, seconds: 600, note: "waiting" });
-  //     const orchestrator = createOrchestrator(deps);
-
-  //     await orchestrator.handleInboundEvent({
-  //       event: makeEvent({ messageText: "start" }),
-  //     });
-
-  //     await vi.waitFor(() => {
-  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-  //       expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
-  //     });
-
-  //     (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockClear();
-
-  //     await orchestrator.handleInboundEvent({
-  //       event: makeEvent({ messageText: "stop", messageId: "101" }),
-  //     });
-
-  //     // The continuation was cancelled by the stop handler. Since the delay is
-  //     // 600s the timer cannot fire during this test even with real timers.
-  //     // Verify no continuation turn was launched.
-  //     expect(deps.aiAgent.chatStreamWithTools).not.toHaveBeenCalled();
-  //   });
-
-  //   it("cancels pending continuation when user sends a new message", async () => {
-  //     const deps = createMockDeps();
-  //     let callCount = 0;
-  //     (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-  //       () => {
-  //         callCount++;
-  //         if (callCount === 1 && capturedTurnSignals) {
-  //           capturedTurnSignals.continuation = { seconds: 600, note: "waiting" };
-  //           return {
-  //             textStream: (async function* () {})(),
-  //             fullStream: (async function* () {
-  //               yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-  //               yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-  //             })(),
-  //             text: Promise.resolve(""),
-  //           };
-  //         }
-  //         return {
-  //           textStream: (async function* () {
-  //             yield "response";
-  //           })(),
-  //           fullStream: (async function* () {
-  //             yield { type: "text-delta", id: "1", text: "response" };
-  //             yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
-  //             yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
-  //           })(),
-  //           text: Promise.resolve("response"),
-  //         };
-  //       },
-  //     );
-
-  //     const orchestrator = createOrchestrator(deps);
-
-  //     await orchestrator.handleInboundEvent({
-  //       event: makeEvent({ messageText: "start" }),
-  //     });
-
-  //     await vi.waitFor(() => {
-  //       const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-  //       expect(calls.some((c: any) => c[0].text.includes("Waiting"))).toBe(true);
-  //     });
-
-  //     expect(callCount).toBe(1);
-
-  //     // New message should cancel the pending continuation and start a fresh turn
-  //     await orchestrator.handleInboundEvent({
-  //       event: makeEvent({ messageText: "actually do this instead", messageId: "102" }),
-  //     });
-
-  //     await vi.waitFor(() => {
-  //       expect(callCount).toBe(2);
-  //     });
-
-  //     // The second call should be a normal turn (from the new user message),
-  //     // NOT a continuation turn. Check the user message content.
-  //     const secondCallMessages = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>)
-  //       .mock.calls[1]?.[0]?.messages;
-  //     const userMsg = secondCallMessages?.find((m: any) => m.role === "user");
-  //     expect(userMsg?.content).toContain("actually do this instead");
-  //     expect(userMsg?.content).not.toContain("[CONTINUATION]");
-  //   });
-  // });
-
   describe("session title generation", () => {
     it("generates title on first message when titleGenerator is provided", async () => {
       const deps = createMockDeps();
@@ -941,6 +678,140 @@ describe("AgentTurnOrchestrator", () => {
 
       await new Promise((r) => setTimeout(r, 100));
       expect(deps.sessionManager.setTitle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("cross-thread replies", () => {
+    it("uses linked session when replying to a bot message from a different thread context", async () => {
+      const deps = createMockDeps();
+      (deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+        platform: "test",
+        platformChatId: "12345",
+        platformMessageId: "42",
+        sessionKey: "test:12345",
+        scheduleId: null,
+        scheduleRunId: null,
+      });
+
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          threadId: "auto-999",
+          replyToMessageId: "42",
+          replyToText: "heartbeat alert text",
+          messageText: "What is this about?",
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.sessionManager.getMessages).toHaveBeenCalledWith(
+          expect.objectContaining({
+            identity: expect.objectContaining({ key: "test:12345" }),
+          }),
+        );
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.sessionManager.appendMessages).toHaveBeenCalledWith(
+          expect.objectContaining({
+            identity: expect.objectContaining({
+              key: "test:12345",
+              scope: "reply-chain",
+            }),
+          }),
+        );
+      });
+    });
+
+    it("includes reply text in AI messages for cross-thread reply", async () => {
+      const deps = createMockDeps();
+      (deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+        platform: "test",
+        platformChatId: "12345",
+        platformMessageId: "42",
+        sessionKey: "test:12345",
+        scheduleId: null,
+        scheduleRunId: null,
+      });
+
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          threadId: "auto-999",
+          replyToMessageId: "42",
+          replyToText: "heartbeat alert text",
+          messageText: "What is this about?",
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.aiAgent.chatStreamWithTools).toHaveBeenCalled();
+      });
+
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      const userMsg = call?.messages?.find((m: any) => m.role === "user");
+      expect(userMsg).toBeDefined();
+      expect(userMsg.content).toContain("Reply context");
+      expect(userMsg.content).toContain("heartbeat alert text");
+      expect(userMsg.content).toContain("What is this about?");
+    });
+
+    it("falls back to thread-derived session when no message link exists", async () => {
+      const deps = createMockDeps();
+      (deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          threadId: "auto-999",
+          replyToMessageId: "42",
+          messageText: "What is this about?",
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.sessionManager.getMessages).toHaveBeenCalledWith(
+          expect.objectContaining({
+            identity: expect.objectContaining({ key: "test:12345:auto-999" }),
+          }),
+        );
+      });
+    });
+
+    it("stores message link after replying in the new thread", async () => {
+      const deps = createMockDeps();
+      (deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+        platform: "test",
+        platformChatId: "12345",
+        platformMessageId: "42",
+        sessionKey: "test:12345",
+        scheduleId: null,
+        scheduleRunId: null,
+      });
+
+      const orchestrator = createOrchestrator(deps);
+
+      await orchestrator.handleInboundEvent({
+        event: makeEvent({
+          threadId: "auto-999",
+          replyToMessageId: "42",
+          replyToText: "heartbeat alert text",
+          messageText: "What is this about?",
+        }),
+      });
+
+      await vi.waitFor(() => {
+        expect(deps.messageLinkRepository.upsertMessageLink).toHaveBeenCalledWith(
+          expect.objectContaining({
+            platform: "test",
+            platformChatId: "12345",
+            sessionKey: "test:12345",
+          }),
+        );
+      });
     });
   });
 });

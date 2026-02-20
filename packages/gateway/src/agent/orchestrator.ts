@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { MessageRole } from "@prisma/client";
 import type { Chat } from "@prisma/client";
-import { generateText, hasToolCall, type ImagePart, type LanguageModel, type ModelMessage, type TextPart, type TextStreamPart, type ToolSet } from "ai";
+import { generateText, type ImagePart, type LanguageModel, type ModelMessage, type TextPart, type TextStreamPart, type ToolSet } from "ai";
 import { AiAgent } from "../ai/agent.js";
 import type { CommandApprovalService } from "../approval/service.js";
 import {
@@ -40,7 +40,6 @@ import { ActiveTurnManager } from "../session/active-turns.js";
 import { SessionManager } from "../session/manager.js";
 import type { SessionIdentity } from "../session/types.js";
 import { createUnifiedTools } from "../tools/registry.js";
-import { ContinuationManager } from "./continuation.js";
 import {
   buildUserContent,
   extractTextFromUserContent,
@@ -49,7 +48,6 @@ import {
   isStopMessage,
   type ReplyReference,
 } from "./helpers.js";
-import type { TurnSignals } from "./types.js";
 import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
 import type { SkillsConfig } from "../workspace/skills/types.js";
 import type { MemoryExtractionQueue } from "../memory/queue.js";
@@ -119,7 +117,6 @@ export class AgentTurnOrchestrator {
   private readonly memoryExtractionQueue?: MemoryExtractionQueue;
   private readonly titleGenerator?: SessionTitleGenerator;
   private readonly activeTurnManager = new ActiveTurnManager();
-  private readonly continuationManager = new ContinuationManager();
   private readonly log: Logger;
 
   constructor({
@@ -207,7 +204,6 @@ export class AgentTurnOrchestrator {
 
     if (isStopMessage({ text })) {
       const sessionIdentity = this.deriveSessionIdentity({ event });
-      this.continuationManager.cancel({ sessionKey: sessionIdentity.key });
       const cancelled = await this.activeTurnManager.cancel({
         sessionKey: sessionIdentity.key,
       });
@@ -242,7 +238,6 @@ export class AgentTurnOrchestrator {
     const sessionIdentity =
       linkedSessionIdentity ?? this.deriveSessionIdentity({ event });
 
-    this.continuationManager.cancel({ sessionKey: sessionIdentity.key });
     const existingMessage = await this.activeTurnManager.cancel({
       sessionKey: sessionIdentity.key,
     });
@@ -506,8 +501,6 @@ export class AgentTurnOrchestrator {
       { role: "user", content: userContent },
     ];
 
-    const turnSignals: TurnSignals = { continuation: null };
-
     const tools = createUnifiedTools({
       executionContext: {
         workspaceRoot: this.workspacePath,
@@ -532,7 +525,6 @@ export class AgentTurnOrchestrator {
       channelSender: adapter,
       deliveryService: this.deliveryService,
       commandApprovalService: this.commandApprovalService,
-      turnSignals,
       getStatus: this.getStatus,
       adminSocketPath: this.adminSocketPath,
       logOutput: this.logOutput,
@@ -555,7 +547,6 @@ export class AgentTurnOrchestrator {
       tools,
       maxSteps: 50,
       abortSignal,
-      // extraStopConditions: [hasToolCall("wait_and_continue")],
     });
 
     (streamResult.text as Promise<string>).catch(() => {});
@@ -589,56 +580,6 @@ export class AgentTurnOrchestrator {
 
     if (assistantResponse.length === 0) {
       assistantResponse = (await streamResult.text).trim();
-    }
-
-    if (turnSignals.continuation && !abortSignal.aborted) {
-      const { seconds, note } = turnSignals.continuation;
-      this.log.info(
-        { sessionKey: sessionIdentity.key, waitSeconds: seconds, note },
-        "Agent requesting continuation wait",
-      );
-      const waitingMessage = `Waiting ${formatWaitDuration({ seconds })} -- ${note}`;
-
-      await adapter.sendMessage({
-        chatId: event.chatId,
-        text: waitingMessage,
-        threadId: event.threadId,
-      });
-
-      await this.sessionManager.appendMessages({
-        identity: sessionIdentity,
-        messages: [
-          {
-            role: MessageRole.user,
-            content: extractTextFromUserContent({ content: userContent }),
-            metadata: getUserMetadata({ replyReference, images: persistImages }),
-          },
-          {
-            role: MessageRole.assistant,
-            content: waitingMessage,
-          },
-        ],
-      });
-
-      if (isMainSession && this.memoryExtractionQueue) {
-        await this.sessionManager.touchLastActivity({ sessionKey: sessionIdentity.key });
-        this.memoryExtractionQueue.enqueue({ sessionKey: sessionIdentity.key });
-      }
-
-      this.continuationManager.schedule({
-        sessionKey: sessionIdentity.key,
-        delayMs: seconds * 1000,
-        onResume: () =>
-          this.resumeContinuation({
-            event,
-            sessionIdentity,
-            isMainSession,
-            continuationNote: note,
-            waitedSeconds: seconds,
-          }),
-      });
-
-      return;
     }
 
     if (assistantResponse.length === 0) {
@@ -709,58 +650,6 @@ export class AgentTurnOrchestrator {
       platformMessageId,
       sessionKey: sessionIdentity.key,
     });
-  }
-
-  private resumeContinuation({
-    event,
-    sessionIdentity,
-    isMainSession,
-    continuationNote,
-    waitedSeconds,
-  }: {
-    event: NormalizedInboundEvent;
-    sessionIdentity: SessionIdentity;
-    isMainSession: boolean;
-    continuationNote: string;
-    waitedSeconds: number;
-  }): void {
-    const existing = this.activeTurnManager.get({
-      sessionKey: sessionIdentity.key,
-    });
-    if (existing) {
-      this.log.debug(
-        { sessionKey: sessionIdentity.key },
-        "Skipping continuation resume - active turn exists",
-      );
-      return;
-    }
-
-    const continuationMessage = [
-      `[CONTINUATION] Resuming after ${waitedSeconds}s wait.`,
-      `Your previous continuation note: ${continuationNote}`,
-      "Check on any processes you were waiting for and continue your task.",
-    ].join("\n");
-
-    this.log.info(
-      { sessionKey: sessionIdentity.key, waitedSeconds },
-      "Resuming continuation",
-    );
-
-    this.chatRegistry
-      .listLinkedChats({ platform: event.platform })
-      .then((linkedChats) => {
-        this.launchAgentTurn({
-          event,
-          sessionIdentity,
-          userMessage: continuationMessage,
-          replyReference: null,
-          isMainSession,
-          linkedChats,
-        });
-      })
-      .catch((err) => {
-        this.log.error({ err, sessionKey: sessionIdentity.key }, "Failed to resume continuation");
-      });
   }
 
   private deriveSessionIdentity({
@@ -855,13 +744,6 @@ async function describeImages({
   });
 
   return result.text.trim();
-}
-
-function formatWaitDuration({ seconds }: { seconds: number }): string {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remaining = seconds % 60;
-  return remaining > 0 ? `${minutes}m ${remaining}s` : `${minutes}m`;
 }
 
 async function* toAgentStream({
