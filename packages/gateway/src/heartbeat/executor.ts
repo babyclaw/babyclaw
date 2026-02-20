@@ -285,9 +285,16 @@ export class HeartbeatExecutor {
       );
 
       if (verdict.action === "alert" && verdict.message) {
-        await this.channelSender.sendMessage({
+        const sendResult = await this.channelSender.sendMessage({
           chatId: platformChatId,
           text: verdict.message,
+        });
+
+        await this.messageLinkRepository.upsertMessageLink({
+          platform: mainChat.platform,
+          platformChatId,
+          platformMessageId: sendResult.platformMessageId,
+          sessionKey: sessionIdentity.key,
         });
 
         await this.sessionManager.appendMessages({
