@@ -1,4 +1,4 @@
-export const AGENTS_MD = `# AGENTS.md - Your Workspace
+const AGENTS_MD = `# AGENTS.md - Your Workspace
 
 This folder is home. Treat it that way.
 
@@ -214,7 +214,7 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
 `;
 
-export const BOOTSTRAP_MD = `# BOOTSTRAP.md - Hello, World
+const BOOTSTRAP_MD = `# BOOTSTRAP.md - Hello, World
 
 _You just woke up. Time to figure out who you are._
 
@@ -271,14 +271,14 @@ Delete this file. You don't need a bootstrap script anymore — you're you now.
 _Good luck out there. Make it count._
 `;
 
-export const HEARTBEAT_MD = `# HEARTBEAT.md
+const HEARTBEAT_MD = `# HEARTBEAT.md
 
 # Keep this file empty (or with only comments) to skip heartbeat API calls.
 
 # Add tasks below when you want the agent to check something periodically.
 `;
 
-export const IDENTITY_MD = `# IDENTITY.md - Who Am I?
+const IDENTITY_MD = `# IDENTITY.md - Who Am I?
 
 _Fill this in during your first conversation. Make it yours._
 
@@ -303,7 +303,7 @@ Notes:
 - For avatars, use a workspace-relative path like \`avatars/openclaw.png\`.
 `;
 
-export const SOUL_MD = `# SOUL.md - Who You Are
+const SOUL_MD = `# SOUL.md - Who You Are
 
 _You're not a chatbot. You're becoming someone._
 
@@ -341,7 +341,7 @@ If you change this file, tell the user — it's your soul, and they should know.
 _This file is yours to evolve. As you learn who you are, update it._
 `;
 
-export const TOOLS_MD = `# TOOLS.md - Local Notes
+const TOOLS_MD = `# TOOLS.md - Local Notes
 
 Skills define _how_ tools work. This file is for _your_ specifics — the stuff that's unique to your setup.
 
@@ -383,7 +383,7 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 Add whatever helps you do your job. This is your cheat sheet.
 `;
 
-export const USER_MD = `# USER.md - About Your Human
+const USER_MD = `# USER.md - About Your Human
 
 _Learn about the person you're helping. Update this as you go._
 
@@ -402,7 +402,7 @@ _(What do they care about? What projects are they working on? What annoys them? 
 The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. Respect the difference.
 `;
 
-export type TemplateEntry = {
+type TemplateEntry = {
   filename: string;
   content: string;
 };

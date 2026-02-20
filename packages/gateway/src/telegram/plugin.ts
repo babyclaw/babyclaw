@@ -33,7 +33,7 @@ import { streamDraftToChat, streamTurnToChat } from "./draft.js";
 
 const ALIAS_PATTERN = /^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$/;
 
-export type HeartbeatStatusGetter = () => {
+type HeartbeatStatusGetter = () => {
   enabled: boolean;
   nextRunAt: Date | null;
 };

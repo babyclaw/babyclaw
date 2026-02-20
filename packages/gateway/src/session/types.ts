@@ -1,6 +1,6 @@
 import type { MessageRole } from "@prisma/client";
 
-export type SessionScope = "chat" | "topic" | "reply-chain";
+type SessionScope = "chat" | "topic" | "reply-chain";
 
 export type SessionIdentity = {
   key: string;

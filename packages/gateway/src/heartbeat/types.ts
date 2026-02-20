@@ -13,6 +13,6 @@ export const heartbeatResultSchema = z.object({
   ),
 });
 
-export type HeartbeatResult = z.infer<typeof heartbeatResultSchema>;
+type HeartbeatResult = z.infer<typeof heartbeatResultSchema>;
 
 export type HeartbeatConfig = SimpleclawConfig["heartbeat"];

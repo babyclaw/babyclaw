@@ -1,4 +1,4 @@
-import type { Schedule, ScheduleRun, ScheduleType } from "@prisma/client";
+import type { Schedule, ScheduleType } from "@prisma/client";
 
 export type CreateScheduleInput = {
   chatId: string;
@@ -53,13 +53,6 @@ export type ScheduleForRuntime = Pick<
   | "title"
   | "targetChatRef"
 >;
-
-export type ScheduleRunWithSchedule = ScheduleRun & {
-  schedule: Pick<
-    Schedule,
-    "id" | "chatId" | "threadId" | "directMessagesTopicId" | "taskPrompt" | "timezone" | "type"
-  >;
-};
 
 export type ScheduleRunContext = {
   scheduleId: string;

@@ -17,7 +17,7 @@ type WorkspaceInput = {
   workspacePath: string;
 };
 
-export function getPersonalityFilePaths({
+function getPersonalityFilePaths({
   workspacePath,
 }: WorkspaceInput): { identityPath: string; soulPath: string; userPath: string } {
   return {

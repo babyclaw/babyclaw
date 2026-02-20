@@ -20,7 +20,7 @@ import type {
 const MIN_RECURRING_INTERVAL_MS = 5 * 60 * 1000;
 const RUN_RETENTION_DAYS = 30;
 
-export type SchedulerServiceInput = {
+type SchedulerServiceInput = {
   prisma: PrismaClient;
   timezone: string;
 };

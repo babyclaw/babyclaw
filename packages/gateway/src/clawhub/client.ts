@@ -49,7 +49,7 @@ export type SkillInfo = {
   } | null;
 };
 
-export type SkillVersionDetail = {
+type SkillVersionDetail = {
   skill: { slug: string; displayName: string };
   version: {
     version: string;
@@ -62,15 +62,6 @@ export type SkillVersionDetail = {
       contentType: string | null;
     }>;
   };
-};
-
-export type SearchResult = {
-  score: number;
-  slug: string;
-  displayName: string;
-  summary: string | null;
-  version: string | null;
-  updatedAt: number;
 };
 
 async function handleErrorResponse({
@@ -177,29 +168,4 @@ export async function getSkillFileContent({
   }
 
   return response.text();
-}
-
-export async function searchSkills({
-  query,
-  limit,
-}: {
-  query: string;
-  limit?: number;
-}): Promise<SearchResult[]> {
-  const params = new URLSearchParams({ q: query });
-  if (limit !== undefined) {
-    params.set("limit", String(limit));
-  }
-
-  const response = await fetch(
-    `${CLAWHUB_API_BASE}/search?${params.toString()}`,
-  );
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`ClawHub search failed (${response.status}): ${body}`);
-  }
-
-  const data = (await response.json()) as { results: SearchResult[] };
-  return data.results;
 }

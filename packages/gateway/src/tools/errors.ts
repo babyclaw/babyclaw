@@ -2,16 +2,11 @@ import { getLogger } from "../logging/index.js";
 import { redactToolInput, truncateOutput } from "../logging/redact.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 
-export type ToolErrorPayload = {
+type ToolErrorPayload = {
   code: string;
   message: string;
   retryable: boolean;
   hint?: string;
-};
-
-export type ToolFailureResult = {
-  ok: false;
-  error: ToolErrorPayload;
 };
 
 export class ToolExecutionError extends Error {
@@ -37,28 +32,6 @@ export class ToolExecutionError extends Error {
   }
 }
 
-export function toolFailure({
-  code,
-  message,
-  retryable = false,
-  hint,
-}: {
-  code: string;
-  message: string;
-  retryable?: boolean;
-  hint?: string;
-}): ToolFailureResult {
-  return {
-    ok: false,
-    error: {
-      code,
-      message,
-      retryable,
-      ...(hint ? { hint } : {}),
-    },
-  };
-}
-
 let callIdCounter = 0;
 
 export async function withToolLogging<TSuccess extends object>({
@@ -73,7 +46,7 @@ export async function withToolLogging<TSuccess extends object>({
   action: () => Promise<TSuccess>;
   defaultCode?: string;
   input?: Record<string, unknown>;
-}): Promise<TSuccess | ToolFailureResult> {
+}): Promise<TSuccess | { ok: false; error: ToolErrorPayload }> {
   const log = getLogger();
   const callId = `tool-${++callIdCounter}`;
   const startedAt = Date.now();

@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ToolExecutionError,
   toToolErrorPayload,
-  toolFailure,
   withToolLogging,
 } from "./errors.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
@@ -30,34 +29,6 @@ describe("ToolExecutionError", () => {
   it("is an instance of Error", () => {
     const err = new ToolExecutionError({ code: "X", message: "y" });
     expect(err).toBeInstanceOf(Error);
-  });
-});
-
-describe("toolFailure", () => {
-  it("returns the expected shape without hint", () => {
-    const result = toolFailure({ code: "FAIL", message: "oops" });
-    expect(result).toEqual({
-      ok: false,
-      error: { code: "FAIL", message: "oops", retryable: false },
-    });
-  });
-
-  it("includes hint when provided", () => {
-    const result = toolFailure({
-      code: "FAIL",
-      message: "oops",
-      hint: "try again",
-    });
-    expect(result.error.hint).toBe("try again");
-  });
-
-  it("respects retryable flag", () => {
-    const result = toolFailure({
-      code: "FAIL",
-      message: "oops",
-      retryable: true,
-    });
-    expect(result.error.retryable).toBe(true);
   });
 });
 

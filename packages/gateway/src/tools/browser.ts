@@ -42,31 +42,6 @@ export function createBrowserTools({ mcpClient, context }: CreateBrowserToolsInp
   }
 
   return {
-    // ─── High-level agent-delegated task ───────────────────────────────
-
-    // browser_agent_task: tool({
-    //   description:
-    //     "Delegate a complex multi-step browser automation task to the browser-use AI agent. " +
-    //     "Use this for tasks that require navigating multiple pages, filling forms, or interacting with dynamic content. " +
-    //     "Provide a clear natural language description of the task. The internal agent will autonomously control the browser to complete it.",
-    //   inputSchema: z.object({
-    //     task: z
-    //       .string()
-    //       .trim()
-    //       .min(1)
-    //       .describe("Natural language description of the browser task to perform."),
-    //   }),
-    //   execute: async ({ task }) =>
-    //     withToolLogging({
-    //       context,
-    //       toolName: "browser_agent_task",
-    //       defaultCode: "BROWSER_AGENT_TASK_FAILED",
-    //       action: () => callMcp({ name: "retry_with_browser_use_agent", args: { task, model: 'anthropic/claude-opus-4.6' } }),
-    //     }),
-    // }),
-
-    // ─── Direct browser control ────────────────────────────────────────
-
     browser_navigate: tool({
       description:
         "Navigate the browser to a specific URL. Returns the page state after navigation.",
