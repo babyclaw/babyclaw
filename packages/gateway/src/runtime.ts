@@ -8,8 +8,6 @@ import {
   resolveModelRef,
 } from "./ai/provider-registry.js";
 import { AdminServer } from "./admin/server.js";
-import { createChatCompletionsHandler } from "./api/completions.js";
-import { ApiServer } from "./api/server.js";
 import { getAdminSocketPath } from "./admin/paths.js";
 import { AgentTurnOrchestrator } from "./agent/orchestrator.js";
 import { CommandApprovalService } from "./approval/service.js";
@@ -56,7 +54,6 @@ export class GatewayRuntime {
   private heartbeatRuntime: HeartbeatRuntime | null = null;
   private browserMcpClient: BrowserMcpClient | undefined = undefined;
   private adminServer: AdminServer | null = null;
-  private apiServer: ApiServer | null = null;
   private channelRouter: ChannelRouter | null = null;
   private memoryExtractionQueue: MemoryExtractionQueue | null = null;
 
@@ -376,41 +373,6 @@ export class GatewayRuntime {
       });
       await this.adminServer.start();
 
-      if (config.api.enabled) {
-        if (!config.api.apiKey) {
-          throw new Error("API is enabled but api.apiKey is not configured.");
-        }
-
-        const chatCompletionsHandler = createChatCompletionsHandler({
-          workspacePath,
-          aiAgent,
-          schedulerService,
-          syncSchedule,
-          enableGenericTools: config.tools.enableGenericTools,
-          braveSearchApiKey: config.tools.webSearch.braveApiKey,
-          shellConfig,
-          browserMcpClient,
-          skillsConfig: config.skills,
-          fullConfig: config as unknown as Record<string, unknown>,
-          getStatus: () => this.getStatus(),
-          adminSocketPath,
-          logOutput: config.logging.output,
-          logLevel: config.logging.level,
-          schedulerActive: true,
-          heartbeatActive: config.heartbeat.enabled,
-          restartGateway: selfToolDeps.restartGateway,
-          responseModel: chatModelRef,
-        });
-
-        this.apiServer = new ApiServer({
-          port: config.api.port,
-          apiKey: config.api.apiKey,
-          chatCompletionsHandler,
-        });
-        await this.apiServer.start();
-        log.info({ port: config.api.port }, "OpenAI-compatible API server started");
-      }
-
       await channelRouter.startAll({
         onInboundEvent: orchestrator.handleInboundEvent.bind(orchestrator),
       });
@@ -453,10 +415,6 @@ export class GatewayRuntime {
       await this.channelRouter.stopAll();
       log.debug("Channel adapters stopped");
     }
-    if (this.apiServer) {
-      await this.apiServer.stop();
-      log.debug("API server stopped");
-    }
     if (this.browserMcpClient) {
       await this.browserMcpClient.shutdown();
       log.debug("Browser MCP client shut down");
@@ -475,7 +433,6 @@ export class GatewayRuntime {
     this.heartbeatRuntime = null;
     this.browserMcpClient = undefined;
     this.adminServer = null;
-    this.apiServer = null;
     this.channelRouter = null;
     this.memoryExtractionQueue = null;
     this.startedAt = null;

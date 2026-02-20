@@ -5,7 +5,6 @@ export { getAdminSocketPath } from "./admin/paths.js";
 export { loadConfig, loadConfigRaw, writeConfig } from "./config/loader.js";
 export { getConfigPath, getDefaultConfigPath, CONFIG_PATH_ENV_VAR } from "./config/paths.js";
 export { simpleclawConfigSchema } from "./config/schema.js";
-export { getSimpleclawConfigJsonSchema, writeSimpleclawConfigJsonSchema } from "./config/schema-json.js";
 export { getDefaultConfigTemplate } from "./config/template.js";
 export type { SimpleclawConfig } from "./config/types.js";
 export { installSkillFromClawHub, SkillAlreadyInstalledError } from "./clawhub/installer.js";

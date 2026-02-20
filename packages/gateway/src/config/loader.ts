@@ -127,13 +127,6 @@ function ensureRequiredSecrets({
     }
   }
 
-  if (config.api.enabled) {
-    const apiKey = config.api.apiKey;
-    if (!apiKey || isMissingSecret(apiKey)) {
-      missing.push("api.apiKey");
-    }
-  }
-
   if (missing.length > 0) {
     throw new Error(
       `Invalid configuration at ${configPath}: required secret values are missing for ${missing.join(
