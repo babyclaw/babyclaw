@@ -1,12 +1,15 @@
 {
-  "name": "simpleclaw",
+  "name": "babyclaw",
   "version": "1.0.0",
-  "description": "Simpleclaw - your friendly agent gateway",
+  "description": "BabyClaw - your friendly agent gateway",
   "private": true,
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r --filter=!docs lint",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check ."
   },
   "keywords": [],
   "author": "",
@@ -20,5 +23,9 @@
       "sharp",
       "unrs-resolver"
     ]
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "oxfmt": "^0.34.0"
   }
 }
