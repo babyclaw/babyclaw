@@ -30,6 +30,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },
   "keywords": [
@@ -62,6 +63,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "4.0.18",
     "drizzle-kit": "^0.31.1",
     "tsup": "^8.5.0",
     "tsx": "^4.20.5",
