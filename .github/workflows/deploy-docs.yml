@@ -27,4 +27,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: ""
+          packageManager: pnpm
           command: pages deploy apps/docs/.output/public --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
