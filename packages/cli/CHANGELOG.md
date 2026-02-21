@@ -1,5 +1,11 @@
 # babyclaw
 
+## 0.1.0
+
+### Minor Changes
+
+- 23dfdd3: Add `babyclaw update` command for self-updating via npm. Automatically regenerates the service file and restarts the gateway if running.
+
 ## 0.0.1
 
 ### Patch Changes
