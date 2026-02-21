@@ -121,7 +121,7 @@ export function createMessagingTools({
             });
 
             return {
-              status: "sent",
+              ok: true,
               chat_title: chatTitle,
               alias: resolvedAlias,
               platform_message_id: result.platformMessageId,
@@ -146,7 +146,7 @@ export function createMessagingTools({
             });
 
             return {
-              status: "ok",
+              ok: true,
               count: chats.length,
               chats: chats.map((chat) => ({
                 alias: chat.alias,

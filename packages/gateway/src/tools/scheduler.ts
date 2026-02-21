@@ -172,7 +172,7 @@ export function createSchedulerTools({
             });
 
             return {
-              status: "created",
+              ok: true,
               schedule_id: created.schedule.id,
               schedule_type: created.schedule.type,
               title: created.schedule.title,
@@ -202,7 +202,7 @@ export function createSchedulerTools({
             });
 
             return {
-              status: "ok",
+              ok: true,
               count: schedules.length,
               schedules: schedules.map((schedule) => ({
                 id: schedule.id,
@@ -221,7 +221,7 @@ export function createSchedulerTools({
     cancel_schedule: tool({
       description: [
         "Cancel an active schedule by id or by free-text query.",
-        "If query matches multiple schedules, this tool returns status=ambiguous with candidates.",
+        "If query matches multiple schedules, this tool returns outcome=ambiguous with candidates.",
       ].join(" "),
       inputSchema: z.object({
         schedule_id: z.string().trim().min(1).optional(),
@@ -246,7 +246,8 @@ export function createSchedulerTools({
               });
 
               return {
-                status: "canceled",
+                ok: true,
+                outcome: "canceled",
                 schedule_id: result.schedule.id,
                 title: result.schedule.title,
                 next_run_at: result.schedule.nextRunAt?.toISOString() ?? null,
@@ -255,7 +256,8 @@ export function createSchedulerTools({
 
             if (result.status === "ambiguous") {
               return {
-                status: "ambiguous",
+                ok: true,
+                outcome: "ambiguous",
                 candidates: result.candidates.map((candidate) => ({
                   id: candidate.id,
                   title: candidate.title,
@@ -266,7 +268,8 @@ export function createSchedulerTools({
             }
 
             return {
-              status: "not_found",
+              ok: true,
+              outcome: "not_found",
               message: "No active schedule matched that request.",
             } as const;
           },

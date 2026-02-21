@@ -74,7 +74,7 @@ export function createMediaTools({
             });
 
             return {
-              status: "sent",
+              ok: true,
               platform_message_id: result.platformMessageId,
             } as const;
           },
