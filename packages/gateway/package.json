@@ -9,6 +9,11 @@
     "telegram"
   ],
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babyclaw/babyclaw",
+    "directory": "packages/gateway"
+  },
   "files": [
     "dist",
     "drizzle",

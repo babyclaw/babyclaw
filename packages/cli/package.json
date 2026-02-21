@@ -9,6 +9,11 @@
     "gateway"
   ],
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babyclaw/babyclaw",
+    "directory": "packages/cli"
+  },
   "bin": {
     "babyclaw": "./build/cli.js"
   },
