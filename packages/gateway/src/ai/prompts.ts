@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Chat } from "@prisma/client";
+import type { Chat } from "../database/schema.js";
 import type { ModelMessage } from "ai";
 import type { CompletePersonalityFiles } from "../onboarding/personality.js";
 import type { SkillEntry } from "../workspace/skills/types.js";

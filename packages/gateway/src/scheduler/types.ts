@@ -1,4 +1,4 @@
-import type { Schedule, ScheduleType } from "@prisma/client";
+import type { Schedule, ScheduleType } from "../database/schema.js";
 
 export type CreateScheduleInput = {
   chatId: string;

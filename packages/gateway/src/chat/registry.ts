@@ -1,7 +1,9 @@
-import type { Chat, PrismaClient } from "@prisma/client";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
+import type { Database } from "../database/client.js";
+import { chats, type Chat } from "../database/schema.js";
 
 type ChatRegistryInput = {
-  prisma: PrismaClient;
+  db: Database;
 };
 
 type UpsertInput = {
@@ -32,109 +34,123 @@ type ListLinkedChatsInput = {
 };
 
 export class ChatRegistry {
-  private readonly prisma: PrismaClient;
+  private readonly db: Database;
 
-  constructor({ prisma }: ChatRegistryInput) {
-    this.prisma = prisma;
+  constructor({ db }: ChatRegistryInput) {
+    this.db = db;
   }
 
   async upsert({ platform, platformChatId, type, title }: UpsertInput): Promise<Chat> {
-    return this.prisma.chat.upsert({
-      where: {
-        platform_platformChatId: { platform, platformChatId },
-      },
-      create: {
+    const rows = await this.db
+      .insert(chats)
+      .values({
         platform,
         platformChatId,
         type,
         title: title ?? null,
-      },
-      update: {
-        type,
-        title: title ?? undefined,
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: [chats.platform, chats.platformChatId],
+        set: {
+          type,
+          ...(title !== undefined ? { title: title ?? null } : {}),
+        },
+      })
+      .returning();
+
+    return rows[0];
   }
 
   async markAsMain({ platform, platformChatId }: PlatformChatIdentifier): Promise<Chat> {
-    await this.prisma.chat.updateMany({
-      where: { isMain: true },
-      data: { isMain: false },
-    });
+    await this.db
+      .update(chats)
+      .set({ isMain: false })
+      .where(eq(chats.isMain, true));
 
-    return this.prisma.chat.update({
-      where: {
-        platform_platformChatId: { platform, platformChatId },
-      },
-      data: {
-        isMain: true,
-        linkedAt: new Date(),
-      },
-    });
+    const rows = await this.db
+      .update(chats)
+      .set({ isMain: true, linkedAt: new Date() })
+      .where(
+        and(
+          eq(chats.platform, platform),
+          eq(chats.platformChatId, platformChatId),
+        ),
+      )
+      .returning();
+
+    return rows[0];
   }
 
   async link({ platform, platformChatId, alias }: LinkInput): Promise<Chat> {
-    return this.prisma.chat.update({
-      where: {
-        platform_platformChatId: { platform, platformChatId },
-      },
-      data: {
-        alias,
-        linkedAt: new Date(),
-      },
-    });
+    const rows = await this.db
+      .update(chats)
+      .set({ alias, linkedAt: new Date() })
+      .where(
+        and(
+          eq(chats.platform, platform),
+          eq(chats.platformChatId, platformChatId),
+        ),
+      )
+      .returning();
+
+    return rows[0];
   }
 
   async unlink({ platform, platformChatId }: PlatformChatIdentifier): Promise<Chat> {
-    return this.prisma.chat.update({
-      where: {
-        platform_platformChatId: { platform, platformChatId },
-      },
-      data: {
-        alias: null,
-        linkedAt: null,
-      },
-    });
+    const rows = await this.db
+      .update(chats)
+      .set({ alias: null, linkedAt: null })
+      .where(
+        and(
+          eq(chats.platform, platform),
+          eq(chats.platformChatId, platformChatId),
+        ),
+      )
+      .returning();
+
+    return rows[0];
   }
 
   async isLinked({ platform, platformChatId }: PlatformChatIdentifier): Promise<boolean> {
-    const chat = await this.prisma.chat.findUnique({
-      where: {
-        platform_platformChatId: { platform, platformChatId },
-      },
-      select: { linkedAt: true },
+    const chat = await this.db.query.chats.findFirst({
+      where: and(
+        eq(chats.platform, platform),
+        eq(chats.platformChatId, platformChatId),
+      ),
+      columns: { linkedAt: true },
     });
 
     return chat?.linkedAt !== null && chat?.linkedAt !== undefined;
   }
 
   async listLinkedChats({ platform }: ListLinkedChatsInput = {}): Promise<Chat[]> {
-    return this.prisma.chat.findMany({
-      where: {
-        linkedAt: { not: null },
-        ...(platform ? { platform } : {}),
-      },
-      orderBy: { createdAt: "asc" },
+    return this.db.query.chats.findMany({
+      where: and(
+        isNotNull(chats.linkedAt),
+        ...(platform ? [eq(chats.platform, platform)] : []),
+      ),
+      orderBy: [asc(chats.createdAt)],
     });
   }
 
   async resolveAlias({ platform, alias }: ResolveAliasInput): Promise<Chat | null> {
-    return this.prisma.chat.findUnique({
-      where: {
-        platform_alias: { platform, alias },
-      },
+    const chat = await this.db.query.chats.findFirst({
+      where: and(eq(chats.platform, platform), eq(chats.alias, alias)),
     });
+    return chat ?? null;
   }
 
   async findById({ id }: { id: string }): Promise<Chat | null> {
-    return this.prisma.chat.findUnique({
-      where: { id },
+    const chat = await this.db.query.chats.findFirst({
+      where: eq(chats.id, id),
     });
+    return chat ?? null;
   }
 
   async getMainChat(): Promise<Chat | null> {
-    return this.prisma.chat.findFirst({
-      where: { isMain: true },
+    const chat = await this.db.query.chats.findFirst({
+      where: eq(chats.isMain, true),
     });
+    return chat ?? null;
   }
 }

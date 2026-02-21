@@ -1,5 +1,4 @@
 import { resolve } from "node:path";
-import { PrismaClient } from "@prisma/client";
 import type { LanguageModel } from "ai";
 import { AiAgent } from "./ai/agent.js";
 import {
@@ -33,6 +32,7 @@ import { MemoryExtractionQueue } from "./memory/queue.js";
 import { SessionManager } from "./session/manager.js";
 import { SessionTitleGenerator } from "./session/title-generator.js";
 import { bootstrapWorkspace } from "./workspace/bootstrap.js";
+import { createDatabase, type Database } from "./database/client.js";
 import { applyMigrations } from "./database/migrate.js";
 
 export type GatewayStatus = {
@@ -49,7 +49,7 @@ export class GatewayRuntime {
   private config: SimpleclawConfig | null = null;
   private log: Logger | null = null;
 
-  private prisma: PrismaClient | null = null;
+  private db: Database | null = null;
   private schedulerRuntime: SchedulerRuntime | null = null;
   private heartbeatRuntime: HeartbeatRuntime | null = null;
   private browserMcpClient: BrowserMcpClient | undefined = undefined;
@@ -84,7 +84,7 @@ export class GatewayRuntime {
       const workspacePath = resolve(process.cwd(), config.workspace.root);
 
       log.info("Applying database migrations...");
-      applyMigrations({ databaseUrl: config.database.url });
+      applyMigrations({ workspacePath });
       log.info("Database migrations applied");
 
       const registry = buildProviderRegistry({
@@ -135,25 +135,19 @@ export class GatewayRuntime {
       }
       this.browserMcpClient = browserMcpClient;
 
-      const prisma = new PrismaClient({
-        datasources: {
-          db: {
-            url: config.database.url,
-          },
-        },
-      });
-      this.prisma = prisma;
+      const db = createDatabase({ workspacePath });
+      this.db = db;
 
       const sessionManager = new SessionManager({
-        prisma,
+        db,
         maxMessagesPerSession: config.session.maxMessagesPerSession,
       });
       const aiAgent = new AiAgent({ model: chatModel });
       const schedulerService = new SchedulerService({
-        prisma,
+        db,
         timezone: config.scheduler.timezone,
       });
-      const messageLinkRepository = new MessageLinkRepository({ prisma });
+      const messageLinkRepository = new MessageLinkRepository({ db });
 
       let schedulerRuntime: SchedulerRuntime | null = null;
       const syncSchedule = async ({ scheduleId }: { scheduleId: string }) => {
@@ -170,13 +164,13 @@ export class GatewayRuntime {
         log.warn("Shell tool is running in full-access mode. Command allowlist validation is disabled.");
       }
 
-      const chatRegistry = new ChatRegistry({ prisma });
+      const chatRegistry = new ChatRegistry({ db });
       const deliveryService = new CrossChatDeliveryService({
         sessionManager,
         messageLinkRepository,
       });
 
-      const heartbeatService = new HeartbeatService({ prisma });
+      const heartbeatService = new HeartbeatService({ db });
 
       let heartbeatRuntime: HeartbeatRuntime | null = null;
 
@@ -419,16 +413,15 @@ export class GatewayRuntime {
       await this.browserMcpClient.shutdown();
       log.debug("Browser MCP client shut down");
     }
-    if (this.prisma) {
-      await this.prisma.$disconnect();
-      log.debug("Database disconnected");
+    if (this.db) {
+      log.debug("Database connection closed");
     }
     if (this.adminServer) {
       await this.adminServer.stop();
       log.debug("Admin server stopped");
     }
 
-    this.prisma = null;
+    this.db = null;
     this.schedulerRuntime = null;
     this.heartbeatRuntime = null;
     this.browserMcpClient = undefined;

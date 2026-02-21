@@ -1,4 +1,4 @@
-import { ScheduleStatus, ScheduleType } from "@prisma/client";
+import { ScheduleStatus, ScheduleType } from "../database/schema.js";
 import { CronJob } from "cron";
 import { getLogger } from "../logging/index.js";
 import type { Logger } from "../logging/index.js";

@@ -19,9 +19,6 @@ const DEFAULT_CONFIG_TEMPLATE = {
     },
     aliases: {},
   },
-  database: {
-    url: "file:../data/simpleclaw.db",
-  },
   scheduler: {
     timezone: "UTC",
   },

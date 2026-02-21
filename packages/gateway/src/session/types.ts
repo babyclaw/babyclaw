@@ -1,4 +1,4 @@
-import type { MessageRole } from "@prisma/client";
+import type { MessageRole } from "../database/schema.js";
 
 type SessionScope = "chat" | "topic" | "reply-chain";
 

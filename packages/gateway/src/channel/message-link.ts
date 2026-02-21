@@ -1,7 +1,9 @@
-import { PrismaClient } from "@prisma/client";
+import { and, eq } from "drizzle-orm";
+import type { Database } from "../database/client.js";
+import { channelMessageLinks } from "../database/schema.js";
 
 type MessageLinkRepositoryInput = {
-  prisma: PrismaClient;
+  db: Database;
 };
 
 type UpsertMessageLinkInput = {
@@ -23,10 +25,10 @@ export type MessageLink = {
 };
 
 export class MessageLinkRepository {
-  private readonly prisma: PrismaClient;
+  private readonly db: Database;
 
-  constructor({ prisma }: MessageLinkRepositoryInput) {
-    this.prisma = prisma;
+  constructor({ db }: MessageLinkRepositoryInput) {
+    this.db = db;
   }
 
   async upsertMessageLink({
@@ -37,28 +39,28 @@ export class MessageLinkRepository {
     scheduleId,
     scheduleRunId,
   }: UpsertMessageLinkInput): Promise<void> {
-    await this.prisma.channelMessageLink.upsert({
-      where: {
-        platform_platformChatId_platformMessageId: {
-          platform,
-          platformChatId,
-          platformMessageId,
-        },
-      },
-      create: {
+    await this.db
+      .insert(channelMessageLinks)
+      .values({
         platform,
         platformChatId,
         platformMessageId,
         sessionKey,
         scheduleId: scheduleId ?? null,
         scheduleRunId: scheduleRunId ?? null,
-      },
-      update: {
-        sessionKey,
-        scheduleId: scheduleId ?? null,
-        scheduleRunId: scheduleRunId ?? null,
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: [
+          channelMessageLinks.platform,
+          channelMessageLinks.platformChatId,
+          channelMessageLinks.platformMessageId,
+        ],
+        set: {
+          sessionKey,
+          scheduleId: scheduleId ?? null,
+          scheduleRunId: scheduleRunId ?? null,
+        },
+      });
   }
 
   async findByChatAndMessage({
@@ -70,15 +72,13 @@ export class MessageLinkRepository {
     platformChatId: string;
     platformMessageId: string;
   }): Promise<MessageLink | null> {
-    const link = await this.prisma.channelMessageLink.findUnique({
-      where: {
-        platform_platformChatId_platformMessageId: {
-          platform,
-          platformChatId,
-          platformMessageId,
-        },
-      },
-      select: {
+    const link = await this.db.query.channelMessageLinks.findFirst({
+      where: and(
+        eq(channelMessageLinks.platform, platform),
+        eq(channelMessageLinks.platformChatId, platformChatId),
+        eq(channelMessageLinks.platformMessageId, platformMessageId),
+      ),
+      columns: {
         platform: true,
         platformChatId: true,
         platformMessageId: true,
@@ -88,10 +88,6 @@ export class MessageLinkRepository {
       },
     });
 
-    if (!link) {
-      return null;
-    }
-
-    return link;
+    return link ?? null;
   }
 }

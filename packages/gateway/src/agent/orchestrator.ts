@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import { MessageRole } from "@prisma/client";
-import type { Chat } from "@prisma/client";
+import { MessageRole } from "../database/schema.js";
+import type { Chat } from "../database/schema.js";
 import { generateText, type ImagePart, type LanguageModel, type ModelMessage, type TextPart, type TextStreamPart, type ToolSet } from "ai";
 import { AiAgent } from "../ai/agent.js";
 import type { CommandApprovalService } from "../approval/service.js";

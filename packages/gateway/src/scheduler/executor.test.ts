@@ -1,4 +1,4 @@
-import { ScheduleRunStatus, ScheduleType } from "@prisma/client";
+import { ScheduleRunStatus, ScheduleType } from "../database/schema.js";
 import { describe, expect, it, vi } from "vitest";
 import { SchedulerExecutor } from "./executor.js";
 
@@ -105,7 +105,7 @@ describe("SchedulerExecutor - cross-chat delivery", () => {
 
     schedulerService.getScheduleForRuntime.mockResolvedValue({
       id: "sched-1",
-      chatId: 1n,
+      chatId: 1,
       threadId: null,
       directMessagesTopicId: null,
       type: ScheduleType.one_off,
@@ -146,7 +146,7 @@ describe("SchedulerExecutor - cross-chat delivery", () => {
 
     schedulerService.getScheduleForRuntime.mockResolvedValue({
       id: "sched-2",
-      chatId: 1n,
+      chatId: 1,
       threadId: null,
       directMessagesTopicId: null,
       type: ScheduleType.one_off,
@@ -187,7 +187,7 @@ describe("SchedulerExecutor - cross-chat delivery", () => {
 
     schedulerService.getScheduleForRuntime.mockResolvedValue({
       id: "sched-3",
-      chatId: 1n,
+      chatId: 1,
       threadId: null,
       directMessagesTopicId: null,
       type: ScheduleType.one_off,

@@ -1,13 +1,15 @@
+import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { CronTime, validateCronExpression } from "cron";
+import type { Database } from "../database/client.js";
 import {
-  Prisma,
-  PrismaClient,
   ScheduleRunStatus,
   ScheduleStatus,
   ScheduleType,
+  scheduleRuns,
+  schedules,
   type Schedule,
   type ScheduleRun,
-} from "@prisma/client";
-import { CronTime, validateCronExpression } from "cron";
+} from "../database/schema.js";
 import type {
   CancelScheduleInput,
   CancelScheduleResult,
@@ -21,16 +23,26 @@ const MIN_RECURRING_INTERVAL_MS = 5 * 60 * 1000;
 const RUN_RETENTION_DAYS = 30;
 
 type SchedulerServiceInput = {
-  prisma: PrismaClient;
+  db: Database;
   timezone: string;
 };
 
+type ScheduleRunUpdateData = {
+  status?: ScheduleRunStatus;
+  attempt?: number;
+  sessionKey?: string | null;
+  assistantMessageId?: number | null;
+  error?: string | null;
+  startedAt?: Date | null;
+  finishedAt?: Date | null;
+};
+
 export class SchedulerService {
-  private readonly prisma: PrismaClient;
+  private readonly db: Database;
   private readonly timezone: string;
 
-  constructor({ prisma, timezone }: SchedulerServiceInput) {
-    this.prisma = prisma;
+  constructor({ db, timezone }: SchedulerServiceInput) {
+    this.db = db;
     this.timezone = timezone;
   }
 
@@ -98,12 +110,15 @@ export class SchedulerService {
       });
     }
 
-    const schedule = await this.prisma.schedule.create({
-      data: {
-        chatId: BigInt(chatId),
-        createdByUserId: BigInt(createdByUserId),
-        threadId: threadId ? BigInt(threadId) : null,
-        directMessagesTopicId: directMessagesTopicId ? BigInt(directMessagesTopicId) : null,
+    const rows = await this.db
+      .insert(schedules)
+      .values({
+        chatId: Number(chatId),
+        createdByUserId: Number(createdByUserId),
+        threadId: threadId ? Number(threadId) : null,
+        directMessagesTopicId: directMessagesTopicId
+          ? Number(directMessagesTopicId)
+          : null,
         sourceText,
         title: normalizeNullableString({ value: title }),
         taskPrompt: taskPrompt.trim(),
@@ -114,11 +129,11 @@ export class SchedulerService {
         status: ScheduleStatus.active,
         nextRunAt,
         targetChatRef: targetChatRef ?? null,
-      },
-    });
+      })
+      .returning();
 
     return {
-      schedule,
+      schedule: rows[0],
       nextRunAt,
     };
   }
@@ -130,15 +145,15 @@ export class SchedulerService {
     chatId: string;
     includeInactive?: boolean;
   }): Promise<Schedule[]> {
-    return this.prisma.schedule.findMany({
-      where: {
-        chatId: BigInt(chatId),
-        ...(includeInactive ? {} : { status: ScheduleStatus.active }),
-      },
+    return this.db.query.schedules.findMany({
+      where: and(
+        eq(schedules.chatId, Number(chatId)),
+        ...(includeInactive ? [] : [eq(schedules.status, ScheduleStatus.active)]),
+      ),
       orderBy: [
-        { status: "asc" },
-        { nextRunAt: "asc" },
-        { createdAt: "desc" },
+        asc(schedules.status),
+        asc(schedules.nextRunAt),
+        desc(schedules.createdAt),
       ],
     });
   }
@@ -149,72 +164,61 @@ export class SchedulerService {
     query,
   }: CancelScheduleInput): Promise<CancelScheduleResult> {
     if (scheduleId) {
-      const schedule = await this.prisma.schedule.findFirst({
-        where: {
-          id: scheduleId,
-          chatId: BigInt(chatId),
-          status: ScheduleStatus.active,
-        },
+      const schedule = await this.db.query.schedules.findFirst({
+        where: and(
+          eq(schedules.id, scheduleId),
+          eq(schedules.chatId, Number(chatId)),
+          eq(schedules.status, ScheduleStatus.active),
+        ),
       });
 
       if (!schedule) {
-        return {
-          status: "not_found",
-        };
+        return { status: "not_found" };
       }
 
-      const canceled = await this.prisma.schedule.update({
-        where: {
-          id: schedule.id,
-        },
-        data: {
+      const rows = await this.db
+        .update(schedules)
+        .set({
           status: ScheduleStatus.canceled,
           canceledAt: new Date(),
           nextRunAt: null,
-        },
-      });
+        })
+        .where(eq(schedules.id, schedule.id))
+        .returning();
 
-      return {
-        status: "canceled",
-        schedule: canceled,
-      };
+      return { status: "canceled", schedule: rows[0] };
     }
 
     if (!query || query.trim().length === 0) {
-      return {
-        status: "not_found",
-      };
+      return { status: "not_found" };
     }
 
     const normalizedQuery = query.trim().toLowerCase();
-    const activeSchedules = await this.prisma.schedule.findMany({
-      where: {
-        chatId: BigInt(chatId),
-        status: ScheduleStatus.active,
-      },
-      select: {
-        id: true,
-        title: true,
-        taskPrompt: true,
-        nextRunAt: true,
-        status: true,
-      },
-    });
+    const activeSchedules = await this.db
+      .select({
+        id: schedules.id,
+        title: schedules.title,
+        taskPrompt: schedules.taskPrompt,
+        nextRunAt: schedules.nextRunAt,
+        status: schedules.status,
+      })
+      .from(schedules)
+      .where(
+        and(
+          eq(schedules.chatId, Number(chatId)),
+          eq(schedules.status, ScheduleStatus.active),
+        ),
+      );
 
     const matched = activeSchedules.filter((schedule) => {
-      const haystacks = [
-        schedule.title ?? "",
-        schedule.taskPrompt,
-      ];
+      const haystacks = [schedule.title ?? "", schedule.taskPrompt];
       return haystacks.some((candidate) =>
         candidate.toLowerCase().includes(normalizedQuery),
       );
     });
 
     if (matched.length === 0) {
-      return {
-        status: "not_found",
-      };
+      return { status: "not_found" };
     }
 
     if (matched.length > 1) {
@@ -225,19 +229,17 @@ export class SchedulerService {
     }
 
     const target = matched[0];
-    const canceled = await this.prisma.schedule.update({
-      where: { id: target.id },
-      data: {
+    const rows = await this.db
+      .update(schedules)
+      .set({
         status: ScheduleStatus.canceled,
         canceledAt: new Date(),
         nextRunAt: null,
-      },
-    });
+      })
+      .where(eq(schedules.id, target.id))
+      .returning();
 
-    return {
-      status: "canceled",
-      schedule: canceled,
-    };
+    return { status: "canceled", schedule: rows[0] };
   }
 
   async getScheduleForRuntime({
@@ -245,9 +247,9 @@ export class SchedulerService {
   }: {
     scheduleId: string;
   }): Promise<ScheduleForRuntime | null> {
-    return this.prisma.schedule.findUnique({
-      where: { id: scheduleId },
-      select: {
+    const schedule = await this.db.query.schedules.findFirst({
+      where: eq(schedules.id, scheduleId),
+      columns: {
         id: true,
         chatId: true,
         threadId: true,
@@ -262,14 +264,13 @@ export class SchedulerService {
         targetChatRef: true,
       },
     });
+    return schedule ?? null;
   }
 
   async listActiveSchedulesForRuntime(): Promise<ScheduleForRuntime[]> {
-    return this.prisma.schedule.findMany({
-      where: {
-        status: ScheduleStatus.active,
-      },
-      select: {
+    return this.db.query.schedules.findMany({
+      where: eq(schedules.status, ScheduleStatus.active),
+      columns: {
         id: true,
         chatId: true,
         threadId: true,
@@ -303,8 +304,9 @@ export class SchedulerService {
     startedAt?: Date;
     error?: string;
   }): Promise<ScheduleRun> {
-    return this.prisma.scheduleRun.create({
-      data: {
+    const rows = await this.db
+      .insert(scheduleRuns)
+      .values({
         scheduleId,
         scheduledFor,
         status,
@@ -312,8 +314,10 @@ export class SchedulerService {
         sessionKey,
         startedAt,
         error,
-      },
-    });
+      })
+      .returning();
+
+    return rows[0];
   }
 
   async updateRun({
@@ -321,12 +325,12 @@ export class SchedulerService {
     data,
   }: {
     runId: string;
-    data: Prisma.ScheduleRunUpdateInput;
+    data: ScheduleRunUpdateData;
   }): Promise<void> {
-    await this.prisma.scheduleRun.update({
-      where: { id: runId },
-      data,
-    });
+    await this.db
+      .update(scheduleRuns)
+      .set(data)
+      .where(eq(scheduleRuns.id, runId));
   }
 
   async completeAfterSkippedDowntime({
@@ -336,25 +340,24 @@ export class SchedulerService {
     scheduleId: string;
     scheduledFor: Date;
   }): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.scheduleRun.create({
-        data: {
-          scheduleId,
-          scheduledFor,
-          status: ScheduleRunStatus.skipped_downtime,
-          finishedAt: new Date(),
-          error: "Skipped due to scheduler downtime",
-        },
-      }),
-      this.prisma.schedule.update({
-        where: { id: scheduleId },
-        data: {
+    await this.db.transaction(async (tx) => {
+      await tx.insert(scheduleRuns).values({
+        scheduleId,
+        scheduledFor,
+        status: ScheduleRunStatus.skipped_downtime,
+        finishedAt: new Date(),
+        error: "Skipped due to scheduler downtime",
+      });
+
+      await tx
+        .update(schedules)
+        .set({
           status: ScheduleStatus.completed,
           nextRunAt: null,
           lastRunAt: new Date(),
-        },
-      }),
-    ]);
+        })
+        .where(eq(schedules.id, scheduleId));
+    });
   }
 
   async markScheduleAfterExecution({
@@ -364,12 +367,9 @@ export class SchedulerService {
     scheduleId: string;
     succeededAt: Date;
   }): Promise<void> {
-    const schedule = await this.prisma.schedule.findUnique({
-      where: { id: scheduleId },
-      select: {
-        type: true,
-        cronExpression: true,
-      },
+    const schedule = await this.db.query.schedules.findFirst({
+      where: eq(schedules.id, scheduleId),
+      columns: { type: true, cronExpression: true },
     });
 
     if (!schedule) {
@@ -377,19 +377,21 @@ export class SchedulerService {
     }
 
     if (schedule.type === ScheduleType.one_off) {
-      await this.prisma.schedule.update({
-        where: { id: scheduleId },
-        data: {
+      await this.db
+        .update(schedules)
+        .set({
           status: ScheduleStatus.completed,
           nextRunAt: null,
           lastRunAt: succeededAt,
-        },
-      });
+        })
+        .where(eq(schedules.id, scheduleId));
       return;
     }
 
     if (!schedule.cronExpression) {
-      throw new Error(`Recurring schedule ${scheduleId} is missing cronExpression`);
+      throw new Error(
+        `Recurring schedule ${scheduleId} is missing cronExpression`,
+      );
     }
 
     const nextRunAt = getNextRunAt({
@@ -398,26 +400,22 @@ export class SchedulerService {
       fromDate: succeededAt,
     });
 
-    await this.prisma.schedule.update({
-      where: { id: scheduleId },
-      data: {
-        lastRunAt: succeededAt,
-        nextRunAt,
-      },
-    });
+    await this.db
+      .update(schedules)
+      .set({ lastRunAt: succeededAt, nextRunAt })
+      .where(eq(schedules.id, scheduleId));
   }
 
   async cleanupOldRuns({ now = new Date() }: { now?: Date } = {}): Promise<number> {
-    const cutoff = new Date(now.getTime() - RUN_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-    const result = await this.prisma.scheduleRun.deleteMany({
-      where: {
-        createdAt: {
-          lt: cutoff,
-        },
-      },
-    });
+    const cutoff = new Date(
+      now.getTime() - RUN_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const deleted = await this.db
+      .delete(scheduleRuns)
+      .where(lt(scheduleRuns.createdAt, cutoff))
+      .returning();
 
-    return result.count;
+    return deleted.length;
   }
 
   async getRunContextForSessionKey({
@@ -425,22 +423,14 @@ export class SchedulerService {
   }: {
     sessionKey: string;
   }): Promise<ScheduleRunContext | null> {
-    const run = await this.prisma.scheduleRun.findFirst({
-      where: {
-        sessionKey,
-      },
-      select: {
-        scheduledFor: true,
+    const run = await this.db.query.scheduleRuns.findFirst({
+      where: eq(scheduleRuns.sessionKey, sessionKey),
+      with: {
         schedule: {
-          select: {
-            id: true,
-            taskPrompt: true,
-          },
+          columns: { id: true, taskPrompt: true },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [desc(scheduleRuns.createdAt)],
     });
 
     if (!run) {
@@ -455,7 +445,11 @@ export class SchedulerService {
   }
 }
 
-function normalizeNullableString({ value }: { value: string | null }): string | null {
+function normalizeNullableString({
+  value,
+}: {
+  value: string | null;
+}): string | null {
   if (value === null) {
     return null;
   }
@@ -478,7 +472,9 @@ function ensureMinimumRecurringInterval({
 
   const deltaMs = second.toMillis() - first.toMillis();
   if (!Number.isFinite(deltaMs) || deltaMs < MIN_RECURRING_INTERVAL_MS) {
-    throw new Error("cron_expression must have an interval of at least 5 minutes");
+    throw new Error(
+      "cron_expression must have an interval of at least 5 minutes",
+    );
   }
 }
 

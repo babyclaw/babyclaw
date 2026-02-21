@@ -1,6 +1,13 @@
-import { MessageRole, PrismaClient, type Message } from "@prisma/client";
+import { and, asc, count, desc, eq, inArray, isNull, lt, not } from "drizzle-orm";
 import type { ModelMessage } from "ai";
 import { buildUserContentFromMetadata } from "../agent/helpers.js";
+import type { Database } from "../database/client.js";
+import {
+  MessageRole,
+  messages,
+  sessions,
+  type Message,
+} from "../database/schema.js";
 import { getLogger } from "../logging/index.js";
 import type {
   DeriveSessionIdentityInput,
@@ -9,7 +16,7 @@ import type {
 } from "./types.js";
 
 type SessionManagerConstructorInput = {
-  prisma: PrismaClient;
+  db: Database;
   maxMessagesPerSession?: number;
 };
 
@@ -33,14 +40,14 @@ type ClearSessionInput = {
 };
 
 export class SessionManager {
-  private readonly prisma: PrismaClient;
+  private readonly db: Database;
   private readonly maxMessagesPerSession: number;
 
   constructor({
-    prisma,
+    db,
     maxMessagesPerSession = 120,
   }: SessionManagerConstructorInput) {
-    this.prisma = prisma;
+    this.db = db;
     this.maxMessagesPerSession = maxMessagesPerSession;
   }
 
@@ -116,12 +123,16 @@ export class SessionManager {
       requestedLimit: limit,
     });
 
-    const records = await this.prisma.message.findMany({
-      where: { sessionId: session.id },
-      orderBy: { createdAt: "desc" },
-      take,
-      select: { role: true, content: true, metadata: true },
-    });
+    const records = await this.db
+      .select({
+        role: messages.role,
+        content: messages.content,
+        metadata: messages.metadata,
+      })
+      .from(messages)
+      .where(eq(messages.sessionId, session.id))
+      .orderBy(desc(messages.createdAt))
+      .limit(take);
 
     records.reverse();
     return records.map((record) => toCoreMessage({ record }));
@@ -130,114 +141,107 @@ export class SessionManager {
   async appendMessage({ identity, message }: AppendMessageInput): Promise<void> {
     const session = await this.getOrCreateSession({ identity });
 
-    await this.prisma.message.create({
-      data: {
-        sessionId: session.id,
-        role: message.role,
-        content: message.content,
-        metadata: message.metadata,
-      },
+    await this.db.insert(messages).values({
+      sessionId: session.id,
+      role: message.role,
+      content: message.content,
+      metadata: message.metadata,
     });
 
     await this.trimOverflow({ sessionId: session.id });
   }
 
-  async appendMessages({ identity, messages }: AppendMessagesInput): Promise<void> {
-    if (messages.length === 0) {
+  async appendMessages({ identity, messages: msgs }: AppendMessagesInput): Promise<void> {
+    if (msgs.length === 0) {
       return;
     }
 
     const session = await this.getOrCreateSession({ identity });
-    await this.prisma.$transaction(
-      messages.map((message) =>
-        this.prisma.message.create({
-          data: {
-            sessionId: session.id,
-            role: message.role,
-            content: message.content,
-            metadata: message.metadata,
-          },
-        }),
-      ),
+    await this.db.insert(messages).values(
+      msgs.map((msg) => ({
+        sessionId: session.id,
+        role: msg.role,
+        content: msg.content,
+        metadata: msg.metadata,
+      })),
     );
 
     await this.trimOverflow({ sessionId: session.id });
   }
 
   async touchLastActivity({ sessionKey }: { sessionKey: string }): Promise<void> {
-    await this.prisma.session.updateMany({
-      where: { key: sessionKey },
-      data: { lastActivityAt: new Date() },
-    });
+    await this.db
+      .update(sessions)
+      .set({ lastActivityAt: new Date() })
+      .where(eq(sessions.key, sessionKey));
   }
 
   async updateMemoriesExtractedAt({ sessionKey }: { sessionKey: string }): Promise<void> {
-    await this.prisma.session.updateMany({
-      where: { key: sessionKey },
-      data: { memoriesLastExtractedAt: new Date() },
-    });
+    await this.db
+      .update(sessions)
+      .set({ memoriesLastExtractedAt: new Date() })
+      .where(eq(sessions.key, sessionKey));
   }
 
   async getWorkingMemory({ sessionKey }: { sessionKey: string }): Promise<string | null> {
-    const session = await this.prisma.session.findUnique({
-      where: { key: sessionKey },
-      select: { workingMemory: true },
+    const session = await this.db.query.sessions.findFirst({
+      where: eq(sessions.key, sessionKey),
+      columns: { workingMemory: true },
     });
     return session?.workingMemory ?? null;
   }
 
   async updateWorkingMemory({ sessionKey, content }: { sessionKey: string; content: string }): Promise<void> {
-    await this.prisma.session.updateMany({
-      where: { key: sessionKey },
-      data: { workingMemory: content },
-    });
+    await this.db
+      .update(sessions)
+      .set({ workingMemory: content })
+      .where(eq(sessions.key, sessionKey));
   }
 
   async getTitle({ sessionKey }: { sessionKey: string }): Promise<string | null> {
-    const session = await this.prisma.session.findUnique({
-      where: { key: sessionKey },
-      select: { title: true },
+    const session = await this.db.query.sessions.findFirst({
+      where: eq(sessions.key, sessionKey),
+      columns: { title: true },
     });
     return session?.title ?? null;
   }
 
   async setTitle({ sessionKey, title }: { sessionKey: string; title: string }): Promise<void> {
-    await this.prisma.session.updateMany({
-      where: { key: sessionKey },
-      data: { title },
-    });
+    await this.db
+      .update(sessions)
+      .set({ title })
+      .where(eq(sessions.key, sessionKey));
   }
 
   async findSessionsNeedingExtraction(): Promise<Array<{ key: string }>> {
     const log = getLogger().child({ component: "session-manager" });
 
-    const sessions = await this.prisma.session.findMany({
-      where: {
-        key: { not: { startsWith: "schedule:" } },
-        OR: [
-          { memoriesLastExtractedAt: null },
-          {
-            lastActivityAt: { not: null },
-            memoriesLastExtractedAt: { not: null },
-          },
-        ],
-      },
-      select: { key: true, lastActivityAt: true, memoriesLastExtractedAt: true },
-    });
+    const allSessions = await this.db
+      .select({
+        key: sessions.key,
+        lastActivityAt: sessions.lastActivityAt,
+        memoriesLastExtractedAt: sessions.memoriesLastExtractedAt,
+      })
+      .from(sessions)
+      .where(not(eq(sessions.key, "")));
+
+    const candidates = allSessions.filter(
+      (s) => !s.key.startsWith("schedule:"),
+    );
 
     log.info(
-      { candidateCount: sessions.length },
+      { candidateCount: candidates.length },
       "Found candidate sessions for memory extraction",
     );
 
-    const result = sessions.filter((s) => {
+    const result = candidates.filter((s) => {
       if (!s.memoriesLastExtractedAt) return true;
       if (!s.lastActivityAt) return false;
       return s.memoriesLastExtractedAt < s.lastActivityAt;
     });
 
     log.info(
-      { candidateCount: sessions.length, qualifiedCount: result.length },
+      { candidateCount: candidates.length, qualifiedCount: result.length },
       "Filtered sessions needing memory extraction",
     );
 
@@ -248,16 +252,16 @@ export class SessionManager {
     sessionCreatedAt: Date;
     messages: Array<{ role: string; content: string }>;
   } | null> {
-    const session = await this.prisma.session.findUnique({
-      where: { key: sessionKey },
+    const session = await this.db.query.sessions.findFirst({
+      where: eq(sessions.key, sessionKey),
     });
     if (!session) return null;
 
-    const records = await this.prisma.message.findMany({
-      where: { sessionId: session.id },
-      orderBy: { createdAt: "asc" },
-      select: { role: true, content: true },
-    });
+    const records = await this.db
+      .select({ role: messages.role, content: messages.content })
+      .from(messages)
+      .where(eq(messages.sessionId, session.id))
+      .orderBy(asc(messages.createdAt));
 
     return {
       sessionCreatedAt: session.createdAt,
@@ -266,54 +270,57 @@ export class SessionManager {
   }
 
   async clearSession({ identity }: ClearSessionInput): Promise<void> {
-    await this.prisma.session.deleteMany({
-      where: { key: identity.key },
-    });
+    await this.db.delete(sessions).where(eq(sessions.key, identity.key));
   }
 
   private async getOrCreateSession({ identity }: { identity: SessionIdentity }) {
-    return this.prisma.session.upsert({
-      where: { key: identity.key },
-      update: {
-        chatId: BigInt(identity.chatId),
-        threadId: identity.threadId ? BigInt(identity.threadId) : null,
-      },
-      create: {
+    const chatId = Number(identity.chatId);
+    const threadId = identity.threadId ? Number(identity.threadId) : null;
+
+    const rows = await this.db
+      .insert(sessions)
+      .values({
         key: identity.key,
-        chatId: BigInt(identity.chatId),
-        threadId: identity.threadId ? BigInt(identity.threadId) : null,
-      },
-    });
+        chatId,
+        threadId,
+      })
+      .onConflictDoUpdate({
+        target: sessions.key,
+        set: { chatId, threadId },
+      })
+      .returning();
+
+    return rows[0];
   }
 
   private async trimOverflow({ sessionId }: { sessionId: string }): Promise<void> {
-    const total = await this.prisma.message.count({
-      where: { sessionId },
-    });
+    const [result] = await this.db
+      .select({ total: count() })
+      .from(messages)
+      .where(eq(messages.sessionId, sessionId));
 
-    const overflowCount = total - this.maxMessagesPerSession;
+    const overflowCount = result.total - this.maxMessagesPerSession;
     if (overflowCount <= 0) {
       return;
     }
 
-    const oldestRecords = await this.prisma.message.findMany({
-      where: { sessionId },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-      take: overflowCount,
-    });
+    const oldestRecords = await this.db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(eq(messages.sessionId, sessionId))
+      .orderBy(asc(messages.createdAt))
+      .limit(overflowCount);
 
     if (oldestRecords.length === 0) {
       return;
     }
 
-    await this.prisma.message.deleteMany({
-      where: {
-        id: {
-          in: oldestRecords.map((record) => record.id),
-        },
-      },
-    });
+    await this.db.delete(messages).where(
+      inArray(
+        messages.id,
+        oldestRecords.map((r) => r.id),
+      ),
+    );
   }
 }
 

@@ -1,4 +1,4 @@
-import { ScheduleType } from "@prisma/client";
+import { ScheduleType } from "../database/schema.js";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import type { ChatRegistry } from "../chat/registry.js";

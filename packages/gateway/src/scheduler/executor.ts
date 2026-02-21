@@ -1,4 +1,4 @@
-import { MessageRole, ScheduleRunStatus, ScheduleType } from "@prisma/client";
+import { MessageRole, ScheduleRunStatus, ScheduleType } from "../database/schema.js";
 import { AiAgent } from "../ai/agent.js";
 import type { ChannelSender } from "../channel/types.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
@@ -269,7 +269,7 @@ export class SchedulerExecutor {
             runId: run.id,
             data: {
               status: ScheduleRunStatus.succeeded,
-              assistantMessageId: BigInt(sentMessageId),
+              assistantMessageId: Number(sentMessageId),
               sessionKey: effectiveSessionKey,
               finishedAt,
               error: null,
@@ -331,9 +331,9 @@ export class SchedulerExecutor {
     scheduledFor,
   }: {
     scheduleId: string;
-    chatId: bigint;
-    threadId: bigint | null;
-    directMessagesTopicId: bigint | null;
+    chatId: number;
+    threadId: number | null;
+    directMessagesTopicId: number | null;
     taskPrompt: string;
     scheduledFor: Date;
   }): Promise<string> {
@@ -419,8 +419,8 @@ export class SchedulerExecutor {
     taskPrompt,
     errorMessage,
   }: {
-    chatId: bigint;
-    threadId: bigint | null;
+    chatId: number;
+    threadId: number | null;
     title: string | null;
     taskPrompt: string;
     errorMessage: string;

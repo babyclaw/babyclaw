@@ -1,4 +1,4 @@
-import { MessageRole } from "@prisma/client";
+import { MessageRole } from "../database/schema.js";
 import type { AiAgent } from "../ai/agent.js";
 import {
   buildHeartbeatVerdictMessages,

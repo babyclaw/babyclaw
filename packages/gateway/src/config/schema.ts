@@ -5,8 +5,6 @@ import {
   SHELL_MODES,
 } from "./shell-defaults.js";
 
-const DEFAULT_DATABASE_URL = "file:../data/simpleclaw.db";
-
 function isValidTimezone(value: string): boolean {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: value });
@@ -122,11 +120,6 @@ export const simpleclawConfigSchema = z.object({
     models: aiModelsSchema,
     aliases: modelAliasesSchema,
   }).strict(),
-  database: z.object({
-    url: z.string().min(1).default(DEFAULT_DATABASE_URL),
-  }).strict().default({
-    url: DEFAULT_DATABASE_URL,
-  }),
   scheduler: z.object({
     timezone: z
       .string()

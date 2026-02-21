@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { MessageRole } from "@prisma/client";
+import { MessageRole } from "../database/schema.js";
 import type { ChannelSender } from "../channel/types.js";
 import type { SessionManager } from "../session/manager.js";
 import type { MessageLinkRepository } from "../channel/message-link.js";

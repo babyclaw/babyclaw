@@ -1,4 +1,4 @@
-import { ScheduleType } from "@prisma/client";
+import { ScheduleType } from "../database/schema.js";
 import { describe, expect, it, vi } from "vitest";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { createSchedulerTools } from "./scheduler.js";

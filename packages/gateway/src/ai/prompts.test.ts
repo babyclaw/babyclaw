@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Chat } from "@prisma/client";
+import type { Chat } from "../database/schema.js";
 import {
   buildScheduleFollowupSystemNote,
   buildScheduledTaskUserContent,

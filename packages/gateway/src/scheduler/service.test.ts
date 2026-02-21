@@ -1,32 +1,7 @@
-import { ScheduleStatus, ScheduleType } from "@prisma/client";
-import { describe, expect, it, vi } from "vitest";
+import { ScheduleStatus, ScheduleType } from "../database/schema.js";
+import { createTestDatabase } from "../database/test-utils.js";
+import { describe, expect, it } from "vitest";
 import { SchedulerService } from "./service.js";
-
-function createMockPrisma(): any {
-  return {
-    schedule: {
-      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
-        id: "mock-id",
-        ...data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        canceledAt: null,
-        lastRunAt: null,
-      })),
-      findMany: vi.fn(),
-      findFirst: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    scheduleRun: {
-      create: vi.fn(),
-      findFirst: vi.fn(),
-      update: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    $transaction: vi.fn(),
-  };
-}
 
 const BASE_INPUT = {
   chatId: "1",
@@ -38,12 +13,14 @@ const BASE_INPUT = {
   taskPrompt: "do something",
 };
 
+function createService() {
+  const db = createTestDatabase();
+  return new SchedulerService({ db, timezone: "UTC" });
+}
+
 describe("SchedulerService.createSchedule", () => {
   it("throws when taskPrompt is empty", async () => {
-    const service = new SchedulerService({
-      prisma: createMockPrisma(),
-      timezone: "UTC",
-    });
+    const service = createService();
 
     await expect(
       service.createSchedule({
@@ -57,10 +34,7 @@ describe("SchedulerService.createSchedule", () => {
 
   describe("one_off jobs", () => {
     it("throws when runAtIso is missing", async () => {
-      const service = new SchedulerService({
-        prisma: createMockPrisma(),
-        timezone: "UTC",
-      });
+      const service = createService();
 
       await expect(
         service.createSchedule({
@@ -71,10 +45,7 @@ describe("SchedulerService.createSchedule", () => {
     });
 
     it("throws when runAtIso is not a valid date", async () => {
-      const service = new SchedulerService({
-        prisma: createMockPrisma(),
-        timezone: "UTC",
-      });
+      const service = createService();
 
       await expect(
         service.createSchedule({
@@ -86,10 +57,7 @@ describe("SchedulerService.createSchedule", () => {
     });
 
     it("throws when runAtIso is in the past", async () => {
-      const service = new SchedulerService({
-        prisma: createMockPrisma(),
-        timezone: "UTC",
-      });
+      const service = createService();
 
       await expect(
         service.createSchedule({
@@ -101,11 +69,7 @@ describe("SchedulerService.createSchedule", () => {
     });
 
     it("creates a one_off schedule with correct nextRunAt", async () => {
-      const mockPrisma = createMockPrisma();
-      const service = new SchedulerService({
-        prisma: mockPrisma,
-        timezone: "UTC",
-      });
+      const service = createService();
 
       const futureDate = new Date(Date.now() + 3_600_000).toISOString();
       const result = await service.createSchedule({
@@ -115,23 +79,18 @@ describe("SchedulerService.createSchedule", () => {
       });
 
       expect(result.nextRunAt).toEqual(new Date(futureDate));
-      expect(mockPrisma.schedule.create).toHaveBeenCalledOnce();
-
-      const createArg = mockPrisma.schedule.create.mock.calls[0][0];
-      expect(createArg.data.type).toBe(ScheduleType.one_off);
-      expect(createArg.data.status).toBe(ScheduleStatus.active);
-      expect(createArg.data.runAt).toEqual(new Date(futureDate));
-      expect(createArg.data.nextRunAt).toEqual(new Date(futureDate));
-      expect(createArg.data.cronExpression).toBeNull();
+      expect(result.schedule.type).toBe(ScheduleType.one_off);
+      expect(result.schedule.status).toBe(ScheduleStatus.active);
+      const expectedSeconds = Math.floor(new Date(futureDate).getTime() / 1000);
+      expect(Math.floor(result.schedule.runAt!.getTime() / 1000)).toBe(expectedSeconds);
+      expect(Math.floor(result.schedule.nextRunAt!.getTime() / 1000)).toBe(expectedSeconds);
+      expect(result.schedule.cronExpression).toBeNull();
     });
   });
 
   describe("recurring jobs", () => {
     it("throws when cronExpression is missing", async () => {
-      const service = new SchedulerService({
-        prisma: createMockPrisma(),
-        timezone: "UTC",
-      });
+      const service = createService();
 
       await expect(
         service.createSchedule({
@@ -142,10 +101,7 @@ describe("SchedulerService.createSchedule", () => {
     });
 
     it("throws when cronExpression is empty", async () => {
-      const service = new SchedulerService({
-        prisma: createMockPrisma(),
-        timezone: "UTC",
-      });
+      const service = createService();
 
       await expect(
         service.createSchedule({
@@ -157,10 +113,7 @@ describe("SchedulerService.createSchedule", () => {
     });
 
     it("throws when cronExpression is invalid syntax", async () => {
-      const service = new SchedulerService({
-        prisma: createMockPrisma(),
-        timezone: "UTC",
-      });
+      const service = createService();
 
       await expect(
         service.createSchedule({
@@ -172,16 +125,13 @@ describe("SchedulerService.createSchedule", () => {
     });
 
     it("throws when cron interval is less than 5 minutes", async () => {
-      const service = new SchedulerService({
-        prisma: createMockPrisma(),
-        timezone: "UTC",
-      });
+      const service = createService();
 
       await expect(
         service.createSchedule({
           ...BASE_INPUT,
           jobType: ScheduleType.recurring,
-          cronExpression: "* * * * *", // every minute
+          cronExpression: "* * * * *",
         }),
       ).rejects.toThrow(
         "cron_expression must have an interval of at least 5 minutes",
@@ -189,78 +139,57 @@ describe("SchedulerService.createSchedule", () => {
     });
 
     it("creates a recurring schedule with a computed nextRunAt", async () => {
-      const mockPrisma = createMockPrisma();
-      const service = new SchedulerService({
-        prisma: mockPrisma,
-        timezone: "UTC",
-      });
+      const service = createService();
 
       const result = await service.createSchedule({
         ...BASE_INPUT,
         jobType: ScheduleType.recurring,
-        cronExpression: "0 9 * * *", // daily at 9am
+        cronExpression: "0 9 * * *",
       });
 
       expect(result.nextRunAt).toBeInstanceOf(Date);
       expect(result.nextRunAt!.getTime()).toBeGreaterThan(Date.now());
-
-      const createArg = mockPrisma.schedule.create.mock.calls[0][0];
-      expect(createArg.data.type).toBe(ScheduleType.recurring);
-      expect(createArg.data.cronExpression).toBe("0 9 * * *");
-      expect(createArg.data.runAt).toBeNull();
+      expect(result.schedule.type).toBe(ScheduleType.recurring);
+      expect(result.schedule.cronExpression).toBe("0 9 * * *");
+      expect(result.schedule.runAt).toBeNull();
     });
   });
 
   it("trims title whitespace and normalizes empty to null", async () => {
-    const mockPrisma = createMockPrisma();
-    const service = new SchedulerService({
-      prisma: mockPrisma,
-      timezone: "UTC",
-    });
+    const service = createService();
 
-    await service.createSchedule({
+    const result = await service.createSchedule({
       ...BASE_INPUT,
       title: "   ",
       jobType: ScheduleType.one_off,
       runAtIso: new Date(Date.now() + 3_600_000).toISOString(),
     });
 
-    const createArg = mockPrisma.schedule.create.mock.calls[0][0];
-    expect(createArg.data.title).toBeNull();
+    expect(result.schedule.title).toBeNull();
   });
 
   it("persists targetChatRef when provided", async () => {
-    const mockPrisma = createMockPrisma();
-    const service = new SchedulerService({
-      prisma: mockPrisma,
-      timezone: "UTC",
-    });
+    const service = createService();
 
-    await service.createSchedule({
+    const result = await service.createSchedule({
       ...BASE_INPUT,
       jobType: ScheduleType.one_off,
       runAtIso: new Date(Date.now() + 3_600_000).toISOString(),
       targetChatRef: "chat-abc",
     });
 
-    const createArg = mockPrisma.schedule.create.mock.calls[0][0];
-    expect(createArg.data.targetChatRef).toBe("chat-abc");
+    expect(result.schedule.targetChatRef).toBe("chat-abc");
   });
 
   it("sets targetChatRef to null when not provided", async () => {
-    const mockPrisma = createMockPrisma();
-    const service = new SchedulerService({
-      prisma: mockPrisma,
-      timezone: "UTC",
-    });
+    const service = createService();
 
-    await service.createSchedule({
+    const result = await service.createSchedule({
       ...BASE_INPUT,
       jobType: ScheduleType.one_off,
       runAtIso: new Date(Date.now() + 3_600_000).toISOString(),
     });
 
-    const createArg = mockPrisma.schedule.create.mock.calls[0][0];
-    expect(createArg.data.targetChatRef).toBeNull();
+    expect(result.schedule.targetChatRef).toBeNull();
   });
 });

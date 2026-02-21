@@ -1,4 +1,4 @@
-import type { ScheduleStatus, ScheduleType } from "@prisma/client";
+import type { ScheduleStatus, ScheduleType } from "../database/schema.js";
 
 export function formatSchedulesForCommand({
   schedules,
