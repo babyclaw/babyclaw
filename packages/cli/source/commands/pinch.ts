@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Box, Text } from "ink";
-import { useExit } from "../ui/hooks.js";
-import { colors } from "../ui/theme.js";
+import { command } from "@gud/cli";
+import { c } from "../ui/theme.js";
 
 const CLAW_ART = `
         ╭━━╮   ╭━━╮
@@ -29,23 +27,11 @@ const FACTS = [
   "Fiddler crabs wave their large claw to attract mates. Your CLI waves banners to attract developers.",
 ];
 
-export default function Pinch() {
-  const [ready, setReady] = useState(false);
-  const fact = FACTS[Math.floor(Math.random() * FACTS.length)]!;
-
-  useExit({ done: ready });
-
-  useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <Text color={colors.brand}>{CLAW_ART}</Text>
-      <Box paddingLeft={3}>
-        <Text color={colors.muted} italic>🦀 {fact}</Text>
-      </Box>
-    </Box>
-  );
-}
+export default command({
+  description: "A claw-some easter egg",
+  handler: async ({ client }) => {
+    const fact = FACTS[Math.floor(Math.random() * FACTS.length)]!;
+    client.log(c.brand(CLAW_ART));
+    client.log(`   ${c.muted(`🦀 ${fact}`)}`);
+  },
+});

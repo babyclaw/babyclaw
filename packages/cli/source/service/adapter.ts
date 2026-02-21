@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync, unlinkSync } from "node:fs";
 import { createRequire } from "node:module";
 
-const SERVICE_LABEL = "com.simpleclaw.gateway";
-const SYSTEMD_UNIT = "simpleclaw-gateway";
+const SERVICE_LABEL = "org.babyclaw.gateway";
+const SYSTEMD_UNIT = "babyclaw-gateway";
 
 export type ServiceInfo = {
   installed: boolean;
@@ -41,7 +41,7 @@ function getSystemdUnitPath(): string {
 function getGatewayEntryPath(): string {
   try {
     const require = createRequire(import.meta.url);
-    return require.resolve("@simpleclaw/gateway/dist/main.js");
+    return require.resolve("@babyclaw/gateway/dist/main.js");
   } catch {
     const thisDir = dirname(fileURLToPath(import.meta.url));
     return join(thisDir, "..", "..", "..", "gateway", "dist", "main.js");
@@ -64,7 +64,7 @@ function getShellPath(): string {
 function generateLaunchdPlist(): string {
   const nodePath = execSync("which node", { encoding: "utf8" }).trim();
   const entryPath = getGatewayEntryPath();
-  const logDir = join(homedir(), ".simpleclaw", "logs");
+  const logDir = join(homedir(), ".babyclaw", "logs");
 
   const shellPath = getShellPath();
   const nodeDir = dirname(nodePath);
@@ -105,7 +105,7 @@ function generateSystemdUnit(): string {
   const entryPath = getGatewayEntryPath();
 
   return `[Unit]
-Description=Simpleclaw Gateway
+Description=BabyClaw Gateway
 After=network.target
 
 [Service]
@@ -124,7 +124,7 @@ export function install(): { path: string } {
   if (plat === "launchd") {
     const plistPath = getLaunchdPlistPath();
     mkdirSync(dirname(plistPath), { recursive: true });
-    mkdirSync(join(homedir(), ".simpleclaw", "logs"), { recursive: true });
+    mkdirSync(join(homedir(), ".babyclaw", "logs"), { recursive: true });
     writeFileSync(plistPath, generateLaunchdPlist(), "utf8");
     return { path: plistPath };
   }
@@ -182,7 +182,7 @@ export function start(): void {
     const plistPath = getLaunchdPlistPath();
     if (!existsSync(plistPath)) {
       throw new Error(
-        "Service not installed. Run 'simpleclaw service install' first.",
+        "Service not installed. Run 'babyclaw service install' first.",
       );
     }
     execSync(`launchctl bootstrap gui/$(id -u) ${plistPath}`);

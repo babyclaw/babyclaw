@@ -27,7 +27,7 @@ describe("getRandomBanner", () => {
   it("returns a non-empty string", () => {
     const banner = getRandomBanner();
     expect(banner.length).toBeGreaterThan(0);
-    expect(banner).toContain("simpleclaw");
+    expect(banner).toContain("babyclaw");
   });
 });
 

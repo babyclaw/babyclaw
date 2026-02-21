@@ -4,17 +4,16 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
-    "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "declaration": true,
-    "sourceMap": true,
+    "declaration": false,
+    "sourceMap": false,
     "outDir": "build",
     "rootDir": "source",
     "types": ["node"]
   },
-  "include": ["source/**/*.ts", "source/**/*.tsx"],
+  "include": ["source/**/*.ts"],
   "exclude": ["build", "node_modules"]
 }

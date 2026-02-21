@@ -1,17 +1,20 @@
-export const colors = {
-  brand: "#a78bfa",
-  success: "#34d399",
-  error: "#f87171",
-  warning: "#fbbf24",
-  muted: "#6b7280",
-  info: "#60a5fa",
+import pc from "picocolors";
+
+export const c = {
+  brand: pc.magenta,
+  success: pc.green,
+  error: pc.red,
+  warning: pc.yellow,
+  muted: pc.gray,
+  info: pc.blue,
+  bold: pc.bold,
 } as const;
 
 const BANNERS = [
   `
    ╭─────────────────────────────╮
    │                             │
-   │   🦀  simpleclaw  v1.0.0   │
+   │   🦀  babyclaw  v1.0.0     │
    │                             │
    │   your friendly agent       │
    │   gateway, at your service  │
@@ -20,7 +23,7 @@ const BANNERS = [
   `
    ╭─────────────────────────────╮
    │                             │
-   │   🦞  simpleclaw  v1.0.0   │
+   │   🦞  babyclaw  v1.0.0     │
    │                             │
    │   pincers ready,            │
    │   tasks loaded.             │
@@ -29,7 +32,7 @@ const BANNERS = [
   `
    ╭─────────────────────────────╮
    │                             │
-   │   🦀  simpleclaw  v1.0.0   │
+   │   🦀  babyclaw  v1.0.0     │
    │                             │
    │   snip snip.                │
    │   let's get to work.        │
@@ -54,13 +57,13 @@ export function formatUptime(ms: number): string {
 }
 
 const TIPS = [
-  "Run 'simpleclaw config edit' to tweak your setup interactively.",
-  "Use 'simpleclaw service status' to check if the gateway is alive.",
+  "Run 'babyclaw config edit' to tweak your setup interactively.",
+  "Use 'babyclaw service status' to check if the gateway is alive.",
   "Add '--json' to most commands for machine-readable output.",
   "The gateway talks over a local Unix socket — no ports to configure.",
-  "Use 'simpleclaw config validate' after manual edits to catch typos.",
-  "Your config lives at ~/.simpleclaw/simpleclaw.json by default.",
-  "You can override the config path with SIMPLECLAW_CONFIG_PATH.",
+  "Use 'babyclaw config validate' after manual edits to catch typos.",
+  "Your config lives at ~/.babyclaw/babyclaw.json by default.",
+  "You can override the config path with BABYCLAW_CONFIG_PATH.",
 ];
 
 export function getRandomTip(): string {

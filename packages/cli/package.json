@@ -1,10 +1,10 @@
 {
-  "name": "@simpleclaw/cli",
-  "version": "1.0.0",
-  "description": "The simpleclaw command-line interface",
+  "name": "babyclaw",
+  "version": "0.0.0",
+  "description": "The babyclaw command-line interface",
   "type": "module",
   "bin": {
-    "simpleclaw": "./build/cli.js"
+    "babyclaw": "./build/cli.js"
   },
   "files": [
     "build"
@@ -16,28 +16,28 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "keywords": [
-    "simpleclaw",
+    "babyclaw",
     "cli",
     "agent",
     "gateway"
   ],
   "license": "ISC",
   "dependencies": {
-    "@simpleclaw/gateway": "workspace:*",
-    "ink": "^6.3.1",
-    "ink-select-input": "^6.2.0",
-    "ink-text-input": "^6.0.0",
-    "pastel": "^4.0.0",
-    "react": "^19.2.0",
-    "zod": "^4.3.6"
+    "@babyclaw/gateway": "workspace:*",
+    "@gud/cli": "1.0.0-beta.7",
+    "picocolors": "^1.1.1"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
-    "@types/react": "^19.2.2",
+    "oxlint": "^1.49.0",
     "typescript": "^5.9.2",
     "vitest": "^4.0.18"
   }
