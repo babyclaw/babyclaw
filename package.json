@@ -25,9 +25,6 @@
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
   },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,css,md}": "oxfmt --write"
-  },
   "packageManager": "pnpm@10.12.3",
   "pnpm": {
     "onlyBuiltDependencies": [
