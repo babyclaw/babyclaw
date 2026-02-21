@@ -711,7 +711,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
   }
 }
 
-function getChatTitle({ ctx }: { ctx: TelegramBotContext }): string | null {
+export function getChatTitle({ ctx }: { ctx: TelegramBotContext }): string | null {
   if (!ctx.chat) return null;
   const chat = ctx.chat as unknown as Record<string, unknown>;
   if (typeof chat.title === "string") return chat.title;
@@ -722,14 +722,14 @@ function getChatTitle({ ctx }: { ctx: TelegramBotContext }): string | null {
   return null;
 }
 
-function isLinkOrUnlinkCommand({ ctx }: { ctx: TelegramBotContext }): boolean {
+export function isLinkOrUnlinkCommand({ ctx }: { ctx: TelegramBotContext }): boolean {
   const message = ctx.message as { text?: string } | undefined;
   if (!message?.text) return false;
   const text = message.text.trim();
   return text.startsWith("/link") || text.startsWith("/unlink");
 }
 
-function buildSenderName({ from }: { from: Record<string, unknown> | undefined }): string | undefined {
+export function buildSenderName({ from }: { from: Record<string, unknown> | undefined }): string | undefined {
   if (!from) return undefined;
   const firstName = typeof from.first_name === "string" ? from.first_name : undefined;
   const lastName = typeof from.last_name === "string" ? from.last_name : undefined;
@@ -747,11 +747,11 @@ const EXT_TO_MIME: Record<string, string> = {
   ".bmp": "image/bmp",
 };
 
-function extFromFilePath(filePath: string): string {
+export function extFromFilePath(filePath: string): string {
   const dot = filePath.lastIndexOf(".");
   return dot >= 0 ? filePath.slice(dot).toLowerCase() : ".jpg";
 }
 
-function mimeFromExt(ext: string): string {
+export function mimeFromExt(ext: string): string {
   return EXT_TO_MIME[ext] ?? "image/jpeg";
 }
