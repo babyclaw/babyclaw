@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/p
 import { dirname, join, relative, resolve } from "node:path";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import { resolveWorkspacePath } from "../utils/path.js";
+import { normalizeSeparators, pathExists, resolveWorkspacePath } from "../utils/path.js";
 import { ensureJsonWithinLimit, ensurePayloadWithinLimit, MAX_TOOL_PAYLOAD_BYTES } from "../utils/payload.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { ToolExecutionError, withToolLogging } from "./errors.js";
@@ -400,20 +400,6 @@ function toRelativeWorkspacePath({
   workspaceRoot: string;
   absolutePath: string;
 }): string {
-  const rel = relative(resolve(workspaceRoot), absolutePath).replaceAll("\\", "/");
+  const rel = normalizeSeparators({ path: relative(resolve(workspaceRoot), absolutePath) });
   return rel.length === 0 ? "." : rel;
-}
-
-async function pathExists({ absolutePath }: { absolutePath: string }): Promise<boolean> {
-  try {
-    await stat(absolutePath);
-    return true;
-  } catch (error) {
-    const errno = error as NodeJS.ErrnoException;
-    if (errno.code === "ENOENT") {
-      return false;
-    }
-
-    throw error;
-  }
 }

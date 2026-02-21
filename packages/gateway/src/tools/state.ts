@@ -1,8 +1,9 @@
 import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import { ensureJsonWithinLimit, MAX_TOOL_PAYLOAD_BYTES } from "../utils/payload.js";
+import { isSubPath, normalizeSeparators } from "../utils/path.js";
+import { ensureJsonWithinLimit, ensurePayloadWithinLimit, MAX_TOOL_PAYLOAD_BYTES } from "../utils/payload.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { ToolExecutionError, withToolLogging } from "./errors.js";
 
@@ -291,7 +292,7 @@ export function createStateTools({ context }: CreateStateToolsInput): ToolSet {
 }
 
 export function normalizeStateKey({ key }: { key: string }): string {
-  const normalized = key.trim().replaceAll("\\", "/");
+  const normalized = normalizeSeparators({ path: key.trim() });
   if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/.test(normalized)) {
     throw new ToolExecutionError({
       code: "INVALID_STATE_KEY",
@@ -316,7 +317,7 @@ function normalizeOptionalPrefix({ prefix }: { prefix: string | undefined }): st
     return "";
   }
 
-  return prefix.trim().replaceAll("\\", "/");
+  return normalizeSeparators({ path: prefix.trim() });
 }
 
 async function ensureStateRoot({ context }: { context: ToolExecutionContext }): Promise<string> {
@@ -333,8 +334,7 @@ function getStateFilePath({
   key: string;
 }): string {
   const candidate = resolve(stateRoot, `${key}.json`);
-  const normalizedRoot = stateRoot.endsWith(sep) ? stateRoot : `${stateRoot}${sep}`;
-  if (candidate !== stateRoot && !candidate.startsWith(normalizedRoot)) {
+  if (!isSubPath({ parent: stateRoot, child: candidate })) {
     throw new ToolExecutionError({
       code: "INVALID_STATE_KEY",
       message: `State key escapes state root: ${key}`,
@@ -399,8 +399,8 @@ async function writeStateDocument({
 }): Promise<void> {
   const filePath = getStateFilePath({ stateRoot, key });
   const payload = JSON.stringify(document, null, 2);
-  ensureJsonWithinLimit({
-    value: document,
+  ensurePayloadWithinLimit({
+    value: payload,
     maxBytes: MAX_TOOL_PAYLOAD_BYTES,
   });
 

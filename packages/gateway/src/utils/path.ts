@@ -1,4 +1,9 @@
 import { resolve, sep } from "node:path";
+import { stat } from "node:fs/promises";
+
+export function normalizeSeparators({ path }: { path: string }): string {
+  return path.replaceAll("\\", "/");
+}
 
 export function resolveWorkspacePath({
   workspaceRoot,
@@ -7,7 +12,7 @@ export function resolveWorkspacePath({
   workspaceRoot: string;
   requestedPath: string;
 }): string {
-  const normalizedRequested = requestedPath.replaceAll("\\", "/").trim();
+  const normalizedRequested = normalizeSeparators({ path: requestedPath }).trim();
   if (normalizedRequested.length === 0) {
     throw new Error("Path is required");
   }
@@ -21,11 +26,25 @@ export function resolveWorkspacePath({
   return absoluteTarget;
 }
 
-function isSubPath({ parent, child }: { parent: string; child: string }): boolean {
+export function isSubPath({ parent, child }: { parent: string; child: string }): boolean {
   if (parent === child) {
     return true;
   }
 
   const normalizedParent = parent.endsWith(sep) ? parent : `${parent}${sep}`;
   return child.startsWith(normalizedParent);
+}
+
+export async function pathExists({ absolutePath }: { absolutePath: string }): Promise<boolean> {
+  try {
+    await stat(absolutePath);
+    return true;
+  } catch (error) {
+    const errno = error as NodeJS.ErrnoException;
+    if (errno.code === "ENOENT") {
+      return false;
+    }
+
+    throw error;
+  }
 }
