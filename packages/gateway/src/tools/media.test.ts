@@ -39,7 +39,7 @@ function createMocks(contextOverrides: Partial<ToolExecutionContext> = {}) {
 
 describe("createMediaTools", () => {
   describe("send_file", () => {
-    it("sends an image file and returns status sent", async () => {
+    it("sends an image file and returns ok", async () => {
       const { channelSender, executionContext } = createMocks();
       const tools = createMediaTools({ channelSender, executionContext });
 
@@ -55,7 +55,7 @@ describe("createMediaTools", () => {
         fileType: "image",
         caption: undefined,
       });
-      expect(result).toMatchObject({ status: "sent", platform_message_id: "99" });
+      expect(result).toMatchObject({ ok: true, platform_message_id: "99" });
     });
 
     it.each(["document", "audio", "video", "animation"] as const)(
@@ -72,7 +72,7 @@ describe("createMediaTools", () => {
         expect(channelSender.sendFile).toHaveBeenCalledWith(
           expect.objectContaining({ fileType: type }),
         );
-        expect(result).toMatchObject({ status: "sent" });
+        expect(result).toMatchObject({ ok: true });
       },
     );
 

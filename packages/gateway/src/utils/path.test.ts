@@ -1,6 +1,13 @@
-import { resolve } from "node:path";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveWorkspacePath } from "./path.js";
+import {
+  isSubPath,
+  normalizeSeparators,
+  pathExists,
+  resolveWorkspacePath,
+} from "./path.js";
 
 const WORKSPACE = "/tmp/test-workspace";
 
@@ -65,5 +72,66 @@ describe("resolveWorkspacePath", () => {
         requestedPath: "/etc/passwd",
       }),
     ).toThrow("Path escapes workspace root");
+  });
+});
+
+describe("normalizeSeparators", () => {
+  it("replaces backslashes with forward slashes", () => {
+    expect(normalizeSeparators({ path: "a\\b\\c" })).toBe("a/b/c");
+  });
+
+  it("leaves forward slashes untouched", () => {
+    expect(normalizeSeparators({ path: "a/b/c" })).toBe("a/b/c");
+  });
+
+  it("handles mixed separators", () => {
+    expect(normalizeSeparators({ path: "a\\b/c\\d" })).toBe("a/b/c/d");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(normalizeSeparators({ path: "" })).toBe("");
+  });
+});
+
+describe("isSubPath", () => {
+  it("returns true when child is directly inside parent", () => {
+    expect(isSubPath({ parent: "/a/b", child: `/a/b${sep}c` })).toBe(true);
+  });
+
+  it("returns true when child equals parent", () => {
+    expect(isSubPath({ parent: "/a/b", child: "/a/b" })).toBe(true);
+  });
+
+  it("returns false when child is outside parent", () => {
+    expect(isSubPath({ parent: "/a/b", child: "/a/c" })).toBe(false);
+  });
+
+  it("returns false for prefix-collision paths", () => {
+    expect(isSubPath({ parent: "/a/b", child: "/a/bc" })).toBe(false);
+  });
+
+  it("handles parent with trailing separator", () => {
+    expect(
+      isSubPath({ parent: `/a/b${sep}`, child: `/a/b${sep}c` }),
+    ).toBe(true);
+  });
+});
+
+describe("pathExists", () => {
+  let tempDir: string;
+
+  it("returns true for a path that exists", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "path-test-"));
+    const filePath = join(tempDir, "exists.txt");
+    await writeFile(filePath, "hello");
+
+    expect(await pathExists({ absolutePath: filePath })).toBe(true);
+    await rm(tempDir, { recursive: true });
+  });
+
+  it("returns false for a path that does not exist", async () => {
+    expect(
+      await pathExists({ absolutePath: "/tmp/__does_not_exist_12345__" }),
+    ).toBe(false);
   });
 });

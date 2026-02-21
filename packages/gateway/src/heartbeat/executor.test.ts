@@ -82,20 +82,45 @@ function createMockMessageLinkRepository(): any {
 }
 
 function createExecutor(overrides: Record<string, any> = {}) {
+  const aiAgent = overrides.aiAgent ?? createMockAiAgent();
+  const sessionManager = overrides.sessionManager ?? createMockSessionManager();
+  const chatRegistry = overrides.chatRegistry ?? createMockChatRegistry();
+  const messageLinkRepository = overrides.messageLinkRepository ?? createMockMessageLinkRepository();
+  const channelSender = overrides.channelSender ?? createMockChannelSender();
+
   return new HeartbeatExecutor({
-    workspacePath: "/tmp/test",
-    aiAgent: createMockAiAgent(),
-    sessionManager: createMockSessionManager(),
-    schedulerService: { getTimezone: vi.fn(() => "UTC"), getRunContextForSessionKey: vi.fn(async () => null) } as any,
-    heartbeatService: createMockHeartbeatService(),
-    chatRegistry: createMockChatRegistry(),
-    channelSender: createMockChannelSender(),
-    deliveryService: {} as any,
-    messageLinkRepository: createMockMessageLinkRepository(),
-    syncSchedule: vi.fn(async () => {}),
-    enableGenericTools: false,
-    braveSearchApiKey: null,
-    shellConfig: { mode: "allowlist" as const, allowedCommands: [] },
+    toolDeps: {
+      workspacePath: "/tmp/test",
+      aiAgent,
+      sessionManager,
+      schedulerService: { getTimezone: vi.fn(() => "UTC"), getRunContextForSessionKey: vi.fn(async () => null) } as any,
+      chatRegistry,
+      deliveryService: {} as any,
+      messageLinkRepository,
+      syncSchedule: vi.fn(async () => {}),
+      enableGenericTools: false,
+      braveSearchApiKey: null,
+      shellConfig: { mode: "allowlist" as const, allowedCommands: [] },
+      skillsConfig: { entries: {} },
+      fullConfig: {},
+      selfToolDeps: {
+        getStatus: () => ({
+          state: "running" as const,
+          uptimeMs: 1000,
+          configPath: "/tmp/test-config.json",
+          pid: process.pid,
+          version: "1.0.0",
+        }),
+        adminSocketPath: "/tmp/test.sock",
+        logOutput: "stdout",
+        logLevel: "info",
+        schedulerActive: true,
+        heartbeatActive: true,
+        restartGateway: vi.fn(async () => {}),
+      },
+    },
+    channelSender,
+    heartbeatService: overrides.heartbeatService ?? createMockHeartbeatService(),
     heartbeatConfig: {
       enabled: true,
       intervalMinutes: 30,
@@ -103,22 +128,6 @@ function createExecutor(overrides: Record<string, any> = {}) {
       prompt: "Check things",
     },
     historyLimit: 40,
-    skillsConfig: { entries: {} },
-    fullConfig: {},
-    getStatus: () => ({
-      state: "running" as const,
-      uptimeMs: 1000,
-      configPath: "/tmp/test-config.json",
-      pid: process.pid,
-      version: "1.0.0",
-    }),
-    adminSocketPath: "/tmp/test.sock",
-    logOutput: "stdout",
-    logLevel: "info",
-    schedulerActive: true,
-    heartbeatActive: true,
-    restartGateway: vi.fn(async () => {}),
-    ...overrides,
   });
 }
 

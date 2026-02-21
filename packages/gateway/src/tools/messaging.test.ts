@@ -77,7 +77,7 @@ describe("createMessagingTools", () => {
         text: "Hello!",
         seedContext: "Cross-chat message sent to family",
       });
-      expect(result).toMatchObject({ status: "sent", alias: "family" });
+      expect(result).toMatchObject({ ok: true, alias: "family" });
     });
 
     it("works with direct chat_id", async () => {
@@ -101,7 +101,7 @@ describe("createMessagingTools", () => {
         platformChatId: "-1001234",
       });
       expect(deliveryService.deliver).toHaveBeenCalled();
-      expect(result).toMatchObject({ status: "sent" });
+      expect(result).toMatchObject({ ok: true });
     });
 
     it("rejects if target chat is not linked (by alias)", async () => {
@@ -213,7 +213,7 @@ describe("createMessagingTools", () => {
         { messages: [], toolCallId: "1", abortSignal: new AbortController().signal },
       );
 
-      expect(result.status).toBe("ok");
+      expect(result.ok).toBe(true);
       expect(result.count).toBe(2);
       expect(result.chats[0].alias).toBe("family");
       expect(result.chats[1].alias).toBe("work");
