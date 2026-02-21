@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import type { LanguageModel } from "ai";
 import { AiAgent } from "./ai/agent.js";
-import { buildProviderRegistry, parseModelRef, resolveModelRef } from "./ai/provider-registry.js";
+import { buildProviderRegistry, resolveModelRef } from "./ai/provider-registry.js";
 import { AdminServer } from "./admin/server.js";
 import { getAdminSocketPath } from "./admin/paths.js";
 import { AgentTurnOrchestrator } from "./agent/orchestrator.js";
