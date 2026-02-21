@@ -20,7 +20,6 @@ function createValidConfig(): Record<string, unknown> {
       },
       models: {
         chat: "anthropic:claude-sonnet-4-20250514",
-        browser: "anthropic:claude-sonnet-4-20250514",
       },
     },
   };
@@ -181,7 +180,6 @@ describe("loadConfig", () => {
           },
           models: {
             chat: "anthropic:claude-sonnet-4-20250514",
-            browser: "anthropic:claude-sonnet-4-20250514",
           },
         },
       };
@@ -213,7 +211,6 @@ describe("loadConfig", () => {
           },
           models: {
             chat: "anthropic:claude-sonnet-4-20250514",
-            browser: "anthropic:claude-sonnet-4-20250514",
           },
         },
       };
@@ -255,7 +252,6 @@ describe("loadConfig", () => {
           ...(createValidConfig().ai as Record<string, unknown>),
           models: {
             chat: "anthropic:claude-sonnet-4-20250514",
-            browser: "anthropic:claude-sonnet-4-20250514",
             vision: "anthropic:claude-sonnet-4-20250514",
           },
         },
