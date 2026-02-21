@@ -45,7 +45,9 @@ export async function promptForModel({
       filtered.push({ title: `${input}  (custom)`, value: input });
     }
 
-    return Promise.resolve(filtered.length > 0 ? filtered : [{ title: `${input}  (custom)`, value: input }]);
+    return Promise.resolve(
+      filtered.length > 0 ? filtered : [{ title: `${input}  (custom)`, value: input }],
+    );
   };
 
   return (await client.prompt({
