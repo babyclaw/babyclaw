@@ -1,5 +1,5 @@
 import { getLogger } from "../logging/index.js";
-import { redactToolInput, truncateOutput } from "../logging/redact.js";
+import { redactToolInput, truncateForLog } from "../logging/redact.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 
 type ToolErrorPayload = {
@@ -78,7 +78,7 @@ export async function withToolLogging<TSuccess extends object>({
     if (toolLog.isLevelEnabled("debug")) {
       const resultStr = JSON.stringify(result);
       toolLog.debug(
-        { output: truncateOutput({ output: resultStr, maxLength: 300 }) },
+        { output: truncateForLog({ output: resultStr, maxLength: 300 }) },
         `Tool result: ${toolName}`,
       );
     }

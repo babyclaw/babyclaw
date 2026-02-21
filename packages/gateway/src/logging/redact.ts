@@ -39,7 +39,7 @@ export function redactToolInput({
   return redactObject({ obj: input });
 }
 
-export function truncateOutput({
+export function truncateForLog({
   output,
   maxLength = 500,
 }: {
@@ -51,6 +51,11 @@ export function truncateOutput({
   }
   return output.slice(0, maxLength) + `... [truncated ${output.length - maxLength} chars]`;
 }
+
+/**
+ * @deprecated Use `truncateForLog` instead. Kept for backwards compatibility.
+ */
+export const truncateOutput = truncateForLog;
 
 function isSensitiveKey({ key }: { key: string }): boolean {
   const lower = key.toLowerCase();
