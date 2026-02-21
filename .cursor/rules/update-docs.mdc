@@ -1,0 +1,8 @@
+---
+description: Remind to check and update documentation when changing functionality
+alwaysApply: true
+---
+
+# Keep Documentation Updated
+
+When adding new functionality or changing existing behavior, always check `apps/docs/content/` to see if any documentation pages need updating to reflect the changes.

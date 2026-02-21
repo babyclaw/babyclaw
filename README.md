@@ -116,20 +116,22 @@ pnpm simpleclaw doctor
 
 ## CLI commands
 
-| Command | Description |
-|---|---|
-| `simpleclaw config init` | Create a fresh config file |
-| `simpleclaw config validate` | Validate current config |
-| `simpleclaw config edit` | Open config in your editor |
-| `simpleclaw model configure` | Interactive provider setup |
-| `simpleclaw model` | Show current model config |
-| `simpleclaw model alias` | List / set / remove model aliases |
-| `simpleclaw service install` | Install as system service (launchd/systemd) |
-| `simpleclaw service start/stop/restart` | Manage the service |
-| `simpleclaw gateway status` | Query running gateway |
-| `simpleclaw gateway reload` | Signal config reload |
-| `simpleclaw skill install` | Install a skill from ClawHub |
-| `simpleclaw doctor` | Run setup diagnostics |
+
+| Command                                 | Description                                 |
+| --------------------------------------- | ------------------------------------------- |
+| `simpleclaw config init`                | Create a fresh config file                  |
+| `simpleclaw config validate`            | Validate current config                     |
+| `simpleclaw config edit`                | Open config in your editor                  |
+| `simpleclaw model configure`            | Interactive provider setup                  |
+| `simpleclaw model`                      | Show current model config                   |
+| `simpleclaw model alias`                | List / set / remove model aliases           |
+| `simpleclaw service install`            | Install as system service (launchd/systemd) |
+| `simpleclaw service start/stop/restart` | Manage the service                          |
+| `simpleclaw gateway status`             | Query running gateway                       |
+| `simpleclaw gateway reload`             | Signal config reload                        |
+| `simpleclaw skill install`              | Install a skill from ClawHub                |
+| `simpleclaw doctor`                     | Run setup diagnostics                       |
+
 
 ## AI providers
 
@@ -160,17 +162,19 @@ Or let the agent install skills itself using the `clawhub_install` tool during a
 
 The workspace (default: `~/.config/simpleclaw/workspace/`) holds the agent's personality and memory:
 
-| File | Purpose |
-|---|---|
-| `IDENTITY.md` | Name, creature type, vibe, emoji |
-| `SOUL.md` | Personality and behavioral guidelines |
-| `USER.md` | Who the agent is helping |
-| `AGENTS.md` | Workspace rules and conventions |
-| `TOOLS.md` | Tool-specific notes (SSH hosts, API quirks, etc.) |
-| `HEARTBEAT.md` | Checklist for proactive heartbeat checks |
-| `MEMORY.md` | Curated long-term memory |
-| `memory/YYYY-MM-DD.md` | Daily memory files |
-| `skills/<slug>/SKILL.md` | Installed skills |
+
+| File                     | Purpose                                           |
+| ------------------------ | ------------------------------------------------- |
+| `IDENTITY.md`            | Name, creature type, vibe, emoji                  |
+| `SOUL.md`                | Personality and behavioral guidelines             |
+| `USER.md`                | Who the agent is helping                          |
+| `AGENTS.md`              | Workspace rules and conventions                   |
+| `TOOLS.md`               | Tool-specific notes (SSH hosts, API quirks, etc.) |
+| `HEARTBEAT.md`           | Checklist for proactive heartbeat checks          |
+| `MEMORY.md`              | Curated long-term memory                          |
+| `memory/YYYY-MM-DD.md`   | Daily memory files                                |
+| `skills/<slug>/SKILL.md` | Installed skills                                  |
+
 
 On first run, the agent bootstraps itself via `BOOTSTRAP.md` — picking a name, filling out its identity, and deleting the bootstrap file.
 
@@ -199,18 +203,20 @@ Adding a new channel means implementing the adapter interface and registering it
 
 ## BabyClaw vs OpenClaw
 
-| | BabyClaw | OpenClaw |
-|---|---|---|
-| **Codebase** | ~5% of OpenClaw's LoC | 84% TypeScript + Swift + Kotlin |
-| **Agent loop** | Vercel AI SDK | Custom Pi agent runtime |
-| **Database** | SQLite (Prisma) | In-memory + file-based |
-| **Channels** | Telegram (extensible) | 13+ channels |
-| **Companion apps** | None | macOS, iOS, Android |
-| **Voice** | No | Wake word + Talk Mode |
-| **Canvas** | No | A2UI visual workspace |
-| **Sandboxing** | No | Docker per-session |
-| **Skills** | ClawHub compatible | ClawHub compatible |
-| **Workspace** | Same concept | Same concept |
+
+|                    | BabyClaw              | OpenClaw                        |
+| ------------------ | --------------------- | ------------------------------- |
+| **Codebase**       | ~5% of OpenClaw's LoC | 84% TypeScript + Swift + Kotlin |
+| **Agent loop**     | Vercel AI SDK         | Custom Pi agent runtime         |
+| **Database**       | SQLite (Prisma)       | In-memory + file-based          |
+| **Channels**       | Telegram (extensible) | 13+ channels                    |
+| **Companion apps** | None                  | macOS, iOS, Android             |
+| **Voice**          | No                    | Wake word + Talk Mode           |
+| **Canvas**         | No                    | A2UI visual workspace           |
+| **Sandboxing**     | No                    | Docker per-session              |
+| **Skills**         | ClawHub compatible    | ClawHub compatible              |
+| **Workspace**      | Same concept          | Same concept                    |
+
 
 BabyClaw is not a fork — it's a reimplementation of the parts that matter most for a single-user personal assistant, built to be small enough to fit in your head.
 
@@ -237,9 +243,6 @@ pnpm test
 
 # Type-check
 pnpm typecheck
-
-# Regenerate config JSON schema
-pnpm --filter @simpleclaw/gateway config:schema
 ```
 
 ## License
