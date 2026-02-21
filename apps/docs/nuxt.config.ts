@@ -7,7 +7,6 @@ export default defineNuxtConfig({
     "@nuxt/content",
     "nuxt-og-image",
     "nuxt-llms",
-    "@nuxtjs/mcp-toolkit",
   ],
 
   devtools: {
@@ -90,9 +89,5 @@ export default defineNuxtConfig({
         contentFilters: [{ field: "path", operator: "LIKE", value: "/reference%" }],
       },
     ],
-  },
-
-  mcp: {
-    name: "BabyClaw Docs",
   },
 });
