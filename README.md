@@ -19,7 +19,6 @@ Same workspace concept. Same skill ecosystem (ClawHub compatible). Just fewer mo
 - **Workspace & skills** — personality files, agent instructions, and the full [ClawHub](https://clawhub.ai) skill ecosystem
 - **Shell tool** with allowlist/approval modes — the agent can run commands, safely
 - **Web search** via Brave Search API
-- **Browser automation** via MCP
 - **Cross-chat messaging** — link chats with aliases, send messages between them
 - **CLI** with interactive setup wizard, service management, and diagnostics
 
@@ -64,8 +63,8 @@ Telegram (more channels coming)
 **Runtime:** Node >= 20
 
 ```bash
-git clone https://github.com/youruser/simpleclaw.git
-cd simpleclaw
+git clone https://github.com/babyclaw/babyclaw.git
+cd babyclaw
 pnpm install
 pnpm build
 ```
@@ -73,11 +72,11 @@ pnpm build
 Run the setup wizard:
 
 ```bash
-pnpm simpleclaw config init
-pnpm simpleclaw model configure
+pnpm babyclaw config init
+pnpm babyclaw model configure
 ```
 
-Or create `~/.config/simpleclaw/config.json` manually:
+Or create `~/.babyclaw/babyclaw.json` manually:
 
 ```jsonc
 {
@@ -92,8 +91,7 @@ Or create `~/.config/simpleclaw/config.json` manually:
       "anthropic": { "apiKey": "sk-ant-..." }
     },
     "models": {
-      "chat": "anthropic/claude-sonnet-4-20250514",
-      "browser": "anthropic/claude-sonnet-4-20250514"
+      "chat": "anthropic/claude-sonnet-4-20250514"
     },
     "aliases": {}
   }
@@ -103,7 +101,7 @@ Or create `~/.config/simpleclaw/config.json` manually:
 Start the gateway:
 
 ```bash
-pnpm simpleclaw service start
+pnpm babyclaw service start
 # or run directly:
 node packages/gateway/dist/main.js
 ```
@@ -111,7 +109,7 @@ node packages/gateway/dist/main.js
 Run diagnostics:
 
 ```bash
-pnpm simpleclaw doctor
+pnpm babyclaw doctor
 ```
 
 ## CLI commands
@@ -119,18 +117,18 @@ pnpm simpleclaw doctor
 
 | Command                                 | Description                                 |
 | --------------------------------------- | ------------------------------------------- |
-| `simpleclaw config init`                | Create a fresh config file                  |
-| `simpleclaw config validate`            | Validate current config                     |
-| `simpleclaw config edit`                | Open config in your editor                  |
-| `simpleclaw model configure`            | Interactive provider setup                  |
-| `simpleclaw model`                      | Show current model config                   |
-| `simpleclaw model alias`                | List / set / remove model aliases           |
-| `simpleclaw service install`            | Install as system service (launchd/systemd) |
-| `simpleclaw service start/stop/restart` | Manage the service                          |
-| `simpleclaw gateway status`             | Query running gateway                       |
-| `simpleclaw gateway reload`             | Signal config reload                        |
-| `simpleclaw skill install`              | Install a skill from ClawHub                |
-| `simpleclaw doctor`                     | Run setup diagnostics                       |
+| `babyclaw config init`                | Create a fresh config file                  |
+| `babyclaw config validate`            | Validate current config                     |
+| `babyclaw config edit`                | Open config in your editor                  |
+| `babyclaw model configure`            | Interactive provider setup                  |
+| `babyclaw model`                      | Show current model config                   |
+| `babyclaw model alias`                | List / set / remove model aliases           |
+| `babyclaw service install`            | Install as system service (launchd/systemd) |
+| `babyclaw service start/stop/restart` | Manage the service                          |
+| `babyclaw gateway status`             | Query running gateway                       |
+| `babyclaw gateway reload`             | Signal config reload                        |
+| `babyclaw skill install`              | Install a skill from ClawHub                |
+| `babyclaw doctor`                     | Run setup diagnostics                       |
 
 
 ## AI providers
@@ -144,7 +142,7 @@ BabyClaw supports multiple providers out of the box via the Vercel AI SDK:
 - **xAI** (Grok)
 - **OpenRouter** (any model behind their API)
 
-Configure separate models for `chat`, `browser`, and optionally `vision` tasks.
+Configure separate models for `chat` and optionally `vision` tasks.
 
 ## Skills & ClawHub
 
@@ -153,14 +151,14 @@ BabyClaw uses the same skill format as OpenClaw — a `SKILL.md` file with front
 Install from [ClawHub](https://clawhub.ai):
 
 ```bash
-simpleclaw skill install <skill-name>
+babyclaw skill install <skill-name>
 ```
 
 Or let the agent install skills itself using the `clawhub_install` tool during a conversation.
 
 ## Workspace
 
-The workspace (default: `~/.config/simpleclaw/workspace/`) holds the agent's personality and memory:
+The workspace (default: `~/.config/babyclaw/workspace/`) holds the agent's personality and memory:
 
 
 | File                     | Purpose                                           |
@@ -186,7 +184,6 @@ The agent has access to these tools during conversations:
 - **Shell** — execute commands (with allowlist or per-command approval)
 - **Scheduler** — create/list/cancel one-off and cron tasks
 - **Web search** — Brave Search API
-- **Browser** — MCP-based browser automation (optional)
 - **ClawHub** — install skills from the registry
 - **Messaging** — send messages to linked chats
 - **Media** — send files to channels
@@ -223,10 +220,10 @@ BabyClaw is not a fork — it's a reimplementation of the parts that matter most
 ## Monorepo structure
 
 ```
-simpleclaw/
+babyclaw/
 ├── packages/
 │   ├── gateway/      # Core daemon — agent, channels, tools, scheduler, DB
-│   └── cli/          # CLI tool (Ink/Pastel)
+│   └── cli/          # CLI tool
 ├── apps/
 │   └── docs/         # Documentation site (Nuxt)
 └── docs/             # Schema and reference docs

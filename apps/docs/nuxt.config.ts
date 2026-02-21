@@ -56,7 +56,7 @@ export default defineNuxtConfig({
   },
 
   llms: {
-    domain: 'https://docs.babyclaw.dev/',
+    domain: 'https://docs.babyclaw.org/',
     title: 'BabyClaw',
     description: 'Documentation for BabyClaw, a simpler personal AI assistant.',
     full: {

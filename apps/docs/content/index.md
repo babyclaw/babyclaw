@@ -55,8 +55,7 @@ BabyClaw is a self-hosted gateway that connects your Telegram to an AI agent. It
           "anthropic": { "apiKey": "sk-ant-..." }
         },
         "models": {
-          "chat": "anthropic:claude-sonnet-4-20250514",
-          "browser": "anthropic:claude-sonnet-4-20250514"
+          "chat": "anthropic:claude-sonnet-4-20250514"
         }
       }
     }
@@ -76,8 +75,7 @@ BabyClaw is a self-hosted gateway that connects your Telegram to an AI agent. It
         "anthropic": { "apiKey": "sk-ant-..." }
       },
       "models": {
-        "chat": "anthropic:claude-sonnet-4-20250514",
-        "browser": "anthropic:claude-sonnet-4-20250514"
+        "chat": "anthropic:claude-sonnet-4-20250514"
       }
     }
   }
