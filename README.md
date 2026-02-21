@@ -11,7 +11,7 @@ Same workspace concept. Same skill ecosystem (ClawHub compatible). Just fewer mo
 ## What's in the box
 
 - **Agent loop** built on [Vercel AI SDK](https://sdk.vercel.ai/) — streaming tool calls, multi-provider support, no custom inference plumbing
-- **SQLite database** managed with [Prisma](https://www.prisma.io/) — sessions, messages, schedules, heartbeats, all in one file
+- **SQLite database** managed with [Drizzle](https://orm.drizzle.team/) — sessions, messages, schedules, heartbeats, all in one file
 - **Telegram channel** via [grammY](https://grammy.dev/) — text, photos, streaming replies, command approval buttons
 - **Scheduler** — one-off and recurring cron tasks with timezone support and overlap prevention
 - **Heartbeat system** — periodic proactive check-ins with configurable active hours
@@ -38,7 +38,7 @@ Telegram (more channels coming)
 │  │  (Vercel AI SDK)  │  │
 │  └───────────────────┘  │
 │  ┌───────────────────┐  │
-│  │  SQLite (Prisma)  │  │
+│  │  SQLite (Drizzle) │  │
 │  └───────────────────┘  │
 │  ┌───────────────────┐  │
 │  │  Scheduler/Cron   │  │
@@ -208,7 +208,7 @@ Adding a new channel means implementing the adapter interface and registering it
 | ------------------ | --------------------- | ------------------------------- |
 | **Codebase**       | ~5% of OpenClaw's LoC | 84% TypeScript + Swift + Kotlin |
 | **Agent loop**     | Vercel AI SDK         | Custom Pi agent runtime         |
-| **Database**       | SQLite (Prisma)       | In-memory + file-based          |
+| **Database**       | SQLite (Drizzle)      | In-memory + file-based          |
 | **Channels**       | Telegram (extensible) | 13+ channels                    |
 | **Companion apps** | None                  | macOS, iOS, Android             |
 | **Voice**          | No                    | Wake word + Talk Mode           |

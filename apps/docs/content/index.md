@@ -190,7 +190,7 @@ Built with
   icon: i-lucide-database
   ---
   #title
-  SQLite + Prisma
+  SQLite + Drizzle
 
   #description
   Sessions, messages, schedules, and heartbeats in a single SQLite file. No external database to manage.
