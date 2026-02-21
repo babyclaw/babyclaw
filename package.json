@@ -11,8 +11,8 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r --filter=!docs lint",
-    "format": "oxfmt --write .",
-    "format:check": "oxfmt --check ."
+    "format": "oxfmt --write . '!apps/docs/content/**/*.md'",
+    "format:check": "oxfmt --check . '!apps/docs/content/**/*.md'"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
