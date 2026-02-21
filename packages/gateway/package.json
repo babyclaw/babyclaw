@@ -2,6 +2,18 @@
   "name": "@babyclaw/gateway",
   "version": "0.0.0",
   "description": "babyclaw agent gateway daemon",
+  "keywords": [
+    "agent",
+    "babyclaw",
+    "gateway",
+    "telegram"
+  ],
+  "license": "ISC",
+  "files": [
+    "dist",
+    "drizzle",
+    "templates"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,14 +25,6 @@
     "./main": {
       "import": "./dist/main.js"
     }
-  },
-  "files": [
-    "dist",
-    "drizzle",
-    "templates"
-  ],
-  "engines": {
-    "node": ">=20"
   },
   "scripts": {
     "build": "tsup",
@@ -37,14 +41,6 @@
     "coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },
-  "keywords": [
-    "babyclaw",
-    "agent",
-    "gateway",
-    "telegram"
-  ],
-  "license": "ISC",
-  "packageManager": "pnpm@10.12.3",
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.44",
     "@ai-sdk/google": "^3.0.29",
@@ -74,5 +70,9 @@
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vitest": "^4.0.18"
-  }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.12.3"
 }

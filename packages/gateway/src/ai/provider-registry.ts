@@ -24,11 +24,7 @@ export const SUPPORTED_PROVIDERS: ProviderMeta[] = [
   {
     id: "anthropic",
     displayName: "Anthropic",
-    exampleModels: [
-      "claude-sonnet-4-20250514",
-      "claude-opus-4-6",
-      "claude-haiku-4-5",
-    ],
+    exampleModels: ["claude-sonnet-4-20250514", "claude-opus-4-6", "claude-haiku-4-5"],
   },
   {
     id: "openai",
@@ -38,11 +34,7 @@ export const SUPPORTED_PROVIDERS: ProviderMeta[] = [
   {
     id: "google",
     displayName: "Google Generative AI",
-    exampleModels: [
-      "gemini-2.5-pro",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-    ],
+    exampleModels: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"],
   },
   {
     id: "mistral",
@@ -57,26 +49,16 @@ export const SUPPORTED_PROVIDERS: ProviderMeta[] = [
   {
     id: "openrouter",
     displayName: "OpenRouter",
-    exampleModels: [
-      "anthropic/claude-sonnet-4",
-      "openai/gpt-4o",
-      "google/gemini-2.5-pro",
-    ],
+    exampleModels: ["anthropic/claude-sonnet-4", "openai/gpt-4o", "google/gemini-2.5-pro"],
   },
   {
     id: "gateway",
     displayName: "Vercel AI Gateway",
-    exampleModels: [
-      "anthropic/claude-sonnet-4-20250514",
-      "openai/gpt-4o",
-    ],
+    exampleModels: ["anthropic/claude-sonnet-4-20250514", "openai/gpt-4o"],
   },
 ];
 
-const PROVIDER_FACTORY_MAP: Record<
-  string,
-  (config: ProviderConfig) => AnyProvider
-> = {
+const PROVIDER_FACTORY_MAP: Record<string, (config: ProviderConfig) => AnyProvider> = {
   anthropic: (c) =>
     createAnthropic({
       apiKey: c.apiKey,
@@ -152,9 +134,7 @@ export function parseModelRef({ ref }: { ref: string }): {
 } {
   const separatorIndex = ref.indexOf(":");
   if (separatorIndex === -1) {
-    throw new Error(
-      `Invalid model reference "${ref}": expected "provider:modelId" format`,
-    );
+    throw new Error(`Invalid model reference "${ref}": expected "provider:modelId" format`);
   }
   return {
     providerKey: ref.slice(0, separatorIndex),
@@ -162,11 +142,7 @@ export function parseModelRef({ ref }: { ref: string }): {
   };
 }
 
-export function resolveLanguageModel({
-  config,
-}: {
-  config: BabyclawConfig;
-}): LanguageModel {
+export function resolveLanguageModel({ config }: { config: BabyclawConfig }): LanguageModel {
   const registry = buildProviderRegistry({ providers: config.ai.providers });
   const ref = resolveModelRef({
     ref: config.ai.models.chat,

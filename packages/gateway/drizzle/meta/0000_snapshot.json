@@ -67,32 +67,22 @@
       "indexes": {
         "ChannelMessageLink_platform_chatId_messageId_key": {
           "name": "ChannelMessageLink_platform_chatId_messageId_key",
-          "columns": [
-            "platform",
-            "platformChatId",
-            "platformMessageId"
-          ],
+          "columns": ["platform", "platformChatId", "platformMessageId"],
           "isUnique": true
         },
         "ChannelMessageLink_sessionKey_idx": {
           "name": "ChannelMessageLink_sessionKey_idx",
-          "columns": [
-            "sessionKey"
-          ],
+          "columns": ["sessionKey"],
           "isUnique": false
         },
         "ChannelMessageLink_scheduleId_idx": {
           "name": "ChannelMessageLink_scheduleId_idx",
-          "columns": [
-            "scheduleId"
-          ],
+          "columns": ["scheduleId"],
           "isUnique": false
         },
         "ChannelMessageLink_scheduleRunId_idx": {
           "name": "ChannelMessageLink_scheduleRunId_idx",
-          "columns": [
-            "scheduleRunId"
-          ],
+          "columns": ["scheduleRunId"],
           "isUnique": false
         }
       },
@@ -101,12 +91,8 @@
           "name": "ChannelMessageLink_scheduleId_Schedule_id_fk",
           "tableFrom": "ChannelMessageLink",
           "tableTo": "Schedule",
-          "columnsFrom": [
-            "scheduleId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scheduleId"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -114,12 +100,8 @@
           "name": "ChannelMessageLink_scheduleRunId_ScheduleRun_id_fk",
           "tableFrom": "ChannelMessageLink",
           "tableTo": "ScheduleRun",
-          "columnsFrom": [
-            "scheduleRunId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scheduleRunId"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -206,18 +188,12 @@
       "indexes": {
         "Chat_platform_platformChatId_key": {
           "name": "Chat_platform_platformChatId_key",
-          "columns": [
-            "platform",
-            "platformChatId"
-          ],
+          "columns": ["platform", "platformChatId"],
           "isUnique": true
         },
         "Chat_platform_alias_key": {
           "name": "Chat_platform_alias_key",
-          "columns": [
-            "platform",
-            "alias"
-          ],
+          "columns": ["platform", "alias"],
           "isUnique": true
         }
       },
@@ -282,9 +258,7 @@
       "indexes": {
         "HeartbeatRun_createdAt_idx": {
           "name": "HeartbeatRun_createdAt_idx",
-          "columns": [
-            "createdAt"
-          ],
+          "columns": ["createdAt"],
           "isUnique": false
         }
       },
@@ -342,10 +316,7 @@
       "indexes": {
         "Message_sessionId_createdAt_idx": {
           "name": "Message_sessionId_createdAt_idx",
-          "columns": [
-            "sessionId",
-            "createdAt"
-          ],
+          "columns": ["sessionId", "createdAt"],
           "isUnique": false
         }
       },
@@ -354,12 +325,8 @@
           "name": "Message_sessionId_Session_id_fk",
           "tableFrom": "Message",
           "tableTo": "Session",
-          "columnsFrom": [
-            "sessionId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sessionId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -454,25 +421,17 @@
       "indexes": {
         "ScheduleRun_scheduleId_createdAt_idx": {
           "name": "ScheduleRun_scheduleId_createdAt_idx",
-          "columns": [
-            "scheduleId",
-            "createdAt"
-          ],
+          "columns": ["scheduleId", "createdAt"],
           "isUnique": false
         },
         "ScheduleRun_status_createdAt_idx": {
           "name": "ScheduleRun_status_createdAt_idx",
-          "columns": [
-            "status",
-            "createdAt"
-          ],
+          "columns": ["status", "createdAt"],
           "isUnique": false
         },
         "ScheduleRun_sessionKey_idx": {
           "name": "ScheduleRun_sessionKey_idx",
-          "columns": [
-            "sessionKey"
-          ],
+          "columns": ["sessionKey"],
           "isUnique": false
         }
       },
@@ -481,12 +440,8 @@
           "name": "ScheduleRun_scheduleId_Schedule_id_fk",
           "tableFrom": "ScheduleRun",
           "tableTo": "Schedule",
-          "columnsFrom": [
-            "scheduleId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scheduleId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -636,11 +591,7 @@
       "indexes": {
         "Schedule_chatId_status_nextRunAt_idx": {
           "name": "Schedule_chatId_status_nextRunAt_idx",
-          "columns": [
-            "chatId",
-            "status",
-            "nextRunAt"
-          ],
+          "columns": ["chatId", "status", "nextRunAt"],
           "isUnique": false
         }
       },
@@ -726,9 +677,7 @@
       "indexes": {
         "Session_key_unique": {
           "name": "Session_key_unique",
-          "columns": [
-            "key"
-          ],
+          "columns": ["key"],
           "isUnique": true
         }
       },

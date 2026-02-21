@@ -13,17 +13,12 @@ export default command({
     if (!existsSync(configPath)) {
       client.log(c.error("✗ No config file found at:"));
       client.log(c.muted(`  ${configPath}`));
-      client.log(
-        c.muted("  Run ") +
-          c.info("babyclaw config init") +
-          c.muted(" first."),
-      );
+      client.log(c.muted("  Run ") + c.info("babyclaw config init") + c.muted(" first."));
       process.exitCode = 1;
       return;
     }
 
-    const editor =
-      process.env["EDITOR"] || process.env["VISUAL"] || "vi";
+    const editor = process.env["EDITOR"] || process.env["VISUAL"] || "vi";
 
     try {
       execSync(`${editor} ${JSON.stringify(configPath)}`, {
@@ -33,17 +28,13 @@ export default command({
       const content = await readFile(configPath, "utf8");
       process.stdout.write(`\nCurrent config at ${configPath}:\n\n`);
       process.stdout.write(content);
-      process.stdout.write(
-        "\nEdit this file manually, then run 'babyclaw config validate'.\n",
-      );
+      process.stdout.write("\nEdit this file manually, then run 'babyclaw config validate'.\n");
       return;
     }
 
     client.log(c.success("✓ Editor closed."));
     client.log(
-      c.muted("  Run ") +
-        c.info("babyclaw config validate") +
-        c.muted(" to check for issues."),
+      c.muted("  Run ") + c.info("babyclaw config validate") + c.muted(" to check for issues."),
     );
   },
 });

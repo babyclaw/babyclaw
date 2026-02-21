@@ -58,15 +58,10 @@ export function buildFrontmatter({ raw }: { raw: RawFrontmatter }): SkillFrontma
     userInvocable: raw["user-invocable"] !== false,
     disableModelInvocation: raw["disable-model-invocation"] === true,
     commandDispatch:
-      typeof raw["command-dispatch"] === "string"
-        ? raw["command-dispatch"]
-        : undefined,
-    commandTool:
-      typeof raw["command-tool"] === "string" ? raw["command-tool"] : undefined,
+      typeof raw["command-dispatch"] === "string" ? raw["command-dispatch"] : undefined,
+    commandTool: typeof raw["command-tool"] === "string" ? raw["command-tool"] : undefined,
     commandArgMode:
-      typeof raw["command-arg-mode"] === "string"
-        ? raw["command-arg-mode"]
-        : undefined,
+      typeof raw["command-arg-mode"] === "string" ? raw["command-arg-mode"] : undefined,
     openclaw,
   };
 }

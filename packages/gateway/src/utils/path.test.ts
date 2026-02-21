@@ -2,12 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  isSubPath,
-  normalizeSeparators,
-  pathExists,
-  resolveWorkspacePath,
-} from "./path.js";
+import { isSubPath, normalizeSeparators, pathExists, resolveWorkspacePath } from "./path.js";
 
 const WORKSPACE = "/tmp/test-workspace";
 
@@ -45,15 +40,15 @@ describe("resolveWorkspacePath", () => {
   });
 
   it("throws on empty path", () => {
-    expect(() =>
-      resolveWorkspacePath({ workspaceRoot: WORKSPACE, requestedPath: "" }),
-    ).toThrow("Path is required");
+    expect(() => resolveWorkspacePath({ workspaceRoot: WORKSPACE, requestedPath: "" })).toThrow(
+      "Path is required",
+    );
   });
 
   it("throws on whitespace-only path", () => {
-    expect(() =>
-      resolveWorkspacePath({ workspaceRoot: WORKSPACE, requestedPath: "   " }),
-    ).toThrow("Path is required");
+    expect(() => resolveWorkspacePath({ workspaceRoot: WORKSPACE, requestedPath: "   " })).toThrow(
+      "Path is required",
+    );
   });
 
   it("throws on path traversal with ../", () => {
@@ -111,9 +106,7 @@ describe("isSubPath", () => {
   });
 
   it("handles parent with trailing separator", () => {
-    expect(
-      isSubPath({ parent: `/a/b${sep}`, child: `/a/b${sep}c` }),
-    ).toBe(true);
+    expect(isSubPath({ parent: `/a/b${sep}`, child: `/a/b${sep}c` })).toBe(true);
   });
 });
 
@@ -130,8 +123,6 @@ describe("pathExists", () => {
   });
 
   it("returns false for a path that does not exist", async () => {
-    expect(
-      await pathExists({ absolutePath: "/tmp/__does_not_exist_12345__" }),
-    ).toBe(false);
+    expect(await pathExists({ absolutePath: "/tmp/__does_not_exist_12345__" })).toBe(false);
   });
 });

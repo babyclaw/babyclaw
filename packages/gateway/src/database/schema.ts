@@ -1,12 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { relations } from "drizzle-orm";
-import {
-  index,
-  integer,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // ---------------------------------------------------------------------------
 // Enums (string unions — SQLite has no native enums)
@@ -30,8 +24,7 @@ export const ScheduleStatus = {
   canceled: "canceled",
   completed: "completed",
 } as const;
-export type ScheduleStatus =
-  (typeof ScheduleStatus)[keyof typeof ScheduleStatus];
+export type ScheduleStatus = (typeof ScheduleStatus)[keyof typeof ScheduleStatus];
 
 export const ScheduleRunStatus = {
   pending: "pending",
@@ -41,8 +34,7 @@ export const ScheduleRunStatus = {
   skipped_overlap: "skipped_overlap",
   skipped_downtime: "skipped_downtime",
 } as const;
-export type ScheduleRunStatus =
-  (typeof ScheduleRunStatus)[keyof typeof ScheduleRunStatus];
+export type ScheduleRunStatus = (typeof ScheduleRunStatus)[keyof typeof ScheduleRunStatus];
 
 export const HeartbeatOutcome = {
   ok: "ok",
@@ -51,8 +43,7 @@ export const HeartbeatOutcome = {
   skipped_overlap: "skipped_overlap",
   skipped_empty: "skipped_empty",
 } as const;
-export type HeartbeatOutcome =
-  (typeof HeartbeatOutcome)[keyof typeof HeartbeatOutcome];
+export type HeartbeatOutcome = (typeof HeartbeatOutcome)[keyof typeof HeartbeatOutcome];
 
 // ---------------------------------------------------------------------------
 // Tables
@@ -80,10 +71,7 @@ export const chats = sqliteTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("Chat_platform_platformChatId_key").on(
-      table.platform,
-      table.platformChatId,
-    ),
+    uniqueIndex("Chat_platform_platformChatId_key").on(table.platform, table.platformChatId),
     uniqueIndex("Chat_platform_alias_key").on(table.platform, table.alias),
   ],
 );
@@ -126,12 +114,7 @@ export const messages = sqliteTable(
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (table) => [
-    index("Message_sessionId_createdAt_idx").on(
-      table.sessionId,
-      table.createdAt,
-    ),
-  ],
+  (table) => [index("Message_sessionId_createdAt_idx").on(table.sessionId, table.createdAt)],
 );
 
 export const schedules = sqliteTable(
@@ -167,11 +150,7 @@ export const schedules = sqliteTable(
     canceledAt: integer("canceledAt", { mode: "timestamp" }),
   },
   (table) => [
-    index("Schedule_chatId_status_nextRunAt_idx").on(
-      table.chatId,
-      table.status,
-      table.nextRunAt,
-    ),
+    index("Schedule_chatId_status_nextRunAt_idx").on(table.chatId, table.status, table.nextRunAt),
   ],
 );
 
@@ -185,10 +164,7 @@ export const scheduleRuns = sqliteTable(
       .notNull()
       .references(() => schedules.id, { onDelete: "cascade" }),
     scheduledFor: integer("scheduledFor", { mode: "timestamp" }).notNull(),
-    status: text("status")
-      .notNull()
-      .$type<ScheduleRunStatus>()
-      .default("pending"),
+    status: text("status").notNull().$type<ScheduleRunStatus>().default("pending"),
     attempt: integer("attempt").notNull().default(1),
     sessionKey: text("sessionKey"),
     assistantMessageId: integer("assistantMessageId", { mode: "number" }),
@@ -200,14 +176,8 @@ export const scheduleRuns = sqliteTable(
       .$defaultFn(() => new Date()),
   },
   (table) => [
-    index("ScheduleRun_scheduleId_createdAt_idx").on(
-      table.scheduleId,
-      table.createdAt,
-    ),
-    index("ScheduleRun_status_createdAt_idx").on(
-      table.status,
-      table.createdAt,
-    ),
+    index("ScheduleRun_scheduleId_createdAt_idx").on(table.scheduleId, table.createdAt),
+    index("ScheduleRun_status_createdAt_idx").on(table.status, table.createdAt),
     index("ScheduleRun_sessionKey_idx").on(table.sessionKey),
   ],
 );
@@ -282,30 +252,24 @@ export const schedulesRelations = relations(schedules, ({ many }) => ({
   links: many(channelMessageLinks),
 }));
 
-export const scheduleRunsRelations = relations(
-  scheduleRuns,
-  ({ one, many }) => ({
-    schedule: one(schedules, {
-      fields: [scheduleRuns.scheduleId],
-      references: [schedules.id],
-    }),
-    links: many(channelMessageLinks),
+export const scheduleRunsRelations = relations(scheduleRuns, ({ one, many }) => ({
+  schedule: one(schedules, {
+    fields: [scheduleRuns.scheduleId],
+    references: [schedules.id],
   }),
-);
+  links: many(channelMessageLinks),
+}));
 
-export const channelMessageLinksRelations = relations(
-  channelMessageLinks,
-  ({ one }) => ({
-    schedule: one(schedules, {
-      fields: [channelMessageLinks.scheduleId],
-      references: [schedules.id],
-    }),
-    scheduleRun: one(scheduleRuns, {
-      fields: [channelMessageLinks.scheduleRunId],
-      references: [scheduleRuns.id],
-    }),
+export const channelMessageLinksRelations = relations(channelMessageLinks, ({ one }) => ({
+  schedule: one(schedules, {
+    fields: [channelMessageLinks.scheduleId],
+    references: [schedules.id],
   }),
-);
+  scheduleRun: one(scheduleRuns, {
+    fields: [channelMessageLinks.scheduleRunId],
+    references: [scheduleRuns.id],
+  }),
+}));
 
 // ---------------------------------------------------------------------------
 // Inferred row types

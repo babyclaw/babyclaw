@@ -1,10 +1,7 @@
 import { command } from "@gud/cli";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import {
-  getConfigPath,
-  babyclawConfigSchema,
-} from "@babyclaw/gateway";
+import { getConfigPath, babyclawConfigSchema } from "@babyclaw/gateway";
 import { c } from "../../ui/theme.js";
 
 export default command({
@@ -16,11 +13,7 @@ export default command({
       if (!existsSync(configPath)) {
         client.log(c.error("✗ No config file found at:"));
         client.log(c.muted(`  ${configPath}`));
-        client.log(
-          c.muted("  Run ") +
-            c.info("babyclaw config init") +
-            c.muted(" to create one."),
-        );
+        client.log(c.muted("  Run ") + c.info("babyclaw config init") + c.muted(" to create one."));
         process.exitCode = 1;
         return;
       }
@@ -45,17 +38,14 @@ export default command({
         client.log(c.error("✗ Config is invalid"));
         client.log(c.muted(`  ${configPath}`));
         for (const issue of result.error.issues) {
-          const path =
-            issue.path.length > 0 ? issue.path.map(String).join(".") : "$";
+          const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "$";
           client.log(c.warning(`  • ${path}: ${issue.message}`));
         }
         process.exitCode = 1;
       }
     } catch (error) {
       client.log(c.error("✗ Error reading config"));
-      client.log(
-        c.muted(error instanceof Error ? error.message : String(error)),
-      );
+      client.log(c.muted(error instanceof Error ? error.message : String(error)));
       process.exitCode = 1;
     }
   },

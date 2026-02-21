@@ -71,7 +71,10 @@ export class MemoryExtractionQueue {
     }
     this.pendingSet.add(sessionKey);
     this.pending.push(sessionKey);
-    this.log.debug({ sessionKey, queueSize: this.pending.length }, "Session added to pending queue");
+    this.log.debug(
+      { sessionKey, queueSize: this.pending.length },
+      "Session added to pending queue",
+    );
     this.drain();
   }
 
@@ -92,11 +95,7 @@ export class MemoryExtractionQueue {
       });
   }
 
-  private async processSession({
-    sessionKey,
-  }: {
-    sessionKey: string;
-  }): Promise<void> {
+  private async processSession({ sessionKey }: { sessionKey: string }): Promise<void> {
     if (this.stopped) return;
 
     const result = await this.sessionManager.getRawMessages({ sessionKey });

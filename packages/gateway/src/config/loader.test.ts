@@ -148,9 +148,7 @@ describe("loadConfig", () => {
       const configPath = join(tempDir, "nested", "babyclaw.json");
       vi.stubEnv(CONFIG_PATH_ENV_VAR, configPath);
 
-      await expect(loadConfig()).rejects.toThrow(
-        "required secret values are missing",
-      );
+      await expect(loadConfig()).rejects.toThrow("required secret values are missing");
 
       const created = await readFile(configPath, "utf8");
       expect(created).toContain('"version": 1');
@@ -189,9 +187,7 @@ describe("loadConfig", () => {
       };
       await writeFile(configPath, JSON.stringify(withPlaceholders), "utf8");
 
-      await expect(loadConfig()).rejects.toThrow(
-        "required secret values are missing",
-      );
+      await expect(loadConfig()).rejects.toThrow("required secret values are missing");
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
@@ -256,7 +252,7 @@ describe("loadConfig", () => {
       const configWithVision = {
         ...createValidConfig(),
         ai: {
-          ...createValidConfig().ai as Record<string, unknown>,
+          ...(createValidConfig().ai as Record<string, unknown>),
           models: {
             chat: "anthropic:claude-sonnet-4-20250514",
             browser: "anthropic:claude-sonnet-4-20250514",

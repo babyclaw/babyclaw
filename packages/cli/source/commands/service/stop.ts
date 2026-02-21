@@ -20,9 +20,7 @@ export default command({
       }
 
       if (!info.running) {
-        client.log(
-          c.warning("⚠ Gateway is not running. Nothing to stop."),
-        );
+        client.log(c.warning("⚠ Gateway is not running. Nothing to stop."));
         return;
       }
 
@@ -30,9 +28,7 @@ export default command({
       client.log(c.success("✓ Gateway stopped. The claw rests. 🦞"));
     } catch (err) {
       client.log(c.error("✗ Failed to stop gateway"));
-      client.log(
-        c.muted(`  ${err instanceof Error ? err.message : String(err)}`),
-      );
+      client.log(c.muted(`  ${err instanceof Error ? err.message : String(err)}`));
       process.exitCode = 1;
     }
   },

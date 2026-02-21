@@ -35,7 +35,11 @@ export function normalizeAllowedCommands({ commands }: { commands: string[] }): 
   return normalized;
 }
 
-export function createShellTools({ context, shellConfig, commandApprovalService }: CreateShellToolsInput): ToolSet {
+export function createShellTools({
+  context,
+  shellConfig,
+  commandApprovalService,
+}: CreateShellToolsInput): ToolSet {
   const isFullAccess = shellConfig.mode === "full-access";
   const allowedCommands = isFullAccess
     ? null
@@ -256,8 +260,7 @@ function executeCommand({
         const truncatedStdout = truncateOutput({ output: stdout });
         const truncatedStderr = truncateOutput({ output: stderr });
         const truncated =
-          truncatedStdout.length < stdout.length ||
-          truncatedStderr.length < stderr.length;
+          truncatedStdout.length < stdout.length || truncatedStderr.length < stderr.length;
 
         resolve({
           exitCode,

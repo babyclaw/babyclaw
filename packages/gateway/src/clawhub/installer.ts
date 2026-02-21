@@ -1,12 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import {
-  getSkillInfo,
-  getSkillVersionFiles,
-  getSkillFileContent,
-  ClawHubError,
-} from "./client.js";
+import { getSkillInfo, getSkillVersionFiles, getSkillFileContent, ClawHubError } from "./client.js";
 
 export type InstallSkillResult = {
   slug: string;
@@ -21,9 +16,7 @@ export class SkillAlreadyInstalledError extends Error {
   readonly skillPath: string;
 
   constructor({ slug, skillPath }: { slug: string; skillPath: string }) {
-    super(
-      `Skill "${slug}" is already installed at ${skillPath}. Use force to overwrite.`,
-    );
+    super(`Skill "${slug}" is already installed at ${skillPath}. Use force to overwrite.`);
     this.slug = slug;
     this.skillPath = skillPath;
   }
@@ -52,8 +45,7 @@ export async function installSkillFromClawHub({
     });
   }
 
-  const resolvedVersion =
-    version ?? info.latestVersion?.version ?? undefined;
+  const resolvedVersion = version ?? info.latestVersion?.version ?? undefined;
 
   if (!resolvedVersion) {
     throw new Error(`Skill "${normalizedSlug}" has no published versions.`);

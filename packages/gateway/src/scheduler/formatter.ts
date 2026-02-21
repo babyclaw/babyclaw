@@ -19,8 +19,7 @@ export function formatSchedulesForCommand({
   return schedules
     .map((schedule, index) => {
       const title = schedule.title ?? schedule.taskPrompt;
-      const nextRunLabel =
-        schedule.nextRunAt === null ? "none" : schedule.nextRunAt.toISOString();
+      const nextRunLabel = schedule.nextRunAt === null ? "none" : schedule.nextRunAt.toISOString();
 
       return [
         `${index + 1}. **${title}**`,

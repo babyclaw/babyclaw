@@ -57,10 +57,9 @@ export function createSelfTools({
         "Requires confirm: true to prevent accidental restarts. " +
         "Use after editing the config file to apply changes.",
       inputSchema: z.object({
-        confirm: z
-          .literal(true, {
-            error: "confirm must be true to proceed with restart",
-          }),
+        confirm: z.literal(true, {
+          error: "confirm must be true to proceed with restart",
+        }),
       }),
       execute: async ({ confirm }) =>
         withToolLogging({

@@ -10,10 +10,7 @@ type IsOwnerInput = {
   chatRegistry: ChatRegistry;
 };
 
-export async function isOwner({
-  actor,
-  chatRegistry,
-}: IsOwnerInput): Promise<boolean> {
+export async function isOwner({ actor, chatRegistry }: IsOwnerInput): Promise<boolean> {
   const mainChat = await chatRegistry.getMainChat();
   if (!mainChat) {
     return false;

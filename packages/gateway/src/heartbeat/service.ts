@@ -1,9 +1,6 @@
 import { desc, lt } from "drizzle-orm";
 import type { Database } from "../database/client.js";
-import {
-  heartbeatRuns,
-  type HeartbeatOutcome,
-} from "../database/schema.js";
+import { heartbeatRuns, type HeartbeatOutcome } from "../database/schema.js";
 
 type HeartbeatServiceInput = {
   db: Database;
@@ -52,11 +49,7 @@ export class HeartbeatService {
   }
 
   async cleanupOldRuns(): Promise<void> {
-    const cutoff = new Date(
-      Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000,
-    );
-    await this.db
-      .delete(heartbeatRuns)
-      .where(lt(heartbeatRuns.createdAt, cutoff));
+    const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    await this.db.delete(heartbeatRuns).where(lt(heartbeatRuns.createdAt, cutoff));
   }
 }

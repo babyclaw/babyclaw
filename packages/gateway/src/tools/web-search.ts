@@ -9,8 +9,7 @@ type CreateWebSearchToolsInput = {
   braveApiKey: string | null;
 };
 
-const BRAVE_SEARCH_ENDPOINT =
-  "https://api.search.brave.com/res/v1/web/search";
+const BRAVE_SEARCH_ENDPOINT = "https://api.search.brave.com/res/v1/web/search";
 
 const MAX_COUNT = 20;
 const DEFAULT_COUNT = 5;
@@ -31,10 +30,7 @@ type BraveSearchResponse = {
   };
 };
 
-export function createWebSearchTools({
-  context,
-  braveApiKey,
-}: CreateWebSearchToolsInput): ToolSet {
+export function createWebSearchTools({ context, braveApiKey }: CreateWebSearchToolsInput): ToolSet {
   return {
     web_search: tool({
       description:
@@ -67,8 +63,7 @@ export function createWebSearchTools({
               throw new ToolExecutionError({
                 code: "BRAVE_API_KEY_MISSING",
                 message: "Brave Search API key is not configured.",
-                hint:
-                  "Set tools.webSearch.braveApiKey in the BabyClaw JSON config file.",
+                hint: "Set tools.webSearch.braveApiKey in the BabyClaw JSON config file.",
               });
             }
 
@@ -90,9 +85,7 @@ export function createWebSearchTools({
                 message: `Brave Search API returned ${response.status}: ${body}`,
                 retryable: response.status >= 500 || response.status === 429,
                 hint:
-                  response.status === 429
-                    ? "Rate limit exceeded. Try again shortly."
-                    : undefined,
+                  response.status === 429 ? "Rate limit exceeded. Try again shortly." : undefined,
               });
             }
 
@@ -111,9 +104,7 @@ export function createWebSearchTools({
             return {
               ok: true,
               result_count: results.length,
-              ...(data.query?.altered
-                ? { altered_query: data.query.altered }
-                : {}),
+              ...(data.query?.altered ? { altered_query: data.query.altered } : {}),
               results,
             } as const;
           },
@@ -148,11 +139,7 @@ function buildSearchUrl({
  * payload budget. This avoids blowing up context windows with huge search
  * result sets.
  */
-function truncateResults({
-  results,
-}: {
-  results: BraveWebResult[];
-}): BraveWebResult[] {
+function truncateResults({ results }: { results: BraveWebResult[] }): BraveWebResult[] {
   const budget = MAX_TOOL_PAYLOAD_BYTES;
   let current = [...results];
 

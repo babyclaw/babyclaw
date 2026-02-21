@@ -16,24 +16,16 @@ export default command({
       const info = getStatus();
       if (!info.installed) {
         client.log(c.error("✗ Service is not installed."));
-        client.log(
-          c.muted("  Run ") +
-            c.info("babyclaw service install") +
-            c.muted(" first."),
-        );
+        client.log(c.muted("  Run ") + c.info("babyclaw service install") + c.muted(" first."));
         process.exitCode = 1;
         return;
       }
 
       restart();
-      client.log(
-        c.success("✓ Gateway restarted! Fresh pincers, same claw. 🦀"),
-      );
+      client.log(c.success("✓ Gateway restarted! Fresh pincers, same claw. 🦀"));
     } catch (err) {
       client.log(c.error("✗ Failed to restart gateway"));
-      client.log(
-        c.muted(`  ${err instanceof Error ? err.message : String(err)}`),
-      );
+      client.log(c.muted(`  ${err instanceof Error ? err.message : String(err)}`));
       process.exitCode = 1;
     }
   },

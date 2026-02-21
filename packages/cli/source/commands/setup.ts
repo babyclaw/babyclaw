@@ -108,26 +108,20 @@ export default command({
       const providerChoices = SUPPORTED_PROVIDERS.map((p) => {
         const configured = providers.find((e) => e.id === p.id);
         return {
-          title: configured
-            ? `${p.displayName} (configured)`
-            : p.displayName,
+          title: configured ? `${p.displayName} (configured)` : p.displayName,
           value: p.id,
         };
       });
       providerChoices.push({
         title:
-          providers.length > 0
-            ? "Done adding providers →"
-            : "(add at least one provider first)",
+          providers.length > 0 ? "Done adding providers →" : "(add at least one provider first)",
         value: "__done__",
       });
 
       client.log("");
       client.log(c.bold("  Step 2 · AI Providers"));
       if (providers.length > 0) {
-        client.log(
-          c.muted(`  Configured: ${providers.map((p) => p.id).join(", ")}`),
-        );
+        client.log(c.muted(`  Configured: ${providers.map((p) => p.id).join(", ")}`));
       }
 
       const selected = await client.prompt({
@@ -138,9 +132,7 @@ export default command({
 
       if (selected === "__done__") {
         if (providers.length === 0) {
-          client.log(
-            c.warning("  Add at least one provider before continuing."),
-          );
+          client.log(c.warning("  Add at least one provider before continuing."));
           continue;
         }
         addingProviders = false;
@@ -197,9 +189,7 @@ export default command({
       const suggestModel = (input: string, choices: { title: string; value?: string }[]) =>
         Promise.resolve(
           input
-            ? choices.filter((ch) =>
-                ch.title.toLowerCase().includes(input.toLowerCase()),
-              )
+            ? choices.filter((ch) => ch.title.toLowerCase().includes(input.toLowerCase()))
             : choices,
         );
 
@@ -254,9 +244,7 @@ export default command({
       })),
     })) as (typeof SHELL_MODES)[number];
 
-    client.log(
-      c.muted("  Brave Search API enables web search. Leave empty to skip."),
-    );
+    client.log(c.muted("  Brave Search API enables web search. Leave empty to skip."));
     const braveKey = (await client.prompt({
       type: "password",
       message: "Brave Search API key (optional)",
@@ -268,7 +256,9 @@ export default command({
     client.log(c.bold("  Review Configuration"));
     client.log("");
 
-    client.log(`  ${c.brand(c.bold("Telegram:"))}  ${telegramToken ? c.success("configured") : c.muted("skipped")}`);
+    client.log(
+      `  ${c.brand(c.bold("Telegram:"))}  ${telegramToken ? c.success("configured") : c.muted("skipped")}`,
+    );
 
     client.log(`  ${c.brand(c.bold("Providers:"))}`);
     for (const p of providers) {
@@ -302,9 +292,7 @@ export default command({
 
     const config: BabyclawConfig = {
       ...baseConfig,
-      channels: telegramToken
-        ? { telegram: { botToken: telegramToken } }
-        : {},
+      channels: telegramToken ? { telegram: { botToken: telegramToken } } : {},
       ai: {
         providers: providersObj,
         models: { chat: chatModel },
@@ -386,9 +374,7 @@ export default command({
     client.log("");
     client.log(c.success(c.bold("  Setup complete! 🦀")));
     client.log(
-      c.muted("  Run ") +
-        c.info("babyclaw doctor") +
-        c.muted(" to verify everything is working."),
+      c.muted("  Run ") + c.info("babyclaw doctor") + c.muted(" to verify everything is working."),
     );
   },
 });

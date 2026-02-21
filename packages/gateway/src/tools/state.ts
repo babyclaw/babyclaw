@@ -3,7 +3,11 @@ import { dirname, join, relative, resolve } from "node:path";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { isSubPath, normalizeSeparators } from "../utils/path.js";
-import { ensureJsonWithinLimit, ensurePayloadWithinLimit, MAX_TOOL_PAYLOAD_BYTES } from "../utils/payload.js";
+import {
+  ensureJsonWithinLimit,
+  ensurePayloadWithinLimit,
+  MAX_TOOL_PAYLOAD_BYTES,
+} from "../utils/payload.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { ToolExecutionError, withToolLogging } from "./errors.js";
 
@@ -225,7 +229,13 @@ export function createStateTools({ context }: CreateStateToolsInput): ToolSet {
       inputSchema: z.object({
         prefix: z.string().trim().optional(),
         cursor: z.string().trim().min(1).optional(),
-        limit: z.number().int().positive().max(MAX_LIST_LIMIT).optional().default(DEFAULT_LIST_LIMIT),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(MAX_LIST_LIMIT)
+          .optional()
+          .default(DEFAULT_LIST_LIMIT),
       }),
       execute: async ({ prefix, cursor, limit }) =>
         withToolLogging({
@@ -275,9 +285,7 @@ export function createStateTools({ context }: CreateStateToolsInput): ToolSet {
             );
 
             const nextCursor =
-              startIndex + limit < filteredKeys.length
-                ? page[page.length - 1]
-                : null;
+              startIndex + limit < filteredKeys.length ? page[page.length - 1] : null;
 
             return {
               ok: true,
@@ -326,13 +334,7 @@ async function ensureStateRoot({ context }: { context: ToolExecutionContext }): 
   return stateRoot;
 }
 
-function getStateFilePath({
-  stateRoot,
-  key,
-}: {
-  stateRoot: string;
-  key: string;
-}): string {
+function getStateFilePath({ stateRoot, key }: { stateRoot: string; key: string }): string {
   const candidate = resolve(stateRoot, `${key}.json`);
   if (!isSubPath({ parent: stateRoot, child: candidate })) {
     throw new ToolExecutionError({
@@ -438,7 +440,13 @@ export function isStateDocument(value: unknown): value is StateDocument {
   );
 }
 
-export function applyJsonMergePatch({ target, patch }: { target: unknown; patch: unknown }): unknown {
+export function applyJsonMergePatch({
+  target,
+  patch,
+}: {
+  target: unknown;
+  patch: unknown;
+}): unknown {
   if (!isPlainObject(patch)) {
     return patch;
   }

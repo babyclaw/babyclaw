@@ -29,13 +29,7 @@ function getLaunchdPlistPath(): string {
 }
 
 function getSystemdUnitPath(): string {
-  return join(
-    homedir(),
-    ".config",
-    "systemd",
-    "user",
-    `${SYSTEMD_UNIT}.service`,
-  );
+  return join(homedir(), ".config", "systemd", "user", `${SYSTEMD_UNIT}.service`);
 }
 
 function getGatewayEntryPath(): string {
@@ -68,9 +62,7 @@ function generateLaunchdPlist(): string {
 
   const shellPath = getShellPath();
   const nodeDir = dirname(nodePath);
-  const path = shellPath.includes(nodeDir)
-    ? shellPath
-    : `${shellPath}:${nodeDir}`;
+  const path = shellPath.includes(nodeDir) ? shellPath : `${shellPath}:${nodeDir}`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -181,9 +173,7 @@ export function start(): void {
   if (plat === "launchd") {
     const plistPath = getLaunchdPlistPath();
     if (!existsSync(plistPath)) {
-      throw new Error(
-        "Service not installed. Run 'babyclaw service install' first.",
-      );
+      throw new Error("Service not installed. Run 'babyclaw service install' first.");
     }
     execSync(`launchctl bootstrap gui/$(id -u) ${plistPath}`);
     return;
@@ -247,10 +237,9 @@ export function getStatus(): ServiceInfo {
 
     if (installed) {
       try {
-        const output = execSync(
-          `launchctl list ${SERVICE_LABEL} 2>/dev/null`,
-          { encoding: "utf8" },
-        );
+        const output = execSync(`launchctl list ${SERVICE_LABEL} 2>/dev/null`, {
+          encoding: "utf8",
+        });
         running = true;
         const pidMatch = output.match(/"PID"\s*=\s*(\d+)/);
         if (pidMatch) {
@@ -284,10 +273,9 @@ export function getStatus(): ServiceInfo {
 
     if (installed) {
       try {
-        const output = execSync(
-          `systemctl --user is-active ${SYSTEMD_UNIT} 2>/dev/null`,
-          { encoding: "utf8" },
-        );
+        const output = execSync(`systemctl --user is-active ${SYSTEMD_UNIT} 2>/dev/null`, {
+          encoding: "utf8",
+        });
         running = output.trim() === "active";
       } catch {
         running = false;

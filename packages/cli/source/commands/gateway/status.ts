@@ -21,8 +21,7 @@ export default command({
         return;
       }
 
-      const uptime =
-        data.uptimeMs != null ? formatUptime(data.uptimeMs) : "—";
+      const uptime = data.uptimeMs != null ? formatUptime(data.uptimeMs) : "—";
 
       client.log(`${c.success("●")} Gateway is ${c.success(data.state)}`);
       client.log(`  ${c.muted("PID     ")}${data.pid}`);
@@ -43,12 +42,8 @@ export default command({
         return;
       }
 
-      client.log(
-        `${c.error("●")} Gateway is ${c.error(c.bold("not running"))}`,
-      );
-      client.log(
-        c.muted(`  ${err instanceof Error ? err.message : String(err)}`),
-      );
+      client.log(`${c.error("●")} Gateway is ${c.error(c.bold("not running"))}`);
+      client.log(c.muted(`  ${err instanceof Error ? err.message : String(err)}`));
     }
   },
 });

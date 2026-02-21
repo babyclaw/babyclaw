@@ -138,11 +138,7 @@ export function getUserMetadata({
   });
 }
 
-export function extractTextFromUserContent({
-  content,
-}: {
-  content: UserContent;
-}): string {
+export function extractTextFromUserContent({ content }: { content: UserContent }): string {
   if (typeof content === "string") return content;
   return content
     .filter((part): part is TextPart => part.type === "text")
@@ -154,14 +150,7 @@ export function isCommandText({ text }: { text: string }): boolean {
   return text.startsWith("/");
 }
 
-const STOP_PHRASES = new Set([
-  "stop",
-  "cancel",
-  "abort",
-  "nevermind",
-  "never mind",
-  "nvm",
-]);
+const STOP_PHRASES = new Set(["stop", "cancel", "abort", "nevermind", "never mind", "nvm"]);
 
 export function isStopMessage({ text }: { text: string }): boolean {
   return STOP_PHRASES.has(text.toLowerCase());

@@ -62,21 +62,14 @@ export default command({
       data = (await res.json()) as SearchResponse;
     } catch (error) {
       client.log(c.error("✗ Failed to reach ClawHub API"));
-      client.log(
-        c.muted(
-          `  ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      );
+      client.log(c.muted(`  ${error instanceof Error ? error.message : String(error)}`));
       process.exitCode = 1;
       return;
     }
 
     if (data.results.length === 0) {
       client.log(c.warning(`No skills found for "${query}".`));
-      client.log(
-        c.muted("  Browse all skills at ") +
-          c.info("https://clawhub.ai/skills"),
-      );
+      client.log(c.muted("  Browse all skills at ") + c.info("https://clawhub.ai/skills"));
       return;
     }
 
@@ -86,8 +79,9 @@ export default command({
     }
 
     client.log(
-      c.bold(` 🔍 ${data.results.length} result${data.results.length !== 1 ? "s" : ""} for "${query}"`) +
-        "\n",
+      c.bold(
+        ` 🔍 ${data.results.length} result${data.results.length !== 1 ? "s" : ""} for "${query}"`,
+      ) + "\n",
     );
 
     const choices = data.results.map((r) => ({
@@ -113,10 +107,7 @@ export default command({
 
     try {
       const config = await loadConfigRaw();
-      const workspacePath = resolve(
-        process.cwd(),
-        config?.workspace?.root ?? ".",
-      );
+      const workspacePath = resolve(process.cwd(), config?.workspace?.root ?? ".");
 
       const installResult = await installSkillFromClawHub({
         slug,
@@ -155,20 +146,14 @@ export default command({
         client.log(c.success("  ✓ Dependencies set up"));
       }
       if (setupError) {
-        client.log(
-          c.warning("  ⚠ Setup failed (skill files are still installed)"),
-        );
+        client.log(c.warning("  ⚠ Setup failed (skill files are still installed)"));
         client.log(c.muted(`    ${setupError}`));
       }
 
-      client.log(
-        c.muted("  The skill will be available on the next agent session."),
-      );
+      client.log(c.muted("  The skill will be available on the next agent session."));
     } catch (error) {
       if (error instanceof SkillAlreadyInstalledError) {
-        client.log(
-          c.warning(`⚠ Skill "${skill.displayName}" is already installed.`),
-        );
+        client.log(c.warning(`⚠ Skill "${skill.displayName}" is already installed.`));
         client.log(
           c.muted("  Use ") +
             c.info(`babyclaw skill install --slug ${slug} --force`) +
@@ -178,11 +163,7 @@ export default command({
       }
 
       client.log(c.error(`✗ Failed to install "${skill.displayName}"`));
-      client.log(
-        c.muted(
-          `  ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      );
+      client.log(c.muted(`  ${error instanceof Error ? error.message : String(error)}`));
       process.exitCode = 1;
     }
   },

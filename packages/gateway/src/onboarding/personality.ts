@@ -17,9 +17,11 @@ type WorkspaceInput = {
   workspacePath: string;
 };
 
-function getPersonalityFilePaths({
-  workspacePath,
-}: WorkspaceInput): { identityPath: string; soulPath: string; userPath: string } {
+function getPersonalityFilePaths({ workspacePath }: WorkspaceInput): {
+  identityPath: string;
+  soulPath: string;
+  userPath: string;
+} {
   return {
     identityPath: join(workspacePath, "IDENTITY.md"),
     soulPath: join(workspacePath, "SOUL.md"),

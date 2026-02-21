@@ -108,13 +108,16 @@ describe("MemoryExtractionQueue", () => {
 
     it("deduplicates if same key already pending behind another", async () => {
       let resolveFirst: () => void;
-      const firstBlocks = new Promise<void>((r) => { resolveFirst = r; });
+      const firstBlocks = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
-      (sessionManager.getRawMessages as ReturnType<typeof vi.fn>)
-        .mockImplementationOnce(async () => {
+      (sessionManager.getRawMessages as ReturnType<typeof vi.fn>).mockImplementationOnce(
+        async () => {
           await firstBlocks;
           return [{ role: "user", content: "msg" }];
-        });
+        },
+      );
 
       queue.enqueueImmediate({ sessionKey: "s1" });
       queue.enqueueImmediate({ sessionKey: "s2" });
@@ -123,8 +126,9 @@ describe("MemoryExtractionQueue", () => {
       resolveFirst!();
       await vi.runAllTimersAsync();
 
-      const s2Calls = (sessionManager.getRawMessages as ReturnType<typeof vi.fn>)
-        .mock.calls.filter((c: Array<{ sessionKey: string }>) => c[0].sessionKey === "s2");
+      const s2Calls = (sessionManager.getRawMessages as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (c: Array<{ sessionKey: string }>) => c[0].sessionKey === "s2",
+      );
       expect(s2Calls).toHaveLength(1);
     });
   });
@@ -132,19 +136,18 @@ describe("MemoryExtractionQueue", () => {
   describe("serial processing", () => {
     it("processes multiple sessions sequentially", async () => {
       const order: string[] = [];
-      (extractor.extract as ReturnType<typeof vi.fn>).mockImplementation(
-        async () => {
-          const key = (sessionManager.getRawMessages as ReturnType<typeof vi.fn>)
-            .mock.lastCall?.[0]?.sessionKey;
-          order.push(key);
-        },
-      );
+      (extractor.extract as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+        const key = (sessionManager.getRawMessages as ReturnType<typeof vi.fn>).mock.lastCall?.[0]
+          ?.sessionKey;
+        order.push(key);
+      });
 
-      (sessionManager.getRawMessages as ReturnType<typeof vi.fn>)
-        .mockImplementation(async ({ sessionKey }: { sessionKey: string }) => ({
+      (sessionManager.getRawMessages as ReturnType<typeof vi.fn>).mockImplementation(
+        async ({ sessionKey }: { sessionKey: string }) => ({
           sessionCreatedAt: new Date("2026-02-19T12:00:00Z"),
           messages: [{ role: "user", content: `msg from ${sessionKey}` }],
-        }));
+        }),
+      );
 
       queue.enqueueImmediate({ sessionKey: "s1" });
       queue.enqueueImmediate({ sessionKey: "s2" });
@@ -158,17 +161,16 @@ describe("MemoryExtractionQueue", () => {
 
   describe("skip empty sessions", () => {
     it("does not call extract when session has no messages", async () => {
-      (sessionManager.getRawMessages as ReturnType<typeof vi.fn>).mockResolvedValue(
-        { sessionCreatedAt: new Date(), messages: [] },
-      );
+      (sessionManager.getRawMessages as ReturnType<typeof vi.fn>).mockResolvedValue({
+        sessionCreatedAt: new Date(),
+        messages: [],
+      });
 
       queue.enqueueImmediate({ sessionKey: "s1" });
       await vi.runAllTimersAsync();
 
       expect(extractor.extract).not.toHaveBeenCalled();
-      expect(
-        sessionManager.updateMemoriesExtractedAt,
-      ).not.toHaveBeenCalled();
+      expect(sessionManager.updateMemoriesExtractedAt).not.toHaveBeenCalled();
     });
   });
 
@@ -195,12 +197,10 @@ describe("MemoryExtractionQueue", () => {
   describe("error handling", () => {
     it("continues processing next session after extraction error", async () => {
       let callCount = 0;
-      (extractor.extract as ReturnType<typeof vi.fn>).mockImplementation(
-        async () => {
-          callCount++;
-          if (callCount === 1) throw new Error("AI failed");
-        },
-      );
+      (extractor.extract as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) throw new Error("AI failed");
+      });
 
       queue.enqueueImmediate({ sessionKey: "s1" });
       queue.enqueueImmediate({ sessionKey: "s2" });

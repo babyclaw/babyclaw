@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  applyJsonMergePatch,
-  isStateDocument,
-  normalizeStateKey,
-} from "./state.js";
+import { applyJsonMergePatch, isStateDocument, normalizeStateKey } from "./state.js";
 
 describe("normalizeStateKey", () => {
   it("returns a valid simple key unchanged", () => {
@@ -11,9 +7,7 @@ describe("normalizeStateKey", () => {
   });
 
   it("accepts keys with dots, slashes, and underscores", () => {
-    expect(normalizeStateKey({ key: "config/app.settings" })).toBe(
-      "config/app.settings",
-    );
+    expect(normalizeStateKey({ key: "config/app.settings" })).toBe("config/app.settings");
   });
 
   it("normalizes backslashes to forward slashes", () => {
@@ -25,15 +19,11 @@ describe("normalizeStateKey", () => {
   });
 
   it("throws on keys with invalid characters", () => {
-    expect(() => normalizeStateKey({ key: "my key!" })).toThrow(
-      "Invalid state key",
-    );
+    expect(() => normalizeStateKey({ key: "my key!" })).toThrow("Invalid state key");
   });
 
   it("throws on keys starting with non-alphanumeric", () => {
-    expect(() => normalizeStateKey({ key: ".hidden" })).toThrow(
-      "Invalid state key",
-    );
+    expect(() => normalizeStateKey({ key: ".hidden" })).toThrow("Invalid state key");
   });
 
   it("throws on path traversal (..)", () => {
@@ -43,22 +33,16 @@ describe("normalizeStateKey", () => {
   });
 
   it("throws on leading slash", () => {
-    expect(() => normalizeStateKey({ key: "/absolute" })).toThrow(
-      "Invalid state key",
-    );
+    expect(() => normalizeStateKey({ key: "/absolute" })).toThrow("Invalid state key");
   });
 
   it("throws on trailing slash", () => {
-    expect(() => normalizeStateKey({ key: "dir/" })).toThrow(
-      "Invalid state key path segments",
-    );
+    expect(() => normalizeStateKey({ key: "dir/" })).toThrow("Invalid state key path segments");
   });
 
   it("throws on keys exceeding 256 characters", () => {
     const longKey = "a".repeat(258);
-    expect(() => normalizeStateKey({ key: longKey })).toThrow(
-      "Invalid state key",
-    );
+    expect(() => normalizeStateKey({ key: longKey })).toThrow("Invalid state key");
   });
 });
 

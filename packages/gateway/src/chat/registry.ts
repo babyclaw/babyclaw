@@ -62,20 +62,12 @@ export class ChatRegistry {
   }
 
   async markAsMain({ platform, platformChatId }: PlatformChatIdentifier): Promise<Chat> {
-    await this.db
-      .update(chats)
-      .set({ isMain: false })
-      .where(eq(chats.isMain, true));
+    await this.db.update(chats).set({ isMain: false }).where(eq(chats.isMain, true));
 
     const rows = await this.db
       .update(chats)
       .set({ isMain: true, linkedAt: new Date() })
-      .where(
-        and(
-          eq(chats.platform, platform),
-          eq(chats.platformChatId, platformChatId),
-        ),
-      )
+      .where(and(eq(chats.platform, platform), eq(chats.platformChatId, platformChatId)))
       .returning();
 
     return rows[0];
@@ -85,12 +77,7 @@ export class ChatRegistry {
     const rows = await this.db
       .update(chats)
       .set({ alias, linkedAt: new Date() })
-      .where(
-        and(
-          eq(chats.platform, platform),
-          eq(chats.platformChatId, platformChatId),
-        ),
-      )
+      .where(and(eq(chats.platform, platform), eq(chats.platformChatId, platformChatId)))
       .returning();
 
     return rows[0];
@@ -100,12 +87,7 @@ export class ChatRegistry {
     const rows = await this.db
       .update(chats)
       .set({ alias: null, linkedAt: null })
-      .where(
-        and(
-          eq(chats.platform, platform),
-          eq(chats.platformChatId, platformChatId),
-        ),
-      )
+      .where(and(eq(chats.platform, platform), eq(chats.platformChatId, platformChatId)))
       .returning();
 
     return rows[0];
@@ -113,10 +95,7 @@ export class ChatRegistry {
 
   async isLinked({ platform, platformChatId }: PlatformChatIdentifier): Promise<boolean> {
     const chat = await this.db.query.chats.findFirst({
-      where: and(
-        eq(chats.platform, platform),
-        eq(chats.platformChatId, platformChatId),
-      ),
+      where: and(eq(chats.platform, platform), eq(chats.platformChatId, platformChatId)),
       columns: { linkedAt: true },
     });
 
@@ -125,10 +104,7 @@ export class ChatRegistry {
 
   async listLinkedChats({ platform }: ListLinkedChatsInput = {}): Promise<Chat[]> {
     return this.db.query.chats.findMany({
-      where: and(
-        isNotNull(chats.linkedAt),
-        ...(platform ? [eq(chats.platform, platform)] : []),
-      ),
+      where: and(isNotNull(chats.linkedAt), ...(platform ? [eq(chats.platform, platform)] : [])),
       orderBy: [asc(chats.createdAt)],
     });
   }

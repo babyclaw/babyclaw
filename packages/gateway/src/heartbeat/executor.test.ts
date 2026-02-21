@@ -84,7 +84,8 @@ function createExecutor(overrides: Record<string, any> = {}) {
   const aiAgent = overrides.aiAgent ?? createMockAiAgent();
   const sessionManager = overrides.sessionManager ?? createMockSessionManager();
   const chatRegistry = overrides.chatRegistry ?? createMockChatRegistry();
-  const messageLinkRepository = overrides.messageLinkRepository ?? createMockMessageLinkRepository();
+  const messageLinkRepository =
+    overrides.messageLinkRepository ?? createMockMessageLinkRepository();
   const channelSender = overrides.channelSender ?? createMockChannelSender();
 
   return new HeartbeatExecutor({
@@ -92,7 +93,10 @@ function createExecutor(overrides: Record<string, any> = {}) {
       workspacePath: "/tmp/test",
       aiAgent,
       sessionManager,
-      schedulerService: { getTimezone: vi.fn(() => "UTC"), getRunContextForSessionKey: vi.fn(async () => null) } as any,
+      schedulerService: {
+        getTimezone: vi.fn(() => "UTC"),
+        getRunContextForSessionKey: vi.fn(async () => null),
+      } as any,
       chatRegistry,
       deliveryService: {} as any,
       messageLinkRepository,

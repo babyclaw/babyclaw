@@ -43,26 +43,20 @@ export default command({
       const providerChoices = SUPPORTED_PROVIDERS.map((p) => {
         const configured = providers.find((e) => e.id === p.id);
         return {
-          title: configured
-            ? `${p.displayName} (configured)`
-            : p.displayName,
+          title: configured ? `${p.displayName} (configured)` : p.displayName,
           value: p.id,
         };
       });
       providerChoices.push({
         title:
-          providers.length > 0
-            ? "Done adding providers →"
-            : "(add at least one provider first)",
+          providers.length > 0 ? "Done adding providers →" : "(add at least one provider first)",
         value: "__done__",
       });
 
       client.log("");
       client.log(c.bold(" Model Provider Setup"));
       if (providers.length > 0) {
-        client.log(
-          c.muted(`  Configured: ${providers.map((p) => p.id).join(", ")}`),
-        );
+        client.log(c.muted(`  Configured: ${providers.map((p) => p.id).join(", ")}`));
       }
 
       const selected = await client.prompt({
@@ -73,9 +67,7 @@ export default command({
 
       if (selected === "__done__") {
         if (providers.length === 0) {
-          client.log(
-            c.warning("  Add at least one provider before continuing."),
-          );
+          client.log(c.warning("  Add at least one provider before continuing."));
           continue;
         }
         addingProviders = false;
@@ -129,9 +121,7 @@ export default command({
       const suggestModel = (input: string, choices: { title: string; value?: string }[]) =>
         Promise.resolve(
           input
-            ? choices.filter((ch) =>
-                ch.title.toLowerCase().includes(input.toLowerCase()),
-              )
+            ? choices.filter((ch) => ch.title.toLowerCase().includes(input.toLowerCase()))
             : choices,
         );
 
@@ -168,10 +158,7 @@ export default command({
     }
 
     try {
-      const providersObj: Record<
-        string,
-        { apiKey: string; baseUrl?: string }
-      > = {};
+      const providersObj: Record<string, { apiKey: string; baseUrl?: string }> = {};
       for (const p of providers) {
         providersObj[p.id] = {
           apiKey: p.apiKey,
@@ -200,9 +187,7 @@ export default command({
       );
     } catch (err) {
       client.log(c.error("Failed to save configuration"));
-      client.log(
-        c.muted(err instanceof Error ? err.message : String(err)),
-      );
+      client.log(c.muted(err instanceof Error ? err.message : String(err)));
       process.exitCode = 1;
     }
   },

@@ -123,10 +123,7 @@ export default command({
       client.log(c.success("  All clear! Your claw is in perfect shape. 🦀"));
     } else {
       let summary = c.success(`${passCount} passed`);
-      if (warnCount > 0)
-        summary += c.warning(
-          ` · ${warnCount} warning${warnCount > 1 ? "s" : ""}`,
-        );
+      if (warnCount > 0) summary += c.warning(` · ${warnCount} warning${warnCount > 1 ? "s" : ""}`);
       if (failCount > 0) summary += c.error(` · ${failCount} failed`);
       client.log(`  ${summary}`);
     }

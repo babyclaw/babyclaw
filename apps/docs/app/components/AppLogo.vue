@@ -1,10 +1,5 @@
 <template>
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 500 500"
-    width="100%"
-    height="100%"
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
     <defs>
       <g id="huge-claw">
         <path
@@ -15,12 +10,7 @@
           stroke-linecap="round"
         />
 
-        <circle
-          cx="0"
-          cy="60"
-          r="25"
-          fill="#E04040"
-        />
+        <circle cx="0" cy="60" r="25" fill="#E04040" />
 
         <path
           d="M 0,60 C 45,90 90,45 75,0 C 60,-45 45,-60 30,-30 C 15,0 15,30 0,60 Z"
@@ -38,55 +28,18 @@
           opacity="0.5"
         />
 
-        <circle
-          cx="20"
-          cy="-60"
-          r="6"
-          fill="#E04040"
-        />
-        <circle
-          cx="35"
-          cy="-100"
-          r="5"
-          fill="#E04040"
-        />
-        <circle
-          cx="5"
-          cy="-20"
-          r="6"
-          fill="#E04040"
-        />
+        <circle cx="20" cy="-60" r="6" fill="#E04040" />
+        <circle cx="35" cy="-100" r="5" fill="#E04040" />
+        <circle cx="5" cy="-20" r="6" fill="#E04040" />
 
-        <circle
-          cx="30"
-          cy="5"
-          r="4"
-          fill="#FF5E5E"
-        />
-        <circle
-          cx="45"
-          cy="-15"
-          r="4"
-          fill="#FF5E5E"
-        />
+        <circle cx="30" cy="5" r="4" fill="#FF5E5E" />
+        <circle cx="45" cy="-15" r="4" fill="#FF5E5E" />
       </g>
     </defs>
 
-    <circle
-      cx="250"
-      cy="250"
-      r="230"
-      fill="#E8F8FF"
-    />
+    <circle cx="250" cy="250" r="230" fill="#E8F8FF" />
 
-    <ellipse
-      cx="250"
-      cy="430"
-      rx="140"
-      ry="20"
-      fill="#D5D8DC"
-      opacity="0.8"
-    />
+    <ellipse cx="250" cy="430" rx="140" ry="20" fill="#D5D8DC" opacity="0.8" />
 
     <path
       d="M 190,130 C 100,20 20,100 50,220"
@@ -134,23 +87,11 @@
     />
 
     <g id="tail">
-      <path
-        d="M 220,390 C 180,440 160,400 210,370 Z"
-        fill="#E04040"
-      />
-      <path
-        d="M 280,390 C 320,440 340,400 290,370 Z"
-        fill="#E04040"
-      />
-      <path
-        d="M 230,400 C 230,450 270,450 270,400 Z"
-        fill="#E04040"
-      />
+      <path d="M 220,390 C 180,440 160,400 210,370 Z" fill="#E04040" />
+      <path d="M 280,390 C 320,440 340,400 290,370 Z" fill="#E04040" />
+      <path d="M 230,400 C 230,450 270,450 270,400 Z" fill="#E04040" />
 
-      <path
-        d="M 190,280 L 310,280 Q 320,400 250,410 Q 180,400 190,280 Z"
-        fill="#FF5E5E"
-      />
+      <path d="M 190,280 L 310,280 Q 320,400 250,410 Q 180,400 190,280 Z" fill="#FF5E5E" />
 
       <path
         d="M 188,310 Q 250,330 312,310"
@@ -175,15 +116,9 @@
       />
     </g>
 
-    <use
-      href="#huge-claw"
-      transform="translate(130, 290) rotate(-15)"
-    />
+    <use href="#huge-claw" transform="translate(130, 290) rotate(-15)" />
 
-    <use
-      href="#huge-claw"
-      transform="translate(370, 290) scale(-1, 1) rotate(-15)"
-    />
+    <use href="#huge-claw" transform="translate(370, 290) scale(-1, 1) rotate(-15)" />
 
     <path
       d="M 160,210 C 160,110 340,110 340,210 C 340,300 300,310 250,310 C 200,310 160,300 160,210 Z"
@@ -221,60 +156,16 @@
     />
 
     <g id="face">
-      <ellipse
-        cx="185"
-        cy="235"
-        rx="14"
-        ry="9"
-        fill="#E04040"
-        opacity="0.4"
-      />
-      <ellipse
-        cx="315"
-        cy="235"
-        rx="14"
-        ry="9"
-        fill="#E04040"
-        opacity="0.4"
-      />
+      <ellipse cx="185" cy="235" rx="14" ry="9" fill="#E04040" opacity="0.4" />
+      <ellipse cx="315" cy="235" rx="14" ry="9" fill="#E04040" opacity="0.4" />
 
-      <circle
-        cx="205"
-        cy="205"
-        r="22"
-        fill="#2C3A47"
-      />
-      <circle
-        cx="198"
-        cy="198"
-        r="8"
-        fill="#FFFFFF"
-      />
-      <circle
-        cx="212"
-        cy="212"
-        r="3"
-        fill="#FFFFFF"
-      />
+      <circle cx="205" cy="205" r="22" fill="#2C3A47" />
+      <circle cx="198" cy="198" r="8" fill="#FFFFFF" />
+      <circle cx="212" cy="212" r="3" fill="#FFFFFF" />
 
-      <circle
-        cx="295"
-        cy="205"
-        r="22"
-        fill="#2C3A47"
-      />
-      <circle
-        cx="288"
-        cy="198"
-        r="8"
-        fill="#FFFFFF"
-      />
-      <circle
-        cx="302"
-        cy="212"
-        r="3"
-        fill="#FFFFFF"
-      />
+      <circle cx="295" cy="205" r="22" fill="#2C3A47" />
+      <circle cx="288" cy="198" r="8" fill="#FFFFFF" />
+      <circle cx="302" cy="212" r="3" fill="#FFFFFF" />
 
       <path
         d="M 240,230 Q 250,245 260,230"
@@ -284,10 +175,7 @@
         stroke-linecap="round"
       />
 
-      <path
-        d="M 243,235 Q 250,252 257,235 Z"
-        fill="#FF5E5E"
-      />
+      <path d="M 243,235 Q 250,252 257,235 Z" fill="#FF5E5E" />
     </g>
   </svg>
 </template>

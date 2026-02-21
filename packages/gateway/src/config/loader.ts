@@ -26,10 +26,11 @@ export async function loadConfig(): Promise<BabyclawConfig> {
   const parsed = babyclawConfigSchema.safeParse(json);
   if (!parsed.success) {
     const issues = parsed.error.issues.map(formatIssue).join("\n");
-    log.error({ configPath, issueCount: parsed.error.issues.length }, "Configuration validation failed");
-    throw new Error(
-      `Invalid configuration at ${configPath}:\n${issues}`,
+    log.error(
+      { configPath, issueCount: parsed.error.issues.length },
+      "Configuration validation failed",
     );
+    throw new Error(`Invalid configuration at ${configPath}:\n${issues}`);
   }
 
   ensureRequiredSecrets({ config: parsed.data, configPath });
@@ -60,21 +61,13 @@ export async function loadConfigRaw(): Promise<BabyclawConfig | null> {
   return parsed.data;
 }
 
-export async function writeConfig({
-  config,
-}: {
-  config: BabyclawConfig;
-}): Promise<void> {
+export async function writeConfig({ config }: { config: BabyclawConfig }): Promise<void> {
   const configPath = getConfigPath();
   await mkdir(dirname(configPath), { recursive: true });
   await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
 }
 
-async function ensureConfigFileExists({
-  configPath,
-}: {
-  configPath: string;
-}): Promise<void> {
+async function ensureConfigFileExists({ configPath }: { configPath: string }): Promise<void> {
   try {
     await access(configPath);
     return;
@@ -85,20 +78,11 @@ async function ensureConfigFileExists({
 
     await mkdir(dirname(configPath), { recursive: true });
     await writeFile(configPath, getDefaultConfigTemplate(), "utf8");
-    getLogger().warn(
-      { configPath },
-      "Created config file. Fill required secrets and restart.",
-    );
+    getLogger().warn({ configPath }, "Created config file. Fill required secrets and restart.");
   }
 }
 
-function parseJsonConfig({
-  raw,
-  configPath,
-}: {
-  raw: string;
-  configPath: string;
-}): unknown {
+function parseJsonConfig({ raw, configPath }: { raw: string; configPath: string }): unknown {
   try {
     return JSON.parse(raw) as unknown;
   } catch (error) {
@@ -142,22 +126,12 @@ function normalizeLegacyTelegramConfig({ json }: { json: unknown }): void {
   }
 
   const obj = json as Record<string, unknown>;
-  if (
-    obj.telegram &&
-    typeof obj.telegram === "object" &&
-    !obj.channels
-  ) {
+  if (obj.telegram && typeof obj.telegram === "object" && !obj.channels) {
     obj.channels = { telegram: obj.telegram };
   }
 }
 
-function detectLegacyConfig({
-  json,
-  configPath,
-}: {
-  json: unknown;
-  configPath: string;
-}): void {
+function detectLegacyConfig({ json, configPath }: { json: unknown; configPath: string }): void {
   if (
     typeof json === "object" &&
     json !== null &&

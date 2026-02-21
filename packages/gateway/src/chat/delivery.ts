@@ -26,10 +26,7 @@ export class CrossChatDeliveryService {
   private readonly sessionManager: SessionManager;
   private readonly messageLinkRepository: MessageLinkRepository;
 
-  constructor({
-    sessionManager,
-    messageLinkRepository,
-  }: CrossChatDeliveryServiceInput) {
+  constructor({ sessionManager, messageLinkRepository }: CrossChatDeliveryServiceInput) {
     this.sessionManager = sessionManager;
     this.messageLinkRepository = messageLinkRepository;
   }

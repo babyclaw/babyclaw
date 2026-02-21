@@ -3,7 +3,11 @@ import { dirname, join, relative, resolve } from "node:path";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { normalizeSeparators, pathExists, resolveWorkspacePath } from "../utils/path.js";
-import { ensureJsonWithinLimit, ensurePayloadWithinLimit, MAX_TOOL_PAYLOAD_BYTES } from "../utils/payload.js";
+import {
+  ensureJsonWithinLimit,
+  ensurePayloadWithinLimit,
+  MAX_TOOL_PAYLOAD_BYTES,
+} from "../utils/payload.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import { ToolExecutionError, withToolLogging } from "./errors.js";
 
@@ -75,8 +79,7 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
         }),
     }),
     workspace_write: tool({
-      description:
-        "Write a text or JSON file in workspace. Modes: create, overwrite, append.",
+      description: "Write a text or JSON file in workspace. Modes: create, overwrite, append.",
       inputSchema: z.object({
         path: z.string().trim().min(1),
         format: z.enum(["text", "json"]).optional().default("text"),
@@ -89,7 +92,13 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
           context,
           toolName: "workspace_write",
           defaultCode: "WORKSPACE_WRITE_FAILED",
-          input: { path, format, mode, contentLength: content?.length, hasValue: value !== undefined },
+          input: {
+            path,
+            format,
+            mode,
+            contentLength: content?.length,
+            hasValue: value !== undefined,
+          },
           action: async () => {
             const absolutePath = resolveWorkspacePath({
               workspaceRoot: context.workspaceRoot,
@@ -182,7 +191,13 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
         path: z.string().trim().optional().default("."),
         recursive: z.boolean().optional().default(false),
         cursor: z.string().trim().min(1).optional(),
-        limit: z.number().int().positive().max(MAX_LIST_LIMIT).optional().default(DEFAULT_LIST_LIMIT),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(MAX_LIST_LIMIT)
+          .optional()
+          .default(DEFAULT_LIST_LIMIT),
       }),
       execute: async ({ path, recursive, cursor, limit }) =>
         withToolLogging({
@@ -217,9 +232,7 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
 
             const page = entries.slice(startIndex, startIndex + limit);
             const nextCursor =
-              startIndex + limit < entries.length
-                ? page[page.length - 1].path
-                : null;
+              startIndex + limit < entries.length ? page[page.length - 1].path : null;
 
             ensureJsonWithinLimit({
               value: page,
@@ -236,8 +249,7 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
         }),
     }),
     workspace_delete: tool({
-      description:
-        "Delete a file or directory from workspace.",
+      description: "Delete a file or directory from workspace.",
       inputSchema: z.object({
         path: z.string().trim().min(1),
         recursive: z.boolean().optional().default(false),
@@ -276,8 +288,7 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
         }),
     }),
     workspace_move: tool({
-      description:
-        "Move or rename a workspace path.",
+      description: "Move or rename a workspace path.",
       inputSchema: z.object({
         from_path: z.string().trim().min(1),
         to_path: z.string().trim().min(1),

@@ -23,11 +23,7 @@ export class ActiveTurnManager {
     return this.turns.get(sessionKey);
   }
 
-  async cancel({
-    sessionKey,
-  }: {
-    sessionKey: string;
-  }): Promise<string | undefined> {
+  async cancel({ sessionKey }: { sessionKey: string }): Promise<string | undefined> {
     const turn = this.turns.get(sessionKey);
     if (!turn) {
       return undefined;

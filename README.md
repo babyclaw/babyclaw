@@ -83,18 +83,18 @@ Or create `~/.babyclaw/babyclaw.json` manually:
   "version": 1,
   "channels": {
     "telegram": {
-      "botToken": "123456:ABC-DEF..."
-    }
+      "botToken": "123456:ABC-DEF...",
+    },
   },
   "ai": {
     "providers": {
-      "anthropic": { "apiKey": "sk-ant-..." }
+      "anthropic": { "apiKey": "sk-ant-..." },
     },
     "models": {
-      "chat": "anthropic/claude-sonnet-4-20250514"
+      "chat": "anthropic/claude-sonnet-4-20250514",
     },
-    "aliases": {}
-  }
+    "aliases": {},
+  },
 }
 ```
 
@@ -114,9 +114,8 @@ pnpm babyclaw doctor
 
 ## CLI commands
 
-
-| Command                                 | Description                                 |
-| --------------------------------------- | ------------------------------------------- |
+| Command                               | Description                                 |
+| ------------------------------------- | ------------------------------------------- |
 | `babyclaw config init`                | Create a fresh config file                  |
 | `babyclaw config validate`            | Validate current config                     |
 | `babyclaw config edit`                | Open config in your editor                  |
@@ -129,7 +128,6 @@ pnpm babyclaw doctor
 | `babyclaw gateway reload`             | Signal config reload                        |
 | `babyclaw skill install`              | Install a skill from ClawHub                |
 | `babyclaw doctor`                     | Run setup diagnostics                       |
-
 
 ## AI providers
 
@@ -160,7 +158,6 @@ Or let the agent install skills itself using the `clawhub_install` tool during a
 
 The workspace (default: `~/.config/babyclaw/workspace/`) holds the agent's personality and memory:
 
-
 | File                     | Purpose                                           |
 | ------------------------ | ------------------------------------------------- |
 | `IDENTITY.md`            | Name, creature type, vibe, emoji                  |
@@ -172,7 +169,6 @@ The workspace (default: `~/.config/babyclaw/workspace/`) holds the agent's perso
 | `MEMORY.md`              | Curated long-term memory                          |
 | `memory/YYYY-MM-DD.md`   | Daily memory files                                |
 | `skills/<slug>/SKILL.md` | Installed skills                                  |
-
 
 On first run, the agent bootstraps itself via `BOOTSTRAP.md` — picking a name, filling out its identity, and deleting the bootstrap file.
 
@@ -200,7 +196,6 @@ Adding a new channel means implementing the adapter interface and registering it
 
 ## BabyClaw vs OpenClaw
 
-
 |                    | BabyClaw              | OpenClaw                        |
 | ------------------ | --------------------- | ------------------------------- |
 | **Codebase**       | ~5% of OpenClaw's LoC | 84% TypeScript + Swift + Kotlin |
@@ -213,7 +208,6 @@ Adding a new channel means implementing the adapter interface and registering it
 | **Sandboxing**     | No                    | Docker per-session              |
 | **Skills**         | ClawHub compatible    | ClawHub compatible              |
 | **Workspace**      | Same concept          | Same concept                    |
-
 
 BabyClaw is not a fork — it's a reimplementation of the parts that matter most for a single-user personal assistant, built to be small enough to fit in your head.
 

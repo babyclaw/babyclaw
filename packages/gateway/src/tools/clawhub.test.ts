@@ -24,7 +24,15 @@ vi.mock("../clawhub/client.js", () => ({
   ClawHubError: class extends Error {
     statusCode: number;
     slug: string;
-    constructor({ statusCode, slug, message }: { statusCode: number; slug: string; message: string }) {
+    constructor({
+      statusCode,
+      slug,
+      message,
+    }: {
+      statusCode: number;
+      slug: string;
+      message: string;
+    }) {
       super(message);
       this.statusCode = statusCode;
       this.slug = slug;
@@ -233,9 +241,7 @@ describe("clawhub_install", () => {
       toolOptions(),
     );
 
-    expect(mockInstallSkill).toHaveBeenCalledWith(
-      expect.objectContaining({ force: true }),
-    );
+    expect(mockInstallSkill).toHaveBeenCalledWith(expect.objectContaining({ force: true }));
   });
 
   it("passes version through to installSkillFromClawHub", async () => {
@@ -246,8 +252,6 @@ describe("clawhub_install", () => {
       toolOptions(),
     );
 
-    expect(mockInstallSkill).toHaveBeenCalledWith(
-      expect.objectContaining({ version: "2.1.0" }),
-    );
+    expect(mockInstallSkill).toHaveBeenCalledWith(expect.objectContaining({ version: "2.1.0" }));
   });
 });

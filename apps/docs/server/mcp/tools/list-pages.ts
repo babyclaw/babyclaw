@@ -1,4 +1,4 @@
-import { queryCollection } from '@nuxt/content/server'
+import { queryCollection } from "@nuxt/content/server";
 
 export default defineMcpTool({
   description: `Lists all available documentation pages with their categories and basic information.
@@ -19,32 +19,32 @@ OUTPUT: Returns a structured list with:
 - path: Exact path for use with get-page
 - description: Brief summary of page content
 - url: Full URL for reference`,
-  cache: '1h',
+  cache: "1h",
   handler: async () => {
-    const event = useEvent()
-    const url = getRequestURL(event)
-    const siteUrl = import.meta.dev ? `${url.protocol}//${url.hostname}:${url.port}` : url.origin
+    const event = useEvent();
+    const url = getRequestURL(event);
+    const siteUrl = import.meta.dev ? `${url.protocol}//${url.hostname}:${url.port}` : url.origin;
 
     try {
-      const pages = await queryCollection(event, 'docs')
-        .select('title', 'path', 'description')
-        .all()
+      const pages = await queryCollection(event, "docs")
+        .select("title", "path", "description")
+        .all();
 
-      const result = pages.map(page => ({
+      const result = pages.map((page) => ({
         title: page.title,
         path: page.path,
         description: page.description,
-        url: `${siteUrl}${page.path}`
-      }))
+        url: `${siteUrl}${page.path}`,
+      }));
 
       return {
-        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
-      }
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
     } catch {
       return {
-        content: [{ type: 'text', text: 'Failed to list pages' }],
-        isError: true
-      }
+        content: [{ type: "text", text: "Failed to list pages" }],
+        isError: true,
+      };
     }
-  }
-})
+  },
+});

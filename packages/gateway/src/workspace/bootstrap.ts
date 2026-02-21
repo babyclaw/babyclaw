@@ -11,9 +11,7 @@ type WorkspaceInput = {
  * For existing workspaces (where IDENTITY.md or SOUL.md already exist),
  * BOOTSTRAP.md is skipped since bootstrap has already happened.
  */
-export async function bootstrapWorkspace({
-  workspacePath,
-}: WorkspaceInput): Promise<void> {
+export async function bootstrapWorkspace({ workspacePath }: WorkspaceInput): Promise<void> {
   const isExistingWorkspace = await hasAnyPersonalityFile({ workspacePath });
 
   const writes = ALL_TEMPLATES.map(async ({ filename, content }) => {
@@ -64,9 +62,7 @@ export async function readHeartbeatInstructions({
   return meaningful.length > 0 ? raw : null;
 }
 
-async function hasAnyPersonalityFile({
-  workspacePath,
-}: WorkspaceInput): Promise<boolean> {
+async function hasAnyPersonalityFile({ workspacePath }: WorkspaceInput): Promise<boolean> {
   const candidates = ["IDENTITY.md", "SOUL.md"];
   const checks = await Promise.all(
     candidates.map((name) => fileExists({ path: join(workspacePath, name) })),
@@ -83,11 +79,7 @@ async function fileExists({ path }: { path: string }): Promise<boolean> {
   }
 }
 
-async function readOptionalFile({
-  path,
-}: {
-  path: string;
-}): Promise<string | undefined> {
+async function readOptionalFile({ path }: { path: string }): Promise<string | undefined> {
   try {
     const content = await readFile(path, "utf8");
     return content.trim().length > 0 ? content.trim() : undefined;

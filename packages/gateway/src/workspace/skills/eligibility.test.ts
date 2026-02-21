@@ -1,10 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  binaryExists,
-  getConfigValue,
-  getEligibleSkills,
-} from "./eligibility.js";
+import { binaryExists, getConfigValue, getEligibleSkills } from "./eligibility.js";
 import type { SkillEntry, SkillsConfig } from "./types.js";
 
 vi.mock("node:child_process", () => ({
@@ -228,11 +224,9 @@ describe("shouldIncludeSkill (via getEligibleSkills)", () => {
     });
 
     it("excludes skill when a required binary is missing", () => {
-      mockedExecFileSync
-        .mockReturnValueOnce(Buffer.from(""))
-        .mockImplementationOnce(() => {
-          throw new Error("not found");
-        });
+      mockedExecFileSync.mockReturnValueOnce(Buffer.from("")).mockImplementationOnce(() => {
+        throw new Error("not found");
+      });
       const skills = [
         makeSkill({
           openclaw: { requires: { bins: ["node", "missing-bin"] } },

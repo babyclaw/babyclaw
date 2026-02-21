@@ -39,10 +39,7 @@ export default command({
 
     try {
       const config = await loadConfigRaw();
-      const workspacePath = resolve(
-        process.cwd(),
-        config?.workspace?.root ?? ".",
-      );
+      const workspacePath = resolve(process.cwd(), config?.workspace?.root ?? ".");
 
       const installResult = await installSkillFromClawHub({
         slug,
@@ -82,46 +79,27 @@ export default command({
         client.log(c.success("  ✓ Dependencies set up"));
       }
       if (setupError) {
-        client.log(
-          c.warning(
-            "  ⚠ Setup failed (skill files are still installed)",
-          ),
-        );
+        client.log(c.warning("  ⚠ Setup failed (skill files are still installed)"));
         client.log(c.muted(`    ${setupError}`));
       }
 
-      client.log(
-        c.muted(
-          "  The skill will be available on the next agent session.",
-        ),
-      );
+      client.log(c.muted("  The skill will be available on the next agent session."));
     } catch (error) {
       if (error instanceof SkillAlreadyInstalledError) {
-        client.log(
-          c.warning(`⚠ Skill "${slug}" is already installed.`),
-        );
-        client.log(
-          c.muted("  Use ") + c.info("--force") + c.muted(" to overwrite."),
-        );
+        client.log(c.warning(`⚠ Skill "${slug}" is already installed.`));
+        client.log(c.muted("  Use ") + c.info("--force") + c.muted(" to overwrite."));
         return;
       }
 
       if (error instanceof ClawHubError && error.statusCode === 404) {
         client.log(c.error(`✗ Skill "${slug}" not found on ClawHub.`));
-        client.log(
-          c.muted("  Browse available skills at ") +
-            c.info("https://clawhub.ai/skills"),
-        );
+        client.log(c.muted("  Browse available skills at ") + c.info("https://clawhub.ai/skills"));
         process.exitCode = 1;
         return;
       }
 
       client.log(c.error(`✗ Failed to install skill "${slug}"`));
-      client.log(
-        c.muted(
-          `  ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      );
+      client.log(c.muted(`  ${error instanceof Error ? error.message : String(error)}`));
       process.exitCode = 1;
     }
   },

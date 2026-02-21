@@ -120,8 +120,8 @@ function buildSkillsSystemPrompt({
     "You have access to a skills system. Skills are SKILL.md files inside the skills/ directory of your workspace that teach you how to perform specific tasks.",
     "",
     "Using skills:",
-    '1. When you receive a request, check the <available_skills> listing below to see if a relevant skill exists.',
-    '2. If a skill matches, you MUST call workspace_read on the skill path to get the full instructions. Do NOT skip this step — the listing only contains a short description, not the actual instructions.',
+    "1. When you receive a request, check the <available_skills> listing below to see if a relevant skill exists.",
+    "2. If a skill matches, you MUST call workspace_read on the skill path to get the full instructions. Do NOT skip this step — the listing only contains a short description, not the actual instructions.",
     "3. Follow the instructions from the skill file you just read.",
     "4. If no skill matches, proceed normally with your built-in capabilities.",
   ];
@@ -140,10 +140,7 @@ function buildSkillsSystemPrompt({
     }
     lines.push("</available_skills>");
   } else {
-    lines.push(
-      "",
-      "No skills are currently available.",
-    );
+    lines.push("", "No skills are currently available.");
   }
 
   if (toolNotesContent) {
@@ -161,7 +158,11 @@ function buildSkillsSystemPrompt({
 }
 
 function escapeXmlAttr(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function escapeXmlText(value: string): string {
@@ -178,11 +179,7 @@ export function getWorkspaceGuideSystemMessage({
   const lines: string[] = [];
 
   if (agentsContent) {
-    lines.push(
-      "<workspace_guide>",
-      agentsContent,
-      "</workspace_guide>",
-    );
+    lines.push("<workspace_guide>", agentsContent, "</workspace_guide>");
   }
 
   if (bootstrapContent) {
@@ -244,10 +241,7 @@ export function getMainSessionSystemMessage({
 
   const nonMainChats = linkedChats.filter((c) => !c.isMain);
   if (nonMainChats.length > 0) {
-    lines.push(
-      "",
-      "You are present in these linked chats:",
-    );
+    lines.push("", "You are present in these linked chats:");
     for (const chat of nonMainChats) {
       const aliasLabel = chat.alias ? `, alias: ${chat.alias}` : "";
       lines.push(
@@ -343,12 +337,8 @@ export function getWorkingMemorySystemMessage({
   return { role: "system", content: lines.join("\n") };
 }
 
-function buildSharedSystemPrompt({
-  personalityFiles,
-}: SharedContextInput): string {
-  const basePrompt = [
-    "You are a personal assistant running inside OpenClaw.",
-  ];
+function buildSharedSystemPrompt({ personalityFiles }: SharedContextInput): string {
+  const basePrompt = ["You are a personal assistant running inside OpenClaw."];
 
   if (!personalityFiles) {
     return basePrompt.join("\n");

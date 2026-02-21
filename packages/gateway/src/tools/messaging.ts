@@ -27,18 +27,8 @@ export function createMessagingTools({
         "Provide either alias or chat_id to identify the target.",
       ].join(" "),
       inputSchema: z.object({
-        alias: z
-          .string()
-          .trim()
-          .min(1)
-          .optional()
-          .describe("Target chat alias (e.g. 'family')"),
-        chat_id: z
-          .string()
-          .trim()
-          .min(1)
-          .optional()
-          .describe("Target platform chat ID"),
+        alias: z.string().trim().min(1).optional().describe("Target chat alias (e.g. 'family')"),
+        chat_id: z.string().trim().min(1).optional().describe("Target platform chat ID"),
         text: z.string().trim().min(1).describe("Message text to send"),
         thread_id: z
           .string()
@@ -64,8 +54,7 @@ export function createMessagingTools({
             if (!alias && !chat_id) {
               throw new ToolExecutionError({
                 code: "MISSING_TARGET",
-                message:
-                  "Provide either alias or chat_id to identify the target chat.",
+                message: "Provide either alias or chat_id to identify the target chat.",
               });
             }
 

@@ -236,8 +236,18 @@ describe("getMainSessionSystemMessage", () => {
   it("lists linked chats with alias, title, type, and platform", () => {
     const chats = [
       makeChatRecord({ isMain: true, title: "Owner DM", alias: null }),
-      makeChatRecord({ alias: "family", title: "Family Group", type: "group", platformChatId: "-1001234" }),
-      makeChatRecord({ alias: "work", title: "Work Team", type: "supergroup", platformChatId: "-1009876" }),
+      makeChatRecord({
+        alias: "family",
+        title: "Family Group",
+        type: "group",
+        platformChatId: "-1001234",
+      }),
+      makeChatRecord({
+        alias: "work",
+        title: "Work Team",
+        type: "supergroup",
+        platformChatId: "-1009876",
+      }),
     ];
     const msg = getMainSessionSystemMessage({ linkedChats: chats });
     expect(msg.content).toContain('"Family Group" (group, alias: family');
@@ -252,9 +262,7 @@ describe("getMainSessionSystemMessage", () => {
   });
 
   it("excludes main chat from the list", () => {
-    const chats = [
-      makeChatRecord({ isMain: true, title: "Owner DM", alias: null }),
-    ];
+    const chats = [makeChatRecord({ isMain: true, title: "Owner DM", alias: null })];
     const msg = getMainSessionSystemMessage({ linkedChats: chats });
     expect(msg.content).not.toContain("Owner DM");
   });

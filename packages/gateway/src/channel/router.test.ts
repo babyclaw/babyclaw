@@ -32,17 +32,15 @@ describe("ChannelRouter", () => {
     const router = new ChannelRouter();
     router.register({ adapter: createMockAdapter("telegram") });
 
-    expect(() =>
-      router.register({ adapter: createMockAdapter("telegram") }),
-    ).toThrow("already registered");
+    expect(() => router.register({ adapter: createMockAdapter("telegram") })).toThrow(
+      "already registered",
+    );
   });
 
   it("throws when getting unregistered platform", () => {
     const router = new ChannelRouter();
 
-    expect(() => router.getAdapter({ platform: "slack" })).toThrow(
-      "No channel adapter registered",
-    );
+    expect(() => router.getAdapter({ platform: "slack" })).toThrow("No channel adapter registered");
   });
 
   it("lists all registered platforms", () => {

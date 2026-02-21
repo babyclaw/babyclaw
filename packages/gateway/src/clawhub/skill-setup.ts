@@ -4,11 +4,7 @@ import { generateText, stepCountIs, type LanguageModel } from "ai";
 import { createShellTools } from "../tools/shell.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import type { SkillInstallSpec } from "../workspace/skills/types.js";
-import {
-  parseFrontmatter,
-  buildFrontmatter,
-  FRONTMATTER_RE,
-} from "../workspace/skills/scanner.js";
+import { parseFrontmatter, buildFrontmatter, FRONTMATTER_RE } from "../workspace/skills/scanner.js";
 import { getLogger } from "../logging/index.js";
 
 export type SkillSetupResult = {
@@ -59,9 +55,7 @@ function specToCommand({ spec }: { spec: SkillInstallSpec }): string | null {
       if (spec.extract && spec.archive) {
         const target = spec.targetDir ? ` -C ${spec.targetDir}` : "";
         const strip =
-          spec.stripComponents != null
-            ? ` --strip-components=${spec.stripComponents}`
-            : "";
+          spec.stripComponents != null ? ` --strip-components=${spec.stripComponents}` : "";
         parts.push(`curl -fsSL ${spec.url} | tar xz${strip}${target}`);
       } else {
         parts.push(`curl -fsSL -o ${spec.archive ?? "download"} ${spec.url}`);
@@ -73,22 +67,14 @@ function specToCommand({ spec }: { spec: SkillInstallSpec }): string | null {
   }
 }
 
-function filterSpecsByOs({
-  specs,
-}: {
-  specs: SkillInstallSpec[];
-}): SkillInstallSpec[] {
+function filterSpecsByOs({ specs }: { specs: SkillInstallSpec[] }): SkillInstallSpec[] {
   return specs.filter((spec) => {
     if (!spec.os || spec.os.length === 0) return true;
     return spec.os.includes(process.platform);
   });
 }
 
-export function buildSetupPrompt({
-  skillContent,
-}: {
-  skillContent: string;
-}): SetupPrompt {
+export function buildSetupPrompt({ skillContent }: { skillContent: string }): SetupPrompt {
   const log = getLogger().child({ component: "skill-setup" });
 
   const raw = parseFrontmatter({ content: skillContent });
@@ -119,7 +105,9 @@ export function buildSetupPrompt({
         lines.push(`- [${label}] \`${cmd}\``);
         log.debug({ kind: spec.kind, command: cmd }, "Generated install command");
       } else {
-        lines.push(`- [${label}] (unable to generate command — review spec: ${JSON.stringify(spec)})`);
+        lines.push(
+          `- [${label}] (unable to generate command — review spec: ${JSON.stringify(spec)})`,
+        );
         log.warn({ kind: spec.kind, spec }, "Unable to generate command for install spec");
       }
       if (spec.bins && spec.bins.length > 0) {
@@ -131,7 +119,9 @@ export function buildSetupPrompt({
 
   if (body.length > 0) {
     lines.push("## Full skill content\n");
-    lines.push("Review this for any additional install/setup instructions beyond the structured specs above.\n");
+    lines.push(
+      "Review this for any additional install/setup instructions beyond the structured specs above.\n",
+    );
     lines.push(body);
   }
 

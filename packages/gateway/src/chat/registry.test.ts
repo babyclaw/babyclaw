@@ -143,9 +143,7 @@ describe("ChatRegistry", () => {
         alias: "test",
       });
 
-      expect(
-        await registry.isLinked({ platform: "telegram", platformChatId: "12345" }),
-      ).toBe(true);
+      expect(await registry.isLinked({ platform: "telegram", platformChatId: "12345" })).toBe(true);
     });
 
     it("returns false when chat has no linkedAt", async () => {
@@ -157,17 +155,17 @@ describe("ChatRegistry", () => {
         type: "private",
       });
 
-      expect(
-        await registry.isLinked({ platform: "telegram", platformChatId: "12345" }),
-      ).toBe(false);
+      expect(await registry.isLinked({ platform: "telegram", platformChatId: "12345" })).toBe(
+        false,
+      );
     });
 
     it("returns false when chat does not exist", async () => {
       const registry = createRegistry();
 
-      expect(
-        await registry.isLinked({ platform: "telegram", platformChatId: "99999" }),
-      ).toBe(false);
+      expect(await registry.isLinked({ platform: "telegram", platformChatId: "99999" })).toBe(
+        false,
+      );
     });
   });
 

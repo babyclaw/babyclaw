@@ -116,9 +116,7 @@ export class SchedulerService {
         chatId: Number(chatId),
         createdByUserId: Number(createdByUserId),
         threadId: threadId ? Number(threadId) : null,
-        directMessagesTopicId: directMessagesTopicId
-          ? Number(directMessagesTopicId)
-          : null,
+        directMessagesTopicId: directMessagesTopicId ? Number(directMessagesTopicId) : null,
         sourceText,
         title: normalizeNullableString({ value: title }),
         taskPrompt: taskPrompt.trim(),
@@ -150,11 +148,7 @@ export class SchedulerService {
         eq(schedules.chatId, Number(chatId)),
         ...(includeInactive ? [] : [eq(schedules.status, ScheduleStatus.active)]),
       ),
-      orderBy: [
-        asc(schedules.status),
-        asc(schedules.nextRunAt),
-        desc(schedules.createdAt),
-      ],
+      orderBy: [asc(schedules.status), asc(schedules.nextRunAt), desc(schedules.createdAt)],
     });
   }
 
@@ -204,17 +198,12 @@ export class SchedulerService {
       })
       .from(schedules)
       .where(
-        and(
-          eq(schedules.chatId, Number(chatId)),
-          eq(schedules.status, ScheduleStatus.active),
-        ),
+        and(eq(schedules.chatId, Number(chatId)), eq(schedules.status, ScheduleStatus.active)),
       );
 
     const matched = activeSchedules.filter((schedule) => {
       const haystacks = [schedule.title ?? "", schedule.taskPrompt];
-      return haystacks.some((candidate) =>
-        candidate.toLowerCase().includes(normalizedQuery),
-      );
+      return haystacks.some((candidate) => candidate.toLowerCase().includes(normalizedQuery));
     });
 
     if (matched.length === 0) {
@@ -320,17 +309,8 @@ export class SchedulerService {
     return rows[0];
   }
 
-  async updateRun({
-    runId,
-    data,
-  }: {
-    runId: string;
-    data: ScheduleRunUpdateData;
-  }): Promise<void> {
-    await this.db
-      .update(scheduleRuns)
-      .set(data)
-      .where(eq(scheduleRuns.id, runId));
+  async updateRun({ runId, data }: { runId: string; data: ScheduleRunUpdateData }): Promise<void> {
+    await this.db.update(scheduleRuns).set(data).where(eq(scheduleRuns.id, runId));
   }
 
   async completeAfterSkippedDowntime({
@@ -389,9 +369,7 @@ export class SchedulerService {
     }
 
     if (!schedule.cronExpression) {
-      throw new Error(
-        `Recurring schedule ${scheduleId} is missing cronExpression`,
-      );
+      throw new Error(`Recurring schedule ${scheduleId} is missing cronExpression`);
     }
 
     const nextRunAt = getNextRunAt({
@@ -407,9 +385,7 @@ export class SchedulerService {
   }
 
   async cleanupOldRuns({ now = new Date() }: { now?: Date } = {}): Promise<number> {
-    const cutoff = new Date(
-      now.getTime() - RUN_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-    );
+    const cutoff = new Date(now.getTime() - RUN_RETENTION_DAYS * 24 * 60 * 60 * 1000);
     const deleted = await this.db
       .delete(scheduleRuns)
       .where(lt(scheduleRuns.createdAt, cutoff))
@@ -445,11 +421,7 @@ export class SchedulerService {
   }
 }
 
-function normalizeNullableString({
-  value,
-}: {
-  value: string | null;
-}): string | null {
+function normalizeNullableString({ value }: { value: string | null }): string | null {
   if (value === null) {
     return null;
   }
@@ -472,9 +444,7 @@ function ensureMinimumRecurringInterval({
 
   const deltaMs = second.toMillis() - first.toMillis();
   if (!Number.isFinite(deltaMs) || deltaMs < MIN_RECURRING_INTERVAL_MS) {
-    throw new Error(
-      "cron_expression must have an interval of at least 5 minutes",
-    );
+    throw new Error("cron_expression must have an interval of at least 5 minutes");
   }
 }
 

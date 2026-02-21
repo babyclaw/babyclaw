@@ -7,15 +7,11 @@ describe("toErrorMessage", () => {
   });
 
   it("returns the message from a subclass of Error", () => {
-    expect(toErrorMessage({ error: new TypeError("bad type") })).toBe(
-      "bad type",
-    );
+    expect(toErrorMessage({ error: new TypeError("bad type") })).toBe("bad type");
   });
 
   it("stringifies a plain string", () => {
-    expect(toErrorMessage({ error: "something went wrong" })).toBe(
-      "something went wrong",
-    );
+    expect(toErrorMessage({ error: "something went wrong" })).toBe("something went wrong");
   });
 
   it("stringifies a number", () => {
@@ -31,8 +27,6 @@ describe("toErrorMessage", () => {
   });
 
   it("stringifies an object", () => {
-    expect(toErrorMessage({ error: { code: 500 } })).toBe(
-      "[object Object]",
-    );
+    expect(toErrorMessage({ error: { code: 500 } })).toBe("[object Object]");
   });
 });

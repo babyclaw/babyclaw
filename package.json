@@ -1,8 +1,11 @@
 {
   "name": "babyclaw",
   "version": "1.0.0",
-  "description": "BabyClaw - your friendly agent gateway",
   "private": true,
+  "description": "BabyClaw - your friendly agent gateway",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
@@ -11,9 +14,10 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check ."
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "oxfmt": "^0.34.0"
+  },
   "packageManager": "pnpm@10.12.3",
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -23,9 +27,5 @@
       "sharp",
       "unrs-resolver"
     ]
-  },
-  "devDependencies": {
-    "@changesets/cli": "^2.29.8",
-    "oxfmt": "^0.34.0"
   }
 }

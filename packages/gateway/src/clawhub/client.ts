@@ -1,5 +1,4 @@
-const CLAWHUB_API_BASE =
-  process.env.CLAWHUB_REGISTRY ?? "https://clawhub.ai/api/v1";
+const CLAWHUB_API_BASE = process.env.CLAWHUB_REGISTRY ?? "https://clawhub.ai/api/v1";
 
 export class ClawHubError extends Error {
   readonly statusCode: number;
@@ -93,8 +92,7 @@ async function handleErrorResponse({
     throw new ClawHubError({
       statusCode: 423,
       slug,
-      message:
-        body || `Skill "${slug}" is pending a security scan. Try again shortly.`,
+      message: body || `Skill "${slug}" is pending a security scan. Try again shortly.`,
     });
   }
 
@@ -113,11 +111,7 @@ async function handleErrorResponse({
   });
 }
 
-export async function getSkillInfo({
-  slug,
-}: {
-  slug: string;
-}): Promise<SkillInfo> {
+export async function getSkillInfo({ slug }: { slug: string }): Promise<SkillInfo> {
   const response = await fetch(`${CLAWHUB_API_BASE}/skills/${encodeURIComponent(slug)}`);
 
   if (!response.ok) {

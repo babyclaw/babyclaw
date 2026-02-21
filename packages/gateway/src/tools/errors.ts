@@ -60,7 +60,7 @@ export async function withToolLogging<TSuccess extends object>({
   });
 
   toolLog.info(
-    (input ? { input: redactToolInput({ input }) } : {}),
+    input ? { input: redactToolInput({ input }) } : {},
     `Tool call started: ${toolName}`,
   );
 
@@ -68,10 +68,7 @@ export async function withToolLogging<TSuccess extends object>({
     const result = await action();
     const durationMs = Date.now() - startedAt;
 
-    toolLog.info(
-      { durationMs, success: true },
-      `Tool call completed: ${toolName}`,
-    );
+    toolLog.info({ durationMs, success: true }, `Tool call completed: ${toolName}`);
 
     if (toolLog.isLevelEnabled("debug")) {
       const resultStr = JSON.stringify(result);

@@ -2,12 +2,7 @@ import { asc, count, desc, eq, inArray, not } from "drizzle-orm";
 import type { ModelMessage } from "ai";
 import { buildUserContentFromMetadata } from "../agent/helpers.js";
 import type { Database } from "../database/client.js";
-import {
-  MessageRole,
-  messages,
-  sessions,
-  type Message,
-} from "../database/schema.js";
+import { MessageRole, messages, sessions, type Message } from "../database/schema.js";
 import { getLogger } from "../logging/index.js";
 import type {
   DeriveSessionIdentityInput,
@@ -43,10 +38,7 @@ export class SessionManager {
   private readonly db: Database;
   private readonly maxMessagesPerSession: number;
 
-  constructor({
-    db,
-    maxMessagesPerSession = 120,
-  }: SessionManagerConstructorInput) {
+  constructor({ db, maxMessagesPerSession = 120 }: SessionManagerConstructorInput) {
     this.db = db;
     this.maxMessagesPerSession = maxMessagesPerSession;
   }
@@ -191,7 +183,13 @@ export class SessionManager {
     return session?.workingMemory ?? null;
   }
 
-  async updateWorkingMemory({ sessionKey, content }: { sessionKey: string; content: string }): Promise<void> {
+  async updateWorkingMemory({
+    sessionKey,
+    content,
+  }: {
+    sessionKey: string;
+    content: string;
+  }): Promise<void> {
     await this.db
       .update(sessions)
       .set({ workingMemory: content })
@@ -207,10 +205,7 @@ export class SessionManager {
   }
 
   async setTitle({ sessionKey, title }: { sessionKey: string; title: string }): Promise<void> {
-    await this.db
-      .update(sessions)
-      .set({ title })
-      .where(eq(sessions.key, sessionKey));
+    await this.db.update(sessions).set({ title }).where(eq(sessions.key, sessionKey));
   }
 
   async findSessionsNeedingExtraction(): Promise<Array<{ key: string }>> {
@@ -225,9 +220,7 @@ export class SessionManager {
       .from(sessions)
       .where(not(eq(sessions.key, "")));
 
-    const candidates = allSessions.filter(
-      (s) => !s.key.startsWith("schedule:"),
-    );
+    const candidates = allSessions.filter((s) => !s.key.startsWith("schedule:"));
 
     log.info(
       { candidateCount: candidates.length },

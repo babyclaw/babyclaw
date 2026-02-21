@@ -14,7 +14,10 @@ function createMockAiAgent() {
 const SESSION_DATE = new Date("2026-02-19T12:00:00Z");
 const SESSION_DATE_STR = "2026-02-19";
 
-function extractCall(args: { sessionDate?: Date; messages?: Array<{ role: string; content: string }> }) {
+function extractCall(args: {
+  sessionDate?: Date;
+  messages?: Array<{ role: string; content: string }>;
+}) {
   return { sessionDate: SESSION_DATE, ...args };
 }
 
@@ -40,24 +43,26 @@ describe("MemoryExtractor", () => {
   });
 
   it("does nothing when all messages are system role", async () => {
-    await extractor.extract(extractCall({
-      messages: [{ role: "system", content: "You are helpful." }],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [{ role: "system", content: "You are helpful." }],
+      }),
+    );
 
     expect(aiAgent.chat).not.toHaveBeenCalled();
   });
 
   it("formats transcript with User/Assistant labels", async () => {
-    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "- User likes cats",
-    );
+    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue("- User likes cats");
 
-    await extractor.extract(extractCall({
-      messages: [
-        { role: "user", content: "I love cats" },
-        { role: "assistant", content: "That's great!" },
-      ],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [
+          { role: "user", content: "I love cats" },
+          { role: "assistant", content: "That's great!" },
+        ],
+      }),
+    );
 
     expect(aiAgent.chat).toHaveBeenCalledOnce();
     const callArgs = (aiAgent.chat as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -67,13 +72,13 @@ describe("MemoryExtractor", () => {
   });
 
   it("wraps transcript in XML tags", async () => {
-    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "NOTHING_TO_EXTRACT",
-    );
+    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue("NOTHING_TO_EXTRACT");
 
-    await extractor.extract(extractCall({
-      messages: [{ role: "user", content: "hi" }],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    );
 
     const callArgs = (aiAgent.chat as ReturnType<typeof vi.fn>).mock.calls[0][0];
     const userPrompt = callArgs.messages[1].content as string;
@@ -82,9 +87,7 @@ describe("MemoryExtractor", () => {
   });
 
   it("uses sessionDate for the memory file name", async () => {
-    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "- Important memory",
-    );
+    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue("- Important memory");
 
     const pastDate = new Date("2025-03-15T10:00:00Z");
 
@@ -104,12 +107,14 @@ describe("MemoryExtractor", () => {
       "- User prefers TypeScript over JavaScript",
     );
 
-    await extractor.extract(extractCall({
-      messages: [
-        { role: "user", content: "I prefer TypeScript" },
-        { role: "assistant", content: "Noted!" },
-      ],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [
+          { role: "user", content: "I prefer TypeScript" },
+          { role: "assistant", content: "Noted!" },
+        ],
+      }),
+    );
 
     const filePath = join(workspacePath, "memory", `${SESSION_DATE_STR}.md`);
     const content = await readFile(filePath, "utf8");
@@ -132,12 +137,14 @@ describe("MemoryExtractor", () => {
       "- New memory about project deadline",
     );
 
-    await extractor.extract(extractCall({
-      messages: [
-        { role: "user", content: "The deadline is Friday" },
-        { role: "assistant", content: "Got it!" },
-      ],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [
+          { role: "user", content: "The deadline is Friday" },
+          { role: "assistant", content: "Got it!" },
+        ],
+      }),
+    );
 
     const filePath = join(memoryDir, `${SESSION_DATE_STR}.md`);
     const content = await readFile(filePath, "utf8");
@@ -152,19 +159,15 @@ describe("MemoryExtractor", () => {
     const { mkdir, writeFile } = await import("node:fs/promises");
     const memoryDir = join(workspacePath, "memory");
     await mkdir(memoryDir, { recursive: true });
-    await writeFile(
-      join(memoryDir, `${SESSION_DATE_STR}.md`),
-      "- Already known fact\n",
-      "utf8",
-    );
+    await writeFile(join(memoryDir, `${SESSION_DATE_STR}.md`), "- Already known fact\n", "utf8");
 
-    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "NOTHING_TO_EXTRACT",
-    );
+    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue("NOTHING_TO_EXTRACT");
 
-    await extractor.extract(extractCall({
-      messages: [{ role: "user", content: "hi" }],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    );
 
     const callArgs = (aiAgent.chat as ReturnType<typeof vi.fn>).mock.calls[0][0];
     const userPrompt = callArgs.messages[1].content as string;
@@ -174,16 +177,16 @@ describe("MemoryExtractor", () => {
   });
 
   it("does not write file when AI returns NOTHING_TO_EXTRACT", async () => {
-    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "NOTHING_TO_EXTRACT",
-    );
+    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue("NOTHING_TO_EXTRACT");
 
-    await extractor.extract(extractCall({
-      messages: [
-        { role: "user", content: "hello" },
-        { role: "assistant", content: "hi" },
-      ],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [
+          { role: "user", content: "hello" },
+          { role: "assistant", content: "hi" },
+        ],
+      }),
+    );
 
     const filePath = join(workspacePath, "memory", `${SESSION_DATE_STR}.md`);
     await expect(readFile(filePath, "utf8")).rejects.toThrow();
@@ -192,29 +195,31 @@ describe("MemoryExtractor", () => {
   it("does not write file when AI returns empty string", async () => {
     (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue("   ");
 
-    await extractor.extract(extractCall({
-      messages: [
-        { role: "user", content: "hello" },
-        { role: "assistant", content: "hi" },
-      ],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [
+          { role: "user", content: "hello" },
+          { role: "assistant", content: "hi" },
+        ],
+      }),
+    );
 
     const filePath = join(workspacePath, "memory", `${SESSION_DATE_STR}.md`);
     await expect(readFile(filePath, "utf8")).rejects.toThrow();
   });
 
   it("filters out system messages from the transcript", async () => {
-    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "NOTHING_TO_EXTRACT",
-    );
+    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue("NOTHING_TO_EXTRACT");
 
-    await extractor.extract(extractCall({
-      messages: [
-        { role: "system", content: "You are a helpful assistant." },
-        { role: "user", content: "hello" },
-        { role: "assistant", content: "hi there" },
-      ],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [
+          { role: "system", content: "You are a helpful assistant." },
+          { role: "user", content: "hello" },
+          { role: "assistant", content: "hi there" },
+        ],
+      }),
+    );
 
     const callArgs = (aiAgent.chat as ReturnType<typeof vi.fn>).mock.calls[0][0];
     const userPrompt = callArgs.messages[1].content as string;
@@ -224,13 +229,13 @@ describe("MemoryExtractor", () => {
   });
 
   it("sends the extraction system prompt", async () => {
-    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "NOTHING_TO_EXTRACT",
-    );
+    (aiAgent.chat as ReturnType<typeof vi.fn>).mockResolvedValue("NOTHING_TO_EXTRACT");
 
-    await extractor.extract(extractCall({
-      messages: [{ role: "user", content: "test" }],
-    }));
+    await extractor.extract(
+      extractCall({
+        messages: [{ role: "user", content: "test" }],
+      }),
+    );
 
     const callArgs = (aiAgent.chat as ReturnType<typeof vi.fn>).mock.calls[0][0];
     const systemPrompt = callArgs.messages[0].content as string;

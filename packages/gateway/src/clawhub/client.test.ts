@@ -3,12 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
-import {
-  getSkillInfo,
-  getSkillVersionFiles,
-  getSkillFileContent,
-  ClawHubError,
-} from "./client.js";
+import { getSkillInfo, getSkillVersionFiles, getSkillFileContent, ClawHubError } from "./client.js";
 
 function ok(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200 });
@@ -45,9 +40,7 @@ describe("getSkillInfo", () => {
 
     const result = await getSkillInfo({ slug: "foo" });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://clawhub.ai/api/v1/skills/foo",
-    );
+    expect(mockFetch).toHaveBeenCalledWith("https://clawhub.ai/api/v1/skills/foo");
     expect(result).toEqual(payload);
   });
 
@@ -55,9 +48,7 @@ describe("getSkillInfo", () => {
     mockFetch.mockResolvedValueOnce(ok({ skill: {} }));
     await getSkillInfo({ slug: "a/b c" });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://clawhub.ai/api/v1/skills/a%2Fb%20c",
-    );
+    expect(mockFetch).toHaveBeenCalledWith("https://clawhub.ai/api/v1/skills/a%2Fb%20c");
   });
 });
 
@@ -135,9 +126,7 @@ describe("error handling", () => {
   it("throws with 404 and a fixed message (ignores body)", async () => {
     mockFetch.mockResolvedValueOnce(fail(404, "custom body"));
 
-    const err: ClawHubError = await getSkillInfo({ slug: "gone" }).catch(
-      (e) => e,
-    );
+    const err: ClawHubError = await getSkillInfo({ slug: "gone" }).catch((e) => e);
     expect(err).toBeInstanceOf(ClawHubError);
     expect(err.statusCode).toBe(404);
     expect(err.slug).toBe("gone");
@@ -147,9 +136,7 @@ describe("error handling", () => {
   it("throws with 403 using response body when present", async () => {
     mockFetch.mockResolvedValueOnce(fail(403, "Blocked by admin"));
 
-    const err: ClawHubError = await getSkillInfo({ slug: "bad" }).catch(
-      (e) => e,
-    );
+    const err: ClawHubError = await getSkillInfo({ slug: "bad" }).catch((e) => e);
     expect(err).toBeInstanceOf(ClawHubError);
     expect(err.statusCode).toBe(403);
     expect(err.message).toBe("Blocked by admin");
@@ -158,9 +145,7 @@ describe("error handling", () => {
   it("throws with 403 fallback when body is empty", async () => {
     mockFetch.mockResolvedValueOnce(fail(403));
 
-    const err: ClawHubError = await getSkillInfo({ slug: "bad" }).catch(
-      (e) => e,
-    );
+    const err: ClawHubError = await getSkillInfo({ slug: "bad" }).catch((e) => e);
     expect(err.message).toBe('Skill "bad" is blocked by moderation.');
   });
 
@@ -179,20 +164,14 @@ describe("error handling", () => {
   it("throws with 423 fallback when body is empty", async () => {
     mockFetch.mockResolvedValueOnce(fail(423));
 
-    const err: ClawHubError = await getSkillInfo({ slug: "pending" }).catch(
-      (e) => e,
-    );
-    expect(err.message).toBe(
-      'Skill "pending" is pending a security scan. Try again shortly.',
-    );
+    const err: ClawHubError = await getSkillInfo({ slug: "pending" }).catch((e) => e);
+    expect(err.message).toBe('Skill "pending" is pending a security scan. Try again shortly.');
   });
 
   it("throws with 410 using response body when present", async () => {
     mockFetch.mockResolvedValueOnce(fail(410, "Removed by owner"));
 
-    const err: ClawHubError = await getSkillInfo({ slug: "old" }).catch(
-      (e) => e,
-    );
+    const err: ClawHubError = await getSkillInfo({ slug: "old" }).catch((e) => e);
     expect(err).toBeInstanceOf(ClawHubError);
     expect(err.statusCode).toBe(410);
     expect(err.message).toBe("Removed by owner");
@@ -201,18 +180,14 @@ describe("error handling", () => {
   it("throws with 410 fallback when body is empty", async () => {
     mockFetch.mockResolvedValueOnce(fail(410));
 
-    const err: ClawHubError = await getSkillInfo({ slug: "old" }).catch(
-      (e) => e,
-    );
+    const err: ClawHubError = await getSkillInfo({ slug: "old" }).catch((e) => e);
     expect(err.message).toBe('Skill "old" has been removed.');
   });
 
   it("throws with generic message for unhandled status codes", async () => {
     mockFetch.mockResolvedValueOnce(fail(500, "Internal Server Error"));
 
-    const err: ClawHubError = await getSkillInfo({ slug: "broken" }).catch(
-      (e) => e,
-    );
+    const err: ClawHubError = await getSkillInfo({ slug: "broken" }).catch((e) => e);
     expect(err).toBeInstanceOf(ClawHubError);
     expect(err.statusCode).toBe(500);
     expect(err.message).toBe("ClawHub API error 500: Internal Server Error");
@@ -226,9 +201,7 @@ describe("error handling", () => {
     } as unknown as Response;
     mockFetch.mockResolvedValueOnce(brokenResponse);
 
-    const err: ClawHubError = await getSkillInfo({ slug: "err" }).catch(
-      (e) => e,
-    );
+    const err: ClawHubError = await getSkillInfo({ slug: "err" }).catch((e) => e);
     expect(err).toBeInstanceOf(ClawHubError);
     expect(err.message).toBe("ClawHub API error 500: ");
   });

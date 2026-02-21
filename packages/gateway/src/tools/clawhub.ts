@@ -1,10 +1,7 @@
 import { tool, type LanguageModel, type ToolSet } from "ai";
 import { z } from "zod";
 import { ClawHubError } from "../clawhub/client.js";
-import {
-  installSkillFromClawHub,
-  SkillAlreadyInstalledError,
-} from "../clawhub/installer.js";
+import { installSkillFromClawHub, SkillAlreadyInstalledError } from "../clawhub/installer.js";
 import { runSkillSetup } from "../clawhub/skill-setup.js";
 import { getLogger } from "../logging/index.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
@@ -15,10 +12,7 @@ type CreateClawhubToolsInput = {
   model?: LanguageModel;
 };
 
-export function createClawhubTools({
-  context,
-  model,
-}: CreateClawhubToolsInput): ToolSet {
+export function createClawhubTools({ context, model }: CreateClawhubToolsInput): ToolSet {
   return {
     clawhub_install: tool({
       description:
@@ -35,9 +29,7 @@ export function createClawhubTools({
         version: z
           .string()
           .optional()
-          .describe(
-            "Specific version to install. Omit to install the latest version.",
-          ),
+          .describe("Specific version to install. Omit to install the latest version."),
         force: z
           .boolean()
           .optional()
@@ -89,10 +81,7 @@ export function createClawhubTools({
                     setupSummary = setupResult.agentResponse;
                   }
                 } catch (err) {
-                  log.warn(
-                    { err },
-                    "Skill setup failed (non-fatal — files are still installed)",
-                  );
+                  log.warn({ err }, "Skill setup failed (non-fatal — files are still installed)");
                   setupSummary = `Setup failed: ${err instanceof Error ? err.message : String(err)}`;
                 }
               }

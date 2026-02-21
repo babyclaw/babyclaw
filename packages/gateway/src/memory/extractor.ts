@@ -87,11 +87,7 @@ export class MemoryExtractor {
       );
     }
 
-    userPromptParts.push(
-      "<conversation_transcript>",
-      transcript,
-      "</conversation_transcript>",
-    );
+    userPromptParts.push("<conversation_transcript>", transcript, "</conversation_transcript>");
 
     this.log.info(
       { messageCount: messages.length, date: today },
@@ -105,10 +101,7 @@ export class MemoryExtractor {
       ],
     });
 
-    if (
-      result.trim().length === 0 ||
-      result.trim() === "NOTHING_TO_EXTRACT"
-    ) {
+    if (result.trim().length === 0 || result.trim() === "NOTHING_TO_EXTRACT") {
       this.log.info({ date: today }, "No new memories to extract");
       return;
     }
@@ -116,9 +109,10 @@ export class MemoryExtractor {
     await mkdir(memoryDir, { recursive: true });
 
     const separator = existingMemory.trim().length > 0 ? "\n\n" : "";
-    const newContent = existingMemory.trim().length > 0
-      ? existingMemory.trimEnd() + separator + result.trim() + "\n"
-      : `# Memories - ${today}\n\n` + result.trim() + "\n";
+    const newContent =
+      existingMemory.trim().length > 0
+        ? existingMemory.trimEnd() + separator + result.trim() + "\n"
+        : `# Memories - ${today}\n\n` + result.trim() + "\n";
 
     await writeFile(memoryFilePath, newContent, "utf8");
 

@@ -20,11 +20,7 @@ export default command({
 
       const plat = detectPlatform();
       if (plat === "unsupported") {
-        client.log(
-          c.error(
-            "✗ Unsupported platform. Only macOS and Linux are supported.",
-          ),
-        );
+        client.log(c.error("✗ Unsupported platform. Only macOS and Linux are supported."));
         process.exitCode = 1;
         return;
       }
@@ -32,9 +28,7 @@ export default command({
       if (!info.installed) {
         client.log(`${c.muted("●")} Service is ${c.bold("not installed")}`);
         client.log(
-          c.muted("  Run ") +
-            c.info("babyclaw service install") +
-            c.muted(" to set it up."),
+          c.muted("  Run ") + c.info("babyclaw service install") + c.muted(" to set it up."),
         );
         return;
       }
@@ -49,9 +43,7 @@ export default command({
       }
     } catch (err) {
       client.log(c.error("✗ Failed to check service status"));
-      client.log(
-        c.muted(`  ${err instanceof Error ? err.message : String(err)}`),
-      );
+      client.log(c.muted(`  ${err instanceof Error ? err.message : String(err)}`));
       process.exitCode = 1;
     }
   },

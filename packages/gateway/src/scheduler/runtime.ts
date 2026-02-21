@@ -70,11 +70,7 @@ export class SchedulerRuntime {
     await this.syncScheduleRecord({ schedule });
   }
 
-  private async syncScheduleRecord({
-    schedule,
-  }: {
-    schedule: ScheduleForRuntime;
-  }): Promise<void> {
+  private async syncScheduleRecord({ schedule }: { schedule: ScheduleForRuntime }): Promise<void> {
     if (schedule.type === ScheduleType.one_off) {
       if (!schedule.runAt) {
         this.unregisterSchedule({ scheduleId: schedule.id });

@@ -18,10 +18,8 @@ const {
 
 vi.mock("./client.js", () => ({
   getSkillInfo: (...args: unknown[]) => mockGetSkillInfo(...args),
-  getSkillVersionFiles: (...args: unknown[]) =>
-    mockGetSkillVersionFiles(...args),
-  getSkillFileContent: (...args: unknown[]) =>
-    mockGetSkillFileContent(...args),
+  getSkillVersionFiles: (...args: unknown[]) => mockGetSkillVersionFiles(...args),
+  getSkillFileContent: (...args: unknown[]) => mockGetSkillFileContent(...args),
   ClawHubError: class extends Error {
     statusCode: number;
     slug: string;
@@ -50,10 +48,7 @@ vi.mock("node:fs/promises", () => ({
   writeFile: (...args: unknown[]) => mockWriteFile(...args),
 }));
 
-import {
-  installSkillFromClawHub,
-  SkillAlreadyInstalledError,
-} from "./installer.js";
+import { installSkillFromClawHub, SkillAlreadyInstalledError } from "./installer.js";
 import { ClawHubError } from "./client.js";
 
 function makeSkillInfo(overrides: Record<string, unknown> = {}) {
@@ -137,9 +132,7 @@ describe("installSkillFromClawHub", () => {
     });
 
     it("proceeds when moderation is null", async () => {
-      mockGetSkillInfo.mockResolvedValueOnce(
-        makeSkillInfo({ moderation: null }),
-      );
+      mockGetSkillInfo.mockResolvedValueOnce(makeSkillInfo({ moderation: null }));
       mockGetSkillVersionFiles.mockResolvedValueOnce(makeVersionDetail());
       mockGetSkillFileContent.mockResolvedValueOnce("content");
 
@@ -198,9 +191,7 @@ describe("installSkillFromClawHub", () => {
     });
 
     it("throws when no version is available at all", async () => {
-      mockGetSkillInfo.mockResolvedValueOnce(
-        makeSkillInfo({ latestVersion: null }),
-      );
+      mockGetSkillInfo.mockResolvedValueOnce(makeSkillInfo({ latestVersion: null }));
 
       await expect(
         installSkillFromClawHub({ slug: "test-skill", workspacePath: "/ws" }),
@@ -260,9 +251,7 @@ describe("installSkillFromClawHub", () => {
       ];
       mockGetSkillInfo.mockResolvedValueOnce(makeSkillInfo());
       mockGetSkillVersionFiles.mockResolvedValueOnce(makeVersionDetail(files));
-      mockGetSkillFileContent
-        .mockResolvedValueOnce("# Skill")
-        .mockResolvedValueOnce("#!/bin/bash");
+      mockGetSkillFileContent.mockResolvedValueOnce("# Skill").mockResolvedValueOnce("#!/bin/bash");
 
       const result = await installSkillFromClawHub({
         slug: "test-skill",
@@ -299,9 +288,7 @@ describe("installSkillFromClawHub", () => {
       ];
       mockGetSkillInfo.mockResolvedValueOnce(makeSkillInfo());
       mockGetSkillVersionFiles.mockResolvedValueOnce(makeVersionDetail(files));
-      mockGetSkillFileContent
-        .mockResolvedValueOnce("a")
-        .mockResolvedValueOnce("b");
+      mockGetSkillFileContent.mockResolvedValueOnce("a").mockResolvedValueOnce("b");
 
       await installSkillFromClawHub({
         slug: "test-skill",

@@ -15,21 +15,15 @@ export default command({
 
       const info = getStatus();
       if (!info.installed) {
-        client.log(
-          c.warning("⚠ Service is not installed. Nothing to uninstall."),
-        );
+        client.log(c.warning("⚠ Service is not installed. Nothing to uninstall."));
         return;
       }
 
       uninstall();
-      client.log(
-        c.success("✓ Service uninstalled. Goodbye, old friend."),
-      );
+      client.log(c.success("✓ Service uninstalled. Goodbye, old friend."));
     } catch (err) {
       client.log(c.error("✗ Failed to uninstall service"));
-      client.log(
-        c.muted(`  ${err instanceof Error ? err.message : String(err)}`),
-      );
+      client.log(c.muted(`  ${err instanceof Error ? err.message : String(err)}`));
       process.exitCode = 1;
     }
   },

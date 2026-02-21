@@ -6,8 +6,7 @@ export default command({
   handler: async ({ client }) => {
     client.log(c.brand(getRandomBanner()));
 
-    const pad = (cmd: string, width: number) =>
-      cmd + " ".repeat(Math.max(1, width - cmd.length));
+    const pad = (cmd: string, width: number) => cmd + " ".repeat(Math.max(1, width - cmd.length));
 
     const cmds = [
       ["config init", "Create a fresh configuration file"],

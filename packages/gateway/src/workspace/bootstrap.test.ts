@@ -38,18 +38,13 @@ describe("bootstrapWorkspace", () => {
 
     expect(mockedWriteFile).toHaveBeenCalledTimes(ALL_TEMPLATES.length);
     for (const tpl of ALL_TEMPLATES) {
-      expect(mockedWriteFile).toHaveBeenCalledWith(
-        join(WS, tpl.filename),
-        tpl.content,
-        "utf8",
-      );
+      expect(mockedWriteFile).toHaveBeenCalledWith(join(WS, tpl.filename), tpl.content, "utf8");
     }
   });
 
   it("skips BOOTSTRAP.md when IDENTITY.md exists (existing workspace)", async () => {
     mockedReadFile.mockImplementation(async (path: any) => {
-      if (String(path) === join(WS, "IDENTITY.md"))
-        return Buffer.from("exists");
+      if (String(path) === join(WS, "IDENTITY.md")) return Buffer.from("exists");
       throw enoent();
     });
     mockedWriteFile.mockResolvedValue();
@@ -77,8 +72,7 @@ describe("bootstrapWorkspace", () => {
 
   it("skips files that already exist on disk", async () => {
     mockedReadFile.mockImplementation(async (path: any) => {
-      if (String(path) === join(WS, "AGENTS.md"))
-        return Buffer.from("existing content");
+      if (String(path) === join(WS, "AGENTS.md")) return Buffer.from("existing content");
       throw enoent();
     });
     mockedWriteFile.mockResolvedValue();
@@ -106,10 +100,7 @@ describe("readWorkspaceGuide", () => {
 
     const result = await readWorkspaceGuide({ workspacePath: WS });
 
-    expect(mockedReadFile).toHaveBeenCalledWith(
-      join(WS, "AGENTS.md"),
-      "utf8",
-    );
+    expect(mockedReadFile).toHaveBeenCalledWith(join(WS, "AGENTS.md"), "utf8");
     expect(result).toBe("# My Guide\nSome content");
   });
 
@@ -136,10 +127,7 @@ describe("readBootstrapGuide", () => {
 
     const result = await readBootstrapGuide({ workspacePath: WS });
 
-    expect(mockedReadFile).toHaveBeenCalledWith(
-      join(WS, "BOOTSTRAP.md"),
-      "utf8",
-    );
+    expect(mockedReadFile).toHaveBeenCalledWith(join(WS, "BOOTSTRAP.md"), "utf8");
     expect(result).toBe("# Bootstrap\nDo stuff");
   });
 
@@ -178,9 +166,7 @@ describe("readHeartbeatInstructions", () => {
   });
 
   it("returns null when HEARTBEAT.md contains only headers and blank lines", async () => {
-    mockedReadFile.mockResolvedValue(
-      "# HEARTBEAT.md\n\n# Some heading\n\n" as any,
-    );
+    mockedReadFile.mockResolvedValue("# HEARTBEAT.md\n\n# Some heading\n\n" as any);
 
     const result = await readHeartbeatInstructions({ workspacePath: WS });
 

@@ -2,10 +2,7 @@ import { command } from "@gud/cli";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import {
-  getConfigPath,
-  getDefaultConfigTemplate,
-} from "@babyclaw/gateway";
+import { getConfigPath, getDefaultConfigTemplate } from "@babyclaw/gateway";
 import { c } from "../../ui/theme.js";
 
 export default command({
@@ -24,10 +21,7 @@ export default command({
       if (existsSync(configPath) && !force) {
         client.log(c.warning("⚠ Config file already exists at:"));
         client.log(c.muted(`  ${configPath}`));
-        const overwrite = await client.confirm(
-          "Overwrite existing config?",
-          false,
-        );
+        const overwrite = await client.confirm("Overwrite existing config?", false);
         if (!overwrite) return;
       }
 
@@ -47,9 +41,7 @@ export default command({
       );
     } catch (error) {
       client.log(c.error("✗ Failed to create config"));
-      client.log(
-        c.muted(error instanceof Error ? error.message : String(error)),
-      );
+      client.log(c.muted(error instanceof Error ? error.message : String(error)));
       process.exitCode = 1;
     }
   },

@@ -24,13 +24,12 @@ export async function loadAgentContext({
   skillsConfig: SkillsConfig;
   fullConfig: Record<string, unknown>;
 }): Promise<AgentContext> {
-  const [rawPersonalityFiles, toolNotesContent, agentsContent, allSkills] =
-    await Promise.all([
-      readPersonalityFiles({ workspacePath }),
-      readToolNotes({ workspacePath }),
-      readWorkspaceGuide({ workspacePath }),
-      scanWorkspaceSkills({ workspacePath }),
-    ]);
+  const [rawPersonalityFiles, toolNotesContent, agentsContent, allSkills] = await Promise.all([
+    readPersonalityFiles({ workspacePath }),
+    readToolNotes({ workspacePath }),
+    readWorkspaceGuide({ workspacePath }),
+    scanWorkspaceSkills({ workspacePath }),
+  ]);
 
   const skills = getEligibleSkills({ skills: allSkills, skillsConfig, fullConfig });
 

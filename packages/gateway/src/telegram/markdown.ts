@@ -85,28 +85,16 @@ function convertTextSegment({ body }: { body: string }): string {
   //    Order matters: bold (** / __) before italic (* / _).
 
   // Bold: **…**
-  text = text.replace(
-    /\*\*(.+?)\*\*/g,
-    `${P}BOLD_S${P}$1${P}BOLD_E${P}`,
-  );
+  text = text.replace(/\*\*(.+?)\*\*/g, `${P}BOLD_S${P}$1${P}BOLD_E${P}`);
 
   // Italic: *…* (must come after bold replacement)
-  text = text.replace(
-    /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g,
-    `${P}ITALIC_S${P}$1${P}ITALIC_E${P}`,
-  );
+  text = text.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, `${P}ITALIC_S${P}$1${P}ITALIC_E${P}`);
 
   // Strikethrough: ~~…~~
-  text = text.replace(
-    /~~(.+?)~~/g,
-    `${P}STRIKE_S${P}$1${P}STRIKE_E${P}`,
-  );
+  text = text.replace(/~~(.+?)~~/g, `${P}STRIKE_S${P}$1${P}STRIKE_E${P}`);
 
   // Links: [text](url)
-  text = text.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    `${P}LINK_S${P}$1${P}LINK_M${P}$2${P}LINK_E${P}`,
-  );
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, `${P}LINK_S${P}$1${P}LINK_M${P}$2${P}LINK_E${P}`);
 
   // 2. Split on placeholders, escape non-placeholder pieces,
   //    then reassemble.
@@ -133,10 +121,7 @@ function convertTextSegment({ body }: { body: string }): string {
 
   // Links need special handling: link text is already escaped,
   // but the URL only needs `)` and `\` escaped.
-  const linkRe = new RegExp(
-    `${P}LINK_S${P}(.*?)${P}LINK_M${P}(.*?)${P}LINK_E${P}`,
-    "g",
-  );
+  const linkRe = new RegExp(`${P}LINK_S${P}(.*?)${P}LINK_M${P}(.*?)${P}LINK_E${P}`, "g");
   result = result.replace(linkRe, (_match, linkText: string, url: string) => {
     const escapedUrl = url.replace(/[)\\]/g, "\\$&");
     return `[${linkText}](${escapedUrl})`;
@@ -189,10 +174,7 @@ type ReplyMarkdownV2Input = {
  * message (e.g. due to a conversion edge-case), automatically retries
  * as plain text so the message is never lost.
  */
-export async function replyMarkdownV2({
-  ctx,
-  text,
-}: ReplyMarkdownV2Input) {
+export async function replyMarkdownV2({ ctx, text }: ReplyMarkdownV2Input) {
   try {
     return await ctx.reply(toTelegramMarkdownV2({ text }), {
       parse_mode: "MarkdownV2",

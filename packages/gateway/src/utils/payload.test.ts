@@ -7,9 +7,7 @@ import {
 
 describe("ensurePayloadWithinLimit", () => {
   it("does not throw when value is under the limit", () => {
-    expect(() =>
-      ensurePayloadWithinLimit({ value: "hello" }),
-    ).not.toThrow();
+    expect(() => ensurePayloadWithinLimit({ value: "hello" })).not.toThrow();
   });
 
   it("does not throw when value is exactly at the limit", () => {
@@ -25,34 +23,28 @@ describe("ensurePayloadWithinLimit", () => {
   });
 
   it("respects a custom maxBytes", () => {
-    expect(() =>
-      ensurePayloadWithinLimit({ value: "abc", maxBytes: 2 }),
-    ).toThrow("Payload exceeds 2 bytes");
+    expect(() => ensurePayloadWithinLimit({ value: "abc", maxBytes: 2 })).toThrow(
+      "Payload exceeds 2 bytes",
+    );
   });
 
   it("measures multi-byte characters correctly", () => {
     // "€" is 3 bytes in UTF-8
-    expect(() =>
-      ensurePayloadWithinLimit({ value: "€", maxBytes: 2 }),
-    ).toThrow();
+    expect(() => ensurePayloadWithinLimit({ value: "€", maxBytes: 2 })).toThrow();
 
-    expect(() =>
-      ensurePayloadWithinLimit({ value: "€", maxBytes: 3 }),
-    ).not.toThrow();
+    expect(() => ensurePayloadWithinLimit({ value: "€", maxBytes: 3 })).not.toThrow();
   });
 });
 
 describe("ensureJsonWithinLimit", () => {
   it("does not throw for small objects", () => {
-    expect(() =>
-      ensureJsonWithinLimit({ value: { key: "val" } }),
-    ).not.toThrow();
+    expect(() => ensureJsonWithinLimit({ value: { key: "val" } })).not.toThrow();
   });
 
   it("throws when the serialized JSON exceeds the limit", () => {
     const bigArray = Array.from({ length: 100 }).fill("x".repeat(1000));
-    expect(() =>
-      ensureJsonWithinLimit({ value: bigArray, maxBytes: 50 }),
-    ).toThrow("Payload exceeds 50 bytes");
+    expect(() => ensureJsonWithinLimit({ value: bigArray, maxBytes: 50 })).toThrow(
+      "Payload exceeds 50 bytes",
+    );
   });
 });

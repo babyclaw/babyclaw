@@ -1,9 +1,5 @@
 import { command } from "@gud/cli";
-import {
-  getConfigPath,
-  loadConfigRaw,
-  SUPPORTED_PROVIDERS,
-} from "@babyclaw/gateway";
+import { getConfigPath, loadConfigRaw, SUPPORTED_PROVIDERS } from "@babyclaw/gateway";
 import { c } from "../../ui/theme.js";
 
 function maskApiKey(key: string): string {
@@ -22,11 +18,7 @@ export default command({
     const config = await loadConfigRaw();
     if (!config) {
       client.log(c.error(`No valid config found at ${getConfigPath()}`));
-      client.log(
-        c.muted("  Run ") +
-          c.info("babyclaw config init") +
-          c.muted(" first."),
-      );
+      client.log(c.muted("  Run ") + c.info("babyclaw config init") + c.muted(" first."));
       process.exitCode = 1;
       return;
     }
@@ -44,9 +36,7 @@ export default command({
       for (const [key, provider] of providerEntries) {
         const name = c.bold(getProviderDisplayName(key));
         const detail = c.muted(` (${key}) — ${maskApiKey(provider.apiKey)}`);
-        const url = provider.baseUrl
-          ? c.muted(` [${provider.baseUrl}]`)
-          : "";
+        const url = provider.baseUrl ? c.muted(` [${provider.baseUrl}]`) : "";
         client.log(`    ${c.success("●")} ${name}${detail}${url}`);
       }
     }
@@ -65,9 +55,7 @@ export default command({
       );
     } else {
       for (const [name, ref] of aliasEntries) {
-        client.log(
-          `    ${c.warning(name)}${c.muted(" → ")}${ref}`,
-        );
+        client.log(`    ${c.warning(name)}${c.muted(" → ")}${ref}`);
       }
     }
   },

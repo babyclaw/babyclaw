@@ -112,7 +112,14 @@ function createMockDeps(overrides: Record<string, any> = {}) {
         fullStream: (async function* () {
           yield { type: "text-delta", id: "1", text: "Hello " };
           yield { type: "text-delta", id: "1", text: "world" };
-          yield { type: "finish-step", response: {}, usage: {}, finishReason: "stop", rawFinishReason: "stop", providerMetadata: undefined };
+          yield {
+            type: "finish-step",
+            response: {},
+            usage: {},
+            finishReason: "stop",
+            rawFinishReason: "stop",
+            providerMetadata: undefined,
+          };
           yield { type: "finish", finishReason: "stop", rawFinishReason: "stop" };
         })(),
         text: Promise.resolve("Hello world"),
@@ -342,7 +349,9 @@ describe("AgentTurnOrchestrator", () => {
 
     it("resolves linked session via reply-to message", async () => {
       const deps = createMockDeps();
-      (deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      (
+        deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({
         platform: "test",
         platformChatId: "12345",
         platformMessageId: "99",
@@ -414,7 +423,8 @@ describe("AgentTurnOrchestrator", () => {
         expect(deps.aiAgent.chatStreamWithTools).toHaveBeenCalled();
       });
 
-      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[0];
       const userMsg = call?.messages?.find((m: any) => m.role === "user");
       expect(userMsg).toBeDefined();
       expect(Array.isArray(userMsg.content)).toBe(true);
@@ -462,9 +472,7 @@ describe("AgentTurnOrchestrator", () => {
       const userMsg = call.messages[0];
       expect(userMsg.metadata).toBeDefined();
       const meta = JSON.parse(userMsg.metadata);
-      expect(meta.images).toEqual([
-        { localPath: "/tmp/photo.png", mimeType: "image/png" },
-      ]);
+      expect(meta.images).toEqual([{ localPath: "/tmp/photo.png", mimeType: "image/png" }]);
     });
 
     it("describes images via vision model and sends text-only to main model", async () => {
@@ -487,13 +495,16 @@ describe("AgentTurnOrchestrator", () => {
         expect.objectContaining({ model: mockVisionModel }),
       );
 
-      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[0];
       expect(call.model).toBeUndefined();
 
       const userMsg = call?.messages?.find((m: any) => m.role === "user");
       expect(typeof userMsg.content).toBe("string");
       expect(userMsg.content).toContain("What is this?");
-      expect(userMsg.content).toContain("[The user attached 1 image to this message. Contents of the image:]");
+      expect(userMsg.content).toContain(
+        "[The user attached 1 image to this message. Contents of the image:]",
+      );
       expect(userMsg.content).toContain("A detailed description of the image contents.");
     });
 
@@ -540,10 +551,13 @@ describe("AgentTurnOrchestrator", () => {
 
       expect(generateText).toHaveBeenCalled();
 
-      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[0];
       const userMsg = call?.messages?.find((m: any) => m.role === "user");
       expect(typeof userMsg.content).toBe("string");
-      expect(userMsg.content).toContain("[The user sent 1 image with no accompanying text. Contents of the image:]");
+      expect(userMsg.content).toContain(
+        "[The user sent 1 image with no accompanying text. Contents of the image:]",
+      );
     });
 
     it("does not call generateText for text-only messages even with visionModel", async () => {
@@ -560,28 +574,27 @@ describe("AgentTurnOrchestrator", () => {
       });
 
       expect(generateText).not.toHaveBeenCalled();
-      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[0];
       expect(call.model).toBeUndefined();
     });
 
     it("sends error reply when agent turn fails", async () => {
       const deps = createMockDeps();
 
-      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(
-        () => {
-          return {
-            textStream: (async function* () {
-              yield "start";
-              throw new Error("AI failed");
-            })(),
-            fullStream: (async function* () {
-              yield { type: "text-delta", id: "1", text: "start" };
-              throw new Error("AI failed");
-            })(),
-            text: Promise.reject(new Error("AI failed")),
-          };
-        },
-      );
+      (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        return {
+          textStream: (async function* () {
+            yield "start";
+            throw new Error("AI failed");
+          })(),
+          fullStream: (async function* () {
+            yield { type: "text-delta", id: "1", text: "start" };
+            throw new Error("AI failed");
+          })(),
+          text: Promise.reject(new Error("AI failed")),
+        };
+      });
 
       const orchestrator = createOrchestrator(deps);
 
@@ -592,9 +605,7 @@ describe("AgentTurnOrchestrator", () => {
       await vi.waitFor(
         () => {
           const calls = (deps.adapter.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
-          const errorCall = calls.find((c: any) =>
-            c[0].text.includes("internal error"),
-          );
+          const errorCall = calls.find((c: any) => c[0].text.includes("internal error"));
           expect(errorCall).toBeDefined();
         },
         { timeout: 3000 },
@@ -687,7 +698,9 @@ describe("AgentTurnOrchestrator", () => {
   describe("cross-thread replies", () => {
     it("uses linked session when replying to a bot message from a different thread context", async () => {
       const deps = createMockDeps();
-      (deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      (
+        deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({
         platform: "test",
         platformChatId: "12345",
         platformMessageId: "42",
@@ -729,7 +742,9 @@ describe("AgentTurnOrchestrator", () => {
 
     it("includes reply text in AI messages for cross-thread reply", async () => {
       const deps = createMockDeps();
-      (deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      (
+        deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({
         platform: "test",
         platformChatId: "12345",
         platformMessageId: "42",
@@ -753,7 +768,8 @@ describe("AgentTurnOrchestrator", () => {
         expect(deps.aiAgent.chatStreamWithTools).toHaveBeenCalled();
       });
 
-      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      const call = (deps.aiAgent.chatStreamWithTools as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[0];
       const userMsg = call?.messages?.find((m: any) => m.role === "user");
       expect(userMsg).toBeDefined();
       expect(userMsg.content).toContain("Reply context");
@@ -763,7 +779,9 @@ describe("AgentTurnOrchestrator", () => {
 
     it("falls back to thread-derived session when no message link exists", async () => {
       const deps = createMockDeps();
-      (deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (
+        deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(null);
 
       const orchestrator = createOrchestrator(deps);
 
@@ -786,7 +804,9 @@ describe("AgentTurnOrchestrator", () => {
 
     it("stores message link after replying in the new thread", async () => {
       const deps = createMockDeps();
-      (deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      (
+        deps.messageLinkRepository.findByChatAndMessage as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({
         platform: "test",
         platformChatId: "12345",
         platformMessageId: "42",

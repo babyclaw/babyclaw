@@ -109,8 +109,11 @@ export class HeartbeatExecutor {
         platform: mainChat.platform,
       });
 
-      const { personalityFiles, toolNotesContent, agentsContent, skills } =
-        await loadAgentContext({ workspacePath, skillsConfig, fullConfig });
+      const { personalityFiles, toolNotesContent, agentsContent, skills } = await loadAgentContext({
+        workspacePath,
+        skillsConfig,
+        fullConfig,
+      });
 
       const history = await sessionManager.getMessages({
         identity: sessionIdentity,

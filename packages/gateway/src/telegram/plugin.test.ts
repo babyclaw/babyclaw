@@ -80,16 +80,16 @@ describe("TelegramAdapter", () => {
 
   it("sendMessage throws if bot not started", async () => {
     const adapter = createAdapter();
-    await expect(
-      adapter.sendMessage({ chatId: "123", text: "hello" }),
-    ).rejects.toThrow("bot not started");
+    await expect(adapter.sendMessage({ chatId: "123", text: "hello" })).rejects.toThrow(
+      "bot not started",
+    );
   });
 
   it("sendImage throws if bot not started", async () => {
     const adapter = createAdapter();
-    await expect(
-      adapter.sendImage({ chatId: "123", filePath: "/tmp/photo.jpg" }),
-    ).rejects.toThrow("bot not started");
+    await expect(adapter.sendImage({ chatId: "123", filePath: "/tmp/photo.jpg" })).rejects.toThrow(
+      "bot not started",
+    );
   });
 
   it("sendFile throws if bot not started", async () => {
@@ -116,7 +116,9 @@ describe("getChatTitle", () => {
   });
 
   it("returns first + last name for private chat", () => {
-    const ctx = fakeCtx({ chat: { id: 1, type: "private", first_name: "Alice", last_name: "Smith" } });
+    const ctx = fakeCtx({
+      chat: { id: 1, type: "private", first_name: "Alice", last_name: "Smith" },
+    });
     expect(getChatTitle({ ctx })).toBe("Alice Smith");
   });
 
@@ -174,7 +176,9 @@ describe("buildSenderName", () => {
   });
 
   it("returns first + last name", () => {
-    expect(buildSenderName({ from: { first_name: "Alice", last_name: "Smith" } })).toBe("Alice Smith");
+    expect(buildSenderName({ from: { first_name: "Alice", last_name: "Smith" } })).toBe(
+      "Alice Smith",
+    );
   });
 
   it("returns first name only when last name is missing", () => {
@@ -250,10 +254,12 @@ const OWNER_ID = 42;
 
 type ApiCall = { method: string; payload: Record<string, unknown> };
 
-function createIntegrationChatRegistry(overrides: {
-  mainChat?: { platformChatId: string } | null;
-  linked?: boolean;
-} = {}): any {
+function createIntegrationChatRegistry(
+  overrides: {
+    mainChat?: { platformChatId: string } | null;
+    linked?: boolean;
+  } = {},
+): any {
   const { mainChat = { platformChatId: String(OWNER_ID) }, linked = true } = overrides;
   return {
     upsert: vi.fn(async () => {}),
@@ -308,11 +314,7 @@ function makeCommandUpdate(opts: {
   });
 }
 
-function makeCallbackQueryUpdate(opts: {
-  data: string;
-  chatId?: number;
-  fromId?: number;
-}) {
+function makeCallbackQueryUpdate(opts: { data: string; chatId?: number; fromId?: number }) {
   const chatId = opts.chatId ?? 100;
   const fromId = opts.fromId ?? OWNER_ID;
   return {
@@ -333,10 +335,12 @@ function makeCallbackQueryUpdate(opts: {
   };
 }
 
-async function bootAdapter(opts: {
-  chatRegistryOverrides?: Parameters<typeof createIntegrationChatRegistry>[0];
-  getHeartbeatStatus?: () => { enabled: boolean; nextRunAt: Date | null };
-} = {}) {
+async function bootAdapter(
+  opts: {
+    chatRegistryOverrides?: Parameters<typeof createIntegrationChatRegistry>[0];
+    getHeartbeatStatus?: () => { enabled: boolean; nextRunAt: Date | null };
+  } = {},
+) {
   const startSpy = vi.spyOn(Bot.prototype, "start").mockResolvedValue(undefined as never);
 
   const chatRegistry = createIntegrationChatRegistry(opts.chatRegistryOverrides);
@@ -402,9 +406,7 @@ describe("TelegramAdapter integration", () => {
       const { bot, chatRegistry } = await bootAdapter({
         chatRegistryOverrides: { mainChat: null },
       });
-      await bot.handleUpdate(
-        makeTextUpdate({ text: "hi", chatType: "supergroup" }),
-      );
+      await bot.handleUpdate(makeTextUpdate({ text: "hi", chatType: "supergroup" }));
 
       expect(chatRegistry.markAsMain).not.toHaveBeenCalled();
     });
@@ -479,9 +481,7 @@ describe("TelegramAdapter integration", () => {
       const { bot, chatRegistry, apiCalls } = await bootAdapter({
         chatRegistryOverrides: { mainChat: { platformChatId: "100" } },
       });
-      await bot.handleUpdate(
-        makeCommandUpdate({ command: "unlink", chatId: 100, fromId: 100 }),
-      );
+      await bot.handleUpdate(makeCommandUpdate({ command: "unlink", chatId: 100, fromId: 100 }));
 
       expect(chatRegistry.unlink).not.toHaveBeenCalled();
       const reply = apiCalls.find((c) => c.method === "sendMessage");
@@ -492,9 +492,7 @@ describe("TelegramAdapter integration", () => {
       const { bot, chatRegistry, apiCalls } = await bootAdapter({
         chatRegistryOverrides: { mainChat: { platformChatId: String(OWNER_ID) } },
       });
-      await bot.handleUpdate(
-        makeCommandUpdate({ command: "unlink", chatId: 200 }),
-      );
+      await bot.handleUpdate(makeCommandUpdate({ command: "unlink", chatId: 200 }));
 
       expect(chatRegistry.unlink).toHaveBeenCalledWith({
         platform: "telegram",

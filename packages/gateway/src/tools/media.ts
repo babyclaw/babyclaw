@@ -22,11 +22,7 @@ export function createMediaTools({
       description:
         "Send a file from the workspace to the current chat. Supports image, document, audio, video, and animation types. The channel decides whether it can handle the given type.",
       inputSchema: z.object({
-        path: z
-          .string()
-          .trim()
-          .min(1)
-          .describe("File path relative to the workspace root"),
+        path: z.string().trim().min(1).describe("File path relative to the workspace root"),
         type: z
           .enum(FILE_TYPES)
           .describe("File type hint so the channel picks the right delivery method"),

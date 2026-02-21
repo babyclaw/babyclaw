@@ -1,7 +1,15 @@
 import { readFileSync } from "node:fs";
 import { MessageRole } from "../database/schema.js";
 import type { Chat } from "../database/schema.js";
-import { generateText, type ImagePart, type LanguageModel, type ModelMessage, type TextPart, type TextStreamPart, type ToolSet } from "ai";
+import {
+  generateText,
+  type ImagePart,
+  type LanguageModel,
+  type ModelMessage,
+  type TextPart,
+  type TextStreamPart,
+  type ToolSet,
+} from "ai";
 import type { CommandApprovalService } from "../approval/service.js";
 import {
   buildScheduleFollowupSystemNote,
@@ -15,13 +23,14 @@ import {
   getWorkspaceGuideSystemMessage,
 } from "../ai/prompts.js";
 import type { ChannelRouter } from "../channel/router.js";
-import type { AgentStreamEvent, ImageAttachment, NormalizedInboundEvent } from "../channel/types.js";
+import type {
+  AgentStreamEvent,
+  ImageAttachment,
+  NormalizedInboundEvent,
+} from "../channel/types.js";
 import { getLogger } from "../logging/index.js";
 import type { Logger } from "../logging/index.js";
-import {
-  bootstrapWorkspace,
-  readBootstrapGuide,
-} from "../workspace/bootstrap.js";
+import { bootstrapWorkspace, readBootstrapGuide } from "../workspace/bootstrap.js";
 import { ActiveTurnManager } from "../session/active-turns.js";
 import { SessionManager } from "../session/manager.js";
 import type { SessionIdentity } from "../session/types.js";
@@ -87,25 +96,24 @@ export class AgentTurnOrchestrator {
     this.log = getLogger().child({ component: "orchestrator" });
   }
 
-  async handleInboundEvent({
-    event,
-  }: {
-    event: NormalizedInboundEvent;
-  }): Promise<void> {
+  async handleInboundEvent({ event }: { event: NormalizedInboundEvent }): Promise<void> {
     const text = event.messageText.trim();
     const hasImages = event.images && event.images.length > 0;
     if (text.length === 0 && !hasImages) return;
 
     if (text.length > 0 && isCommandText({ text })) return;
 
-    this.log.debug({
-      platform: event.platform,
-      chatId: event.chatId,
-      senderId: event.senderId,
-      isEdited: event.isEdited,
-      hasThread: !!event.threadId,
-      textLength: text.length,
-    }, "Inbound event received");
+    this.log.debug(
+      {
+        platform: event.platform,
+        chatId: event.chatId,
+        senderId: event.senderId,
+        isEdited: event.isEdited,
+        hasThread: !!event.threadId,
+        textLength: text.length,
+      },
+      "Inbound event received",
+    );
 
     if (isStopMessage({ text })) {
       const sessionIdentity = this.deriveSessionIdentity({ event });
@@ -132,16 +140,11 @@ export class AgentTurnOrchestrator {
     await this.handleNewMessage({ event });
   }
 
-  private async handleNewMessage({
-    event,
-  }: {
-    event: NormalizedInboundEvent;
-  }): Promise<void> {
+  private async handleNewMessage({ event }: { event: NormalizedInboundEvent }): Promise<void> {
     await bootstrapWorkspace({ workspacePath: this.toolDeps.workspacePath });
 
     const linkedSessionIdentity = await this.resolveLinkedSession({ event });
-    const sessionIdentity =
-      linkedSessionIdentity ?? this.deriveSessionIdentity({ event });
+    const sessionIdentity = linkedSessionIdentity ?? this.deriveSessionIdentity({ event });
 
     const existingMessage = await this.activeTurnManager.cancel({
       sessionKey: sessionIdentity.key,
@@ -167,11 +170,7 @@ export class AgentTurnOrchestrator {
     });
   }
 
-  private async handleEditedMessage({
-    event,
-  }: {
-    event: NormalizedInboundEvent;
-  }): Promise<void> {
+  private async handleEditedMessage({ event }: { event: NormalizedInboundEvent }): Promise<void> {
     const sessionIdentity = this.deriveSessionIdentity({ event });
 
     const existing = this.activeTurnManager.get({
@@ -234,17 +233,11 @@ export class AgentTurnOrchestrator {
       linkedChats,
     })
       .then(() => {
-        turnLog.info(
-          { durationMs: Date.now() - turnStartedAt },
-          "Agent turn completed",
-        );
+        turnLog.info({ durationMs: Date.now() - turnStartedAt }, "Agent turn completed");
       })
       .catch((err) => {
         if (abortController.signal.aborted) return;
-        turnLog.error(
-          { err, durationMs: Date.now() - turnStartedAt },
-          "Agent turn failed",
-        );
+        turnLog.error({ err, durationMs: Date.now() - turnStartedAt }, "Agent turn failed");
         const adapter = this.channelRouter.getAdapter({ platform: event.platform });
         adapter
           .sendMessage({
@@ -300,16 +293,20 @@ export class AgentTurnOrchestrator {
 
     const adapter = this.channelRouter.getAdapter({ platform: event.platform });
 
-    const [agentContext, bootstrapContent, workingMemory] =
-      await Promise.all([
-        loadAgentContext({ workspacePath, skillsConfig, fullConfig }),
-        readBootstrapGuide({ workspacePath }),
-        sessionManager.getWorkingMemory({ sessionKey: sessionIdentity.key }),
-      ]);
+    const [agentContext, bootstrapContent, workingMemory] = await Promise.all([
+      loadAgentContext({ workspacePath, skillsConfig, fullConfig }),
+      readBootstrapGuide({ workspacePath }),
+      sessionManager.getWorkingMemory({ sessionKey: sessionIdentity.key }),
+    ]);
 
     if (abortSignal.aborted) return;
 
-    const { personalityFiles: completePersonality, toolNotesContent: toolsIndexContent, agentsContent, skills } = agentContext;
+    const {
+      personalityFiles: completePersonality,
+      toolNotesContent: toolsIndexContent,
+      agentsContent,
+      skills,
+    } = agentContext;
 
     const hasImages = event.images && event.images.length > 0;
 
@@ -352,16 +349,13 @@ export class AgentTurnOrchestrator {
 
     if (abortSignal.aborted) return;
 
-    const scheduleRunContext =
-      await schedulerService.getRunContextForSessionKey({
-        sessionKey: sessionIdentity.key,
-      });
+    const scheduleRunContext = await schedulerService.getRunContextForSessionKey({
+      sessionKey: sessionIdentity.key,
+    });
 
     if (abortSignal.aborted) return;
 
-    const currentChatRecord = linkedChats.find(
-      (c) => c.platformChatId === event.chatId,
-    );
+    const currentChatRecord = linkedChats.find((c) => c.platformChatId === event.chatId);
 
     const messages: ModelMessage[] = [
       getSharedSystemMessage({
@@ -529,7 +523,11 @@ export class AgentTurnOrchestrator {
     }
 
     this.log.debug(
-      { sessionKey: sessionIdentity.key, responseLength: assistantResponse.length, messageId: platformMessageId },
+      {
+        sessionKey: sessionIdentity.key,
+        responseLength: assistantResponse.length,
+        messageId: platformMessageId,
+      },
       "Response sent to channel",
     );
 
@@ -541,11 +539,7 @@ export class AgentTurnOrchestrator {
     });
   }
 
-  private deriveSessionIdentity({
-    event,
-  }: {
-    event: NormalizedInboundEvent;
-  }): SessionIdentity {
+  private deriveSessionIdentity({ event }: { event: NormalizedInboundEvent }): SessionIdentity {
     return SessionManager.deriveSessionIdentity({
       platform: event.platform,
       chatId: event.chatId,
@@ -591,11 +585,7 @@ export class AgentTurnOrchestrator {
     };
   }
 
-  private async isMainSession({
-    event,
-  }: {
-    event: NormalizedInboundEvent;
-  }): Promise<boolean> {
+  private async isMainSession({ event }: { event: NormalizedInboundEvent }): Promise<boolean> {
     const mainChat = await this.toolDeps.chatRegistry.getMainChat();
     if (!mainChat) return false;
     return mainChat.platformChatId === event.chatId;

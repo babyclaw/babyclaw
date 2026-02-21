@@ -13,9 +13,7 @@ export function createLogger({ config }: { config?: Partial<LoggingConfig> }): p
 
   const pinoOptions: pino.LoggerOptions = {
     level: resolved.level,
-    timestamp: resolved.includeTimestamps
-      ? () => `,"time":"${new Date().toISOString()}"`
-      : false,
+    timestamp: resolved.includeTimestamps ? () => `,"time":"${new Date().toISOString()}"` : false,
     base: resolved.includeHostname ? undefined : { pid: process.pid },
     redact: {
       paths: resolved.redact,
@@ -60,11 +58,7 @@ export function getLogger(): pino.Logger {
   return rootLogger;
 }
 
-export function createChildLogger({
-  context,
-}: {
-  context: Record<string, unknown>;
-}): pino.Logger {
+export function createChildLogger({ context }: { context: Record<string, unknown> }): pino.Logger {
   return getLogger().child(context);
 }
 

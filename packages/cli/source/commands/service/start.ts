@@ -16,11 +16,7 @@ export default command({
       const info = getStatus();
       if (!info.installed) {
         client.log(c.error("✗ Service is not installed."));
-        client.log(
-          c.muted("  Run ") +
-            c.info("babyclaw service install") +
-            c.muted(" first."),
-        );
+        client.log(c.muted("  Run ") + c.info("babyclaw service install") + c.muted(" first."));
         process.exitCode = 1;
         return;
       }
@@ -36,16 +32,10 @@ export default command({
 
       start();
       client.log(c.success("✓ Gateway started! Pincers are hot. 🦀"));
-      client.log(
-        c.muted("  Run ") +
-          c.info("babyclaw gateway status") +
-          c.muted(" to verify."),
-      );
+      client.log(c.muted("  Run ") + c.info("babyclaw gateway status") + c.muted(" to verify."));
     } catch (err) {
       client.log(c.error("✗ Failed to start gateway"));
-      client.log(
-        c.muted(`  ${err instanceof Error ? err.message : String(err)}`),
-      );
+      client.log(c.muted(`  ${err instanceof Error ? err.message : String(err)}`));
       process.exitCode = 1;
     }
   },

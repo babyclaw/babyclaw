@@ -5,11 +5,7 @@ import { createDatabase } from "./client.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export function applyMigrations({
-  workspacePath,
-}: {
-  workspacePath: string;
-}): void {
+export function applyMigrations({ workspacePath }: { workspacePath: string }): void {
   const db = createDatabase({ workspacePath });
   const migrationsFolder = resolve(__dirname, "..", "drizzle");
   migrate(db, { migrationsFolder });

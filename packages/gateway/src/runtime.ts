@@ -1,11 +1,7 @@
 import { resolve } from "node:path";
 import type { LanguageModel } from "ai";
 import { AiAgent } from "./ai/agent.js";
-import {
-  buildProviderRegistry,
-  parseModelRef,
-  resolveModelRef,
-} from "./ai/provider-registry.js";
+import { buildProviderRegistry, parseModelRef, resolveModelRef } from "./ai/provider-registry.js";
 import { AdminServer } from "./admin/server.js";
 import { getAdminSocketPath } from "./admin/paths.js";
 import { AgentTurnOrchestrator } from "./agent/orchestrator.js";
@@ -71,14 +67,17 @@ export class GatewayRuntime {
       this.log = log;
 
       log.info({ configPath: getConfigPath() }, "Configuration loaded");
-      log.debug({
-        workspace: config.workspace.root,
-        providers: Object.keys(config.ai.providers),
-        chatModel: config.ai.models.chat,
-        shellMode: config.tools.shell.mode,
-        heartbeatEnabled: config.heartbeat.enabled,
-        logLevel: config.logging.level,
-      }, "Gateway configuration summary");
+      log.debug(
+        {
+          workspace: config.workspace.root,
+          providers: Object.keys(config.ai.providers),
+          chatModel: config.ai.models.chat,
+          shellMode: config.tools.shell.mode,
+          heartbeatEnabled: config.heartbeat.enabled,
+          logLevel: config.logging.level,
+        },
+        "Gateway configuration summary",
+      );
 
       const workspacePath = resolve(process.cwd(), config.workspace.root);
 
@@ -94,9 +93,7 @@ export class GatewayRuntime {
         ref: config.ai.models.chat,
         aliases: config.ai.aliases,
       });
-      const chatModel = registry.languageModel(
-        chatModelRef as `${string}:${string}`,
-      );
+      const chatModel = registry.languageModel(chatModelRef as `${string}:${string}`);
 
       let visionModel: LanguageModel | undefined;
       if (config.ai.models.vision) {
@@ -104,9 +101,7 @@ export class GatewayRuntime {
           ref: config.ai.models.vision,
           aliases: config.ai.aliases,
         });
-        visionModel = registry.languageModel(
-          visionModelRef as `${string}:${string}`,
-        );
+        visionModel = registry.languageModel(visionModelRef as `${string}:${string}`);
         log.info({ visionModel: config.ai.models.vision }, "Vision model configured");
       }
 
@@ -136,7 +131,9 @@ export class GatewayRuntime {
 
       const shellConfig = config.tools.shell;
       if (shellConfig.mode === "full-access") {
-        log.warn("Shell tool is running in full-access mode. Command allowlist validation is disabled.");
+        log.warn(
+          "Shell tool is running in full-access mode. Command allowlist validation is disabled.",
+        );
       }
 
       const chatRegistry = new ChatRegistry({ db });
@@ -149,8 +146,7 @@ export class GatewayRuntime {
 
       let heartbeatRuntime: HeartbeatRuntime | null = null;
 
-      const telegramBotToken =
-        config.channels?.telegram?.botToken ?? config.telegram?.botToken;
+      const telegramBotToken = config.channels?.telegram?.botToken ?? config.telegram?.botToken;
       if (!telegramBotToken) {
         throw new Error(
           "Telegram bot token is required. Set channels.telegram.botToken in configuration.",
@@ -226,10 +222,7 @@ export class GatewayRuntime {
       sessionManager
         .findSessionsNeedingExtraction()
         .then((sessions) => {
-          log.info(
-            { count: sessions.length },
-            "Memory extraction catch-up query complete",
-          );
+          log.info({ count: sessions.length }, "Memory extraction catch-up query complete");
           for (const session of sessions) {
             log.debug({ sessionKey: session.key }, "Enqueuing session for memory extraction");
             memoryExtractionQueue.enqueueImmediate({ sessionKey: session.key });
@@ -245,14 +238,15 @@ export class GatewayRuntime {
           ref: config.session.titleGeneration.model,
           aliases: config.ai.aliases,
         });
-        const titleModel = registry.languageModel(
-          titleModelRef as `${string}:${string}`,
-        );
+        const titleModel = registry.languageModel(titleModelRef as `${string}:${string}`);
         titleGenerator = new SessionTitleGenerator({
           model: titleModel,
           prompt: config.session.titleGeneration.prompt,
         });
-        log.info({ titleModel: config.session.titleGeneration.model }, "Session title generation enabled");
+        log.info(
+          { titleModel: config.session.titleGeneration.model },
+          "Session title generation enabled",
+        );
       }
 
       const orchestrator = new AgentTurnOrchestrator({

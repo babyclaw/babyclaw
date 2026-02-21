@@ -94,10 +94,7 @@ describe("createMediaTools", () => {
       const { channelSender, executionContext } = createMocks({ threadId: "topic-7" });
       const tools = createMediaTools({ channelSender, executionContext });
 
-      await tools.send_file.execute!(
-        { path: "photo.jpg", type: "image" },
-        toolOptions(),
-      );
+      await tools.send_file.execute!({ path: "photo.jpg", type: "image" }, toolOptions());
 
       expect(channelSender.sendFile).toHaveBeenCalledWith(
         expect.objectContaining({ threadId: "topic-7" }),

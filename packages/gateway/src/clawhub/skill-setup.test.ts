@@ -329,9 +329,7 @@ describe("runSkillSetup", () => {
   });
 
   it("skips when skill has no setup steps", async () => {
-    mockReadFile.mockResolvedValueOnce(
-      "---\nname: Empty\ndescription: nope\n---\n",
-    );
+    mockReadFile.mockResolvedValueOnce("---\nname: Empty\ndescription: nope\n---\n");
 
     const result = await runSkillSetup({
       model: {} as any,

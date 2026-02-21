@@ -2,16 +2,20 @@
   "name": "babyclaw",
   "version": "0.0.0",
   "description": "The babyclaw command-line interface",
-  "type": "module",
+  "keywords": [
+    "agent",
+    "babyclaw",
+    "cli",
+    "gateway"
+  ],
+  "license": "ISC",
   "bin": {
     "babyclaw": "./build/cli.js"
   },
   "files": [
     "build"
   ],
-  "engines": {
-    "node": ">=20"
-  },
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -23,13 +27,6 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": [
-    "babyclaw",
-    "cli",
-    "agent",
-    "gateway"
-  ],
-  "license": "ISC",
   "dependencies": {
     "@babyclaw/gateway": "workspace:*",
     "@gud/cli": "1.0.0-beta.7",
@@ -40,5 +37,8 @@
     "oxlint": "^1.49.0",
     "typescript": "^5.9.2",
     "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

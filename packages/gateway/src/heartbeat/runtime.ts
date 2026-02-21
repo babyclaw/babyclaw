@@ -68,7 +68,10 @@ export class HeartbeatRuntime {
     });
 
     this.log.info(
-      { intervalMinutes: this.heartbeatConfig.intervalMinutes, nextRunAt: this.nextRunAt.toISOString() },
+      {
+        intervalMinutes: this.heartbeatConfig.intervalMinutes,
+        nextRunAt: this.nextRunAt.toISOString(),
+      },
       "Heartbeat runtime started",
     );
   }
@@ -112,9 +115,7 @@ export class HeartbeatRuntime {
   }
 
   private bumpNextRun(): void {
-    this.nextRunAt = new Date(
-      Date.now() + this.heartbeatConfig.intervalMinutes * 60_000,
-    );
+    this.nextRunAt = new Date(Date.now() + this.heartbeatConfig.intervalMinutes * 60_000);
   }
 
   private isWithinActiveHours(): boolean {

@@ -1,9 +1,5 @@
 import { command } from "@gud/cli";
-import {
-  getConfigPath,
-  loadConfigRaw,
-  writeConfig,
-} from "@babyclaw/gateway";
+import { getConfigPath, loadConfigRaw, writeConfig } from "@babyclaw/gateway";
 import { c } from "../../../ui/theme.js";
 
 export default command({
@@ -26,8 +22,7 @@ export default command({
       validate: (val) => {
         if (!val) return "Alias name is required";
         const cleaned = val.toLowerCase().replace(/[^a-z0-9_-]/g, "");
-        if (!cleaned)
-          return "Use only lowercase letters, numbers, hyphens, and underscores";
+        if (!cleaned) return "Use only lowercase letters, numbers, hyphens, and underscores";
         return true;
       },
     });
@@ -45,11 +40,7 @@ export default command({
       const config = await loadConfigRaw();
       if (!config) {
         client.log(c.error(`No valid config found at ${getConfigPath()}`));
-        client.log(
-          c.muted("  Run ") +
-            c.info("babyclaw config init") +
-            c.muted(" first."),
-        );
+        client.log(c.muted("  Run ") + c.info("babyclaw config init") + c.muted(" first."));
         process.exitCode = 1;
         return;
       }
@@ -67,9 +58,7 @@ export default command({
       );
     } catch (err) {
       client.log(c.error("Failed to set alias"));
-      client.log(
-        c.muted(err instanceof Error ? err.message : String(err)),
-      );
+      client.log(c.muted(err instanceof Error ? err.message : String(err)));
       process.exitCode = 1;
     }
   },

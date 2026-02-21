@@ -133,9 +133,7 @@ describe("SchedulerService.createSchedule", () => {
           jobType: ScheduleType.recurring,
           cronExpression: "* * * * *",
         }),
-      ).rejects.toThrow(
-        "cron_expression must have an interval of at least 5 minutes",
-      );
+      ).rejects.toThrow("cron_expression must have an interval of at least 5 minutes");
     });
 
     it("creates a recurring schedule with a computed nextRunAt", async () => {

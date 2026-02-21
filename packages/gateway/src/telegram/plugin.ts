@@ -121,11 +121,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
       options.caption = input.caption;
     }
 
-    const sent = await api.sendPhoto(
-      input.chatId,
-      new InputFile(input.filePath),
-      options,
-    );
+    const sent = await api.sendPhoto(input.chatId, new InputFile(input.filePath), options);
 
     return { platformMessageId: String(sent.message_id) };
   }
@@ -204,13 +200,20 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     });
   }
 
-  async setSessionTitle(input: { chatId: string; threadId?: string; title: string }): Promise<void> {
+  async setSessionTitle(input: {
+    chatId: string;
+    threadId?: string;
+    title: string;
+  }): Promise<void> {
     if (!input.threadId) return;
     const api = this.getApi();
     try {
       await api.editForumTopic(Number(input.chatId), Number(input.threadId), { name: input.title });
     } catch (err) {
-      getLogger().warn({ err, chatId: input.chatId, threadId: input.threadId }, "Failed to rename forum topic");
+      getLogger().warn(
+        { err, chatId: input.chatId, threadId: input.threadId },
+        "Failed to rename forum topic",
+      );
     }
   }
 
@@ -262,22 +265,15 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     const text = `Shell command ${input.approved ? "approved" : "denied"}.\n\nCommand: \`${input.command}\`\n\nStatus: ${status}`;
 
     try {
-      await api.editMessageText(
-        Number(input.chatId),
-        Number(input.messageId),
-        text,
-        { parse_mode: "Markdown" },
-      );
+      await api.editMessageText(Number(input.chatId), Number(input.messageId), text, {
+        parse_mode: "Markdown",
+      });
     } catch (err) {
       console.error("[approval] Failed to update approval prompt:", err);
     }
   }
 
-  async start({
-    onInboundEvent,
-  }: {
-    onInboundEvent: InboundEventHandler;
-  }): Promise<void> {
+  async start({ onInboundEvent }: { onInboundEvent: InboundEventHandler }): Promise<void> {
     const bot = new Bot<TelegramBotContext>(this.token, {
       ContextConstructor: TelegramBotContext,
     });
@@ -305,11 +301,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     return this.bot.api;
   }
 
-  private setupMiddleware({
-    bot,
-  }: {
-    bot: Bot<TelegramBotContext>;
-  }): void {
+  private setupMiddleware({ bot }: { bot: Bot<TelegramBotContext> }): void {
     bot.use(async (ctx, next) => {
       if (!ctx.chat) {
         await next();
@@ -351,11 +343,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     });
   }
 
-  private setupCommands({
-    bot,
-  }: {
-    bot: Bot<TelegramBotContext>;
-  }): void {
+  private setupCommands({ bot }: { bot: Bot<TelegramBotContext> }): void {
     bot.command("link", async (ctx) => {
       if (!ctx.chat || !ctx.from) return;
 
@@ -455,9 +443,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
         return;
       }
 
-      const nextRunLabel = status.nextRunAt
-        ? status.nextRunAt.toISOString()
-        : "not scheduled";
+      const nextRunLabel = status.nextRunAt ? status.nextRunAt.toISOString() : "not scheduled";
 
       await ctx.reply(`Heartbeat is enabled.\nNext run: ${nextRunLabel}`);
     });
@@ -490,9 +476,10 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
 
     bot.on("callback_query:data", async (ctx) => {
       const data = ctx.callbackQuery.data;
-      const isApproval = data.startsWith("cmd_approve:")
-        || data.startsWith("cmd_approve_session:")
-        || data.startsWith("cmd_deny:");
+      const isApproval =
+        data.startsWith("cmd_approve:") ||
+        data.startsWith("cmd_approve_session:") ||
+        data.startsWith("cmd_deny:");
       if (!isApproval) {
         return;
       }
@@ -535,11 +522,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     });
   }
 
-  private setupErrorHandler({
-    bot,
-  }: {
-    bot: Bot<TelegramBotContext>;
-  }): void {
+  private setupErrorHandler({ bot }: { bot: Bot<TelegramBotContext> }): void {
     bot.catch(async (error: BotError<TelegramBotContext>) => {
       const ctx = error.ctx;
       console.error("Unhandled Telegram bot error:", error.error);
@@ -569,24 +552,28 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     if (!text || text.length === 0) return null;
 
     const rawMessage = message as unknown as Record<string, unknown>;
-    const messageThreadId = typeof rawMessage.message_thread_id === "number"
-      ? rawMessage.message_thread_id
-      : undefined;
+    const messageThreadId =
+      typeof rawMessage.message_thread_id === "number" ? rawMessage.message_thread_id : undefined;
 
     const replyToMessage = rawMessage.reply_to_message as Record<string, unknown> | undefined;
-    const replyToMessageId = typeof replyToMessage?.message_id === "number"
-      ? String(replyToMessage.message_id)
-      : undefined;
-    const replyToText = typeof replyToMessage?.text === "string"
-      ? replyToMessage.text
-      : typeof replyToMessage?.caption === "string"
-        ? (replyToMessage.caption as string)
+    const replyToMessageId =
+      typeof replyToMessage?.message_id === "number"
+        ? String(replyToMessage.message_id)
         : undefined;
+    const replyToText =
+      typeof replyToMessage?.text === "string"
+        ? replyToMessage.text
+        : typeof replyToMessage?.caption === "string"
+          ? (replyToMessage.caption as string)
+          : undefined;
 
-    const directMessagesTopic = rawMessage.direct_messages_topic as Record<string, unknown> | undefined;
-    const dmTopicId = typeof directMessagesTopic?.topic_id === "number"
-      ? String(directMessagesTopic.topic_id)
-      : undefined;
+    const directMessagesTopic = rawMessage.direct_messages_topic as
+      | Record<string, unknown>
+      | undefined;
+    const dmTopicId =
+      typeof directMessagesTopic?.topic_id === "number"
+        ? String(directMessagesTopic.topic_id)
+        : undefined;
 
     const from = rawMessage.from as Record<string, unknown> | undefined;
     const senderName = buildSenderName({ from });
@@ -633,28 +620,30 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
       return null;
     }
 
-    const caption = typeof rawMessage.caption === "string"
-      ? rawMessage.caption.trim()
-      : "";
+    const caption = typeof rawMessage.caption === "string" ? rawMessage.caption.trim() : "";
 
-    const messageThreadId = typeof rawMessage.message_thread_id === "number"
-      ? rawMessage.message_thread_id
-      : undefined;
+    const messageThreadId =
+      typeof rawMessage.message_thread_id === "number" ? rawMessage.message_thread_id : undefined;
 
     const replyToMessage = rawMessage.reply_to_message as Record<string, unknown> | undefined;
-    const replyToMessageId = typeof replyToMessage?.message_id === "number"
-      ? String(replyToMessage.message_id)
-      : undefined;
-    const replyToText = typeof replyToMessage?.text === "string"
-      ? replyToMessage.text
-      : typeof replyToMessage?.caption === "string"
-        ? (replyToMessage.caption as string)
+    const replyToMessageId =
+      typeof replyToMessage?.message_id === "number"
+        ? String(replyToMessage.message_id)
         : undefined;
+    const replyToText =
+      typeof replyToMessage?.text === "string"
+        ? replyToMessage.text
+        : typeof replyToMessage?.caption === "string"
+          ? (replyToMessage.caption as string)
+          : undefined;
 
-    const directMessagesTopic = rawMessage.direct_messages_topic as Record<string, unknown> | undefined;
-    const dmTopicId = typeof directMessagesTopic?.topic_id === "number"
-      ? String(directMessagesTopic.topic_id)
-      : undefined;
+    const directMessagesTopic = rawMessage.direct_messages_topic as
+      | Record<string, unknown>
+      | undefined;
+    const dmTopicId =
+      typeof directMessagesTopic?.topic_id === "number"
+        ? String(directMessagesTopic.topic_id)
+        : undefined;
 
     const from = rawMessage.from as Record<string, unknown> | undefined;
     const senderName = buildSenderName({ from });
@@ -678,11 +667,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     };
   }
 
-  private async downloadTelegramFile({
-    fileId,
-  }: {
-    fileId: string;
-  }): Promise<ImageAttachment> {
+  private async downloadTelegramFile({ fileId }: { fileId: string }): Promise<ImageAttachment> {
     const api = this.getApi();
     const file = await api.getFile(fileId);
     if (!file.file_path) {
@@ -729,7 +714,11 @@ export function isLinkOrUnlinkCommand({ ctx }: { ctx: TelegramBotContext }): boo
   return text.startsWith("/link") || text.startsWith("/unlink");
 }
 
-export function buildSenderName({ from }: { from: Record<string, unknown> | undefined }): string | undefined {
+export function buildSenderName({
+  from,
+}: {
+  from: Record<string, unknown> | undefined;
+}): string | undefined {
   if (!from) return undefined;
   const firstName = typeof from.first_name === "string" ? from.first_name : undefined;
   const lastName = typeof from.last_name === "string" ? from.last_name : undefined;

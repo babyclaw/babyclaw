@@ -12,9 +12,7 @@ export function getEligibleSkills({
   skillsConfig,
   fullConfig,
 }: EligibilityInput): SkillEntry[] {
-  return skills.filter((skill) =>
-    shouldIncludeSkill({ skill, skillsConfig, fullConfig }),
-  );
+  return skills.filter((skill) => shouldIncludeSkill({ skill, skillsConfig, fullConfig }));
 }
 
 function shouldIncludeSkill({

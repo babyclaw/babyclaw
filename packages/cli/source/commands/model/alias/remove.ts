@@ -1,9 +1,5 @@
 import { command } from "@gud/cli";
-import {
-  getConfigPath,
-  loadConfigRaw,
-  writeConfig,
-} from "@babyclaw/gateway";
+import { getConfigPath, loadConfigRaw, writeConfig } from "@babyclaw/gateway";
 import { c } from "../../../ui/theme.js";
 
 export default command({
@@ -19,11 +15,7 @@ export default command({
       const config = await loadConfigRaw();
       if (!config) {
         client.log(c.error(`No valid config found at ${getConfigPath()}`));
-        client.log(
-          c.muted("  Run ") +
-            c.info("babyclaw config init") +
-            c.muted(" first."),
-        );
+        client.log(c.muted("  Run ") + c.info("babyclaw config init") + c.muted(" first."));
         process.exitCode = 1;
         return;
       }
@@ -50,9 +42,7 @@ export default command({
       if (!(name in config.ai.aliases)) {
         client.log(c.warning(`Alias ${c.bold(name)} does not exist.`));
         client.log(
-          c.muted("  Run ") +
-            c.info("babyclaw model alias") +
-            c.muted(" to see current aliases."),
+          c.muted("  Run ") + c.info("babyclaw model alias") + c.muted(" to see current aliases."),
         );
         return;
       }
@@ -63,9 +53,7 @@ export default command({
       client.log(c.success(`Removed alias ${c.bold(name)}`));
     } catch (err) {
       client.log(c.error("Failed to remove alias"));
-      client.log(
-        c.muted(err instanceof Error ? err.message : String(err)),
-      );
+      client.log(c.muted(err instanceof Error ? err.message : String(err)));
       process.exitCode = 1;
     }
   },

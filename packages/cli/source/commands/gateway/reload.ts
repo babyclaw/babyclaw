@@ -12,9 +12,7 @@ export default command({
       await adminClient.health();
 
       client.log(
-        c.success(
-          "✓ Gateway is alive. Config reload requires a service restart for now.",
-        ),
+        c.success("✓ Gateway is alive. Config reload requires a service restart for now."),
       );
       client.log(
         c.muted("  Run ") +
@@ -23,9 +21,7 @@ export default command({
       );
     } catch (err) {
       client.log(c.error("✗ Could not reach the gateway"));
-      client.log(
-        c.muted(`  ${err instanceof Error ? err.message : String(err)}`),
-      );
+      client.log(c.muted(`  ${err instanceof Error ? err.message : String(err)}`));
       process.exitCode = 1;
     }
   },

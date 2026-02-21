@@ -42,7 +42,13 @@ export class SchedulerExecutor {
     scheduleId: string;
     scheduledFor?: Date;
   }): Promise<void> {
-    const { schedulerService, sessionManager, messageLinkRepository, chatRegistry, deliveryService } = this.toolDeps;
+    const {
+      schedulerService,
+      sessionManager,
+      messageLinkRepository,
+      chatRegistry,
+      deliveryService,
+    } = this.toolDeps;
 
     const schedule = await schedulerService.getScheduleForRuntime({ scheduleId });
     if (!schedule || schedule.status !== "active") {
@@ -191,7 +197,9 @@ export class SchedulerExecutor {
         } catch (error) {
           lastError = error;
           if (attempt < 3) {
-            await wait({ ms: RETRY_DELAYS_MS[attempt - 1] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1] });
+            await wait({
+              ms: RETRY_DELAYS_MS[attempt - 1] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1],
+            });
             continue;
           }
         }
@@ -245,8 +253,11 @@ export class SchedulerExecutor {
   }): Promise<string> {
     const { workspacePath, aiAgent, schedulerService, skillsConfig, fullConfig } = this.toolDeps;
 
-    const { personalityFiles, toolNotesContent, agentsContent, skills } =
-      await loadAgentContext({ workspacePath, skillsConfig, fullConfig });
+    const { personalityFiles, toolNotesContent, agentsContent, skills } = await loadAgentContext({
+      workspacePath,
+      skillsConfig,
+      fullConfig,
+    });
 
     const sharedSystemMessage = getSharedSystemMessage({
       workspacePath,
@@ -266,7 +277,8 @@ export class SchedulerExecutor {
         platform: this.channelSender.platform,
         chatId: chatIdStr,
         threadId: threadId !== null ? String(threadId) : undefined,
-        directMessagesTopicId: directMessagesTopicId !== null ? String(directMessagesTopicId) : undefined,
+        directMessagesTopicId:
+          directMessagesTopicId !== null ? String(directMessagesTopicId) : undefined,
         runSource: "scheduled",
         isMainSession: false,
       },
@@ -310,11 +322,7 @@ export class SchedulerExecutor {
     errorMessage: string;
   }): Promise<void> {
     const header = title ? `Schedule failed: ${title}` : "A scheduled run failed";
-    const text = [
-      header,
-      `task: ${taskPrompt}`,
-      `error: ${errorMessage}`,
-    ].join("\n");
+    const text = [header, `task: ${taskPrompt}`, `error: ${errorMessage}`].join("\n");
 
     try {
       await this.channelSender.sendMessage({

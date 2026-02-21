@@ -105,7 +105,12 @@ export function createSchedulerTools({
           action: async () => {
             let targetChatRef: string | null = null;
 
-            if (target_alias && executionContext.isMainSession && chatRegistry && executionContext.platform) {
+            if (
+              target_alias &&
+              executionContext.isMainSession &&
+              chatRegistry &&
+              executionContext.platform
+            ) {
               const targetChat = await chatRegistry.resolveAlias({
                 platform: executionContext.platform,
                 alias: target_alias,

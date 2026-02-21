@@ -114,23 +114,22 @@ export class AiAgent {
       onAbort: ({ steps }) => {
         getLogger().info({ steps: steps.length }, "Agent turn aborted");
       },
-      onStepFinish({
-        text,
-        reasoningText,
-        toolCalls,
-      }) {
-        getLogger().info({ 
-          text,
-          reasoningText,
-          toolCallsCount: toolCalls.length,
-         }, "Agent step finished");
-      }
+      onStepFinish({ text, reasoningText, toolCalls }) {
+        getLogger().info(
+          {
+            text,
+            reasoningText,
+            toolCallsCount: toolCalls.length,
+          },
+          "Agent step finished",
+        );
+      },
     } as Parameters<typeof streamText>[0];
 
     const result = streamText(request);
     result.response.then(async () => {
       getLogger().info({ reason: await result.finishReason }, "Agent step finished");
-    })
+    });
 
     return {
       textStream: result.textStream,

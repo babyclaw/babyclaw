@@ -78,9 +78,7 @@ export type StreamTurnResult = {
   lastPlatformMessageId?: string;
 };
 
-export type InboundEventHandler = (input: {
-  event: NormalizedInboundEvent;
-}) => Promise<void>;
+export type InboundEventHandler = (input: { event: NormalizedInboundEvent }) => Promise<void>;
 
 /**
  * Unified channel adapter interface. Every present and future channel
@@ -105,4 +103,7 @@ export interface ChannelAdapter {
  * Convenience type for consumers that only need the outbound send capability
  * (e.g. delivery service, heartbeat executor, messaging tools).
  */
-export type ChannelSender = Pick<ChannelAdapter, "platform" | "sendMessage" | "sendImage" | "sendFile">;
+export type ChannelSender = Pick<
+  ChannelAdapter,
+  "platform" | "sendMessage" | "sendImage" | "sendFile"
+>;
