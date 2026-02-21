@@ -4,7 +4,7 @@ import type { Api, Context } from "grammy";
  * Characters that must be escaped in Telegram MarkdownV2 outside of
  * code blocks and inline code spans.
  */
-const MARKDOWN_V2_SPECIAL = /[_*\[\]()~`>#+\-=|{}.!\\]/g;
+const MARKDOWN_V2_SPECIAL = /[_*[\]()~`>#+\-=|{}.!\\]/g;
 
 /**
  * Escape a plain-text string for Telegram MarkdownV2.

@@ -21,7 +21,7 @@ describe("createWebSearchTools", () => {
     });
 
     const result = await (tools.web_search as any).execute({
-      query: "simpleclaw",
+      query: "babyclaw",
       count: 1,
     });
 
@@ -37,7 +37,7 @@ describe("createWebSearchTools", () => {
             web: {
               results: [
                 {
-                  title: "Simpleclaw",
+                  title: "BabyClaw",
                   url: "https://example.com",
                   description: "A result",
                 },
@@ -61,7 +61,7 @@ describe("createWebSearchTools", () => {
     });
 
     const result = await (tools.web_search as any).execute({
-      query: "simpleclaw",
+      query: "babyclaw",
       count: 1,
     });
 

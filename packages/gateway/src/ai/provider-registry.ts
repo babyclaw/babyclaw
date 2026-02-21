@@ -5,7 +5,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMistral } from "@ai-sdk/mistral";
 import { createXai } from "@ai-sdk/xai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { SimpleclawConfig } from "../config/types.js";
+import type { BabyclawConfig } from "../config/types.js";
 
 type AnyProvider = Parameters<typeof createProviderRegistry>[0][string];
 
@@ -165,7 +165,7 @@ export function parseModelRef({ ref }: { ref: string }): {
 export function resolveLanguageModel({
   config,
 }: {
-  config: SimpleclawConfig;
+  config: BabyclawConfig;
 }): LanguageModel {
   const registry = buildProviderRegistry({ providers: config.ai.providers });
   const ref = resolveModelRef({

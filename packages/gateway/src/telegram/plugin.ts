@@ -692,7 +692,7 @@ export class TelegramAdapter implements ChannelAdapter, ApprovalSender {
     const ext = extFromFilePath(file.file_path);
     const mimeType = mimeFromExt(ext);
     const localName = `${randomUUID()}${ext}`;
-    const imagesDir = join(this.workspacePath, ".simpleclaw", "images");
+    const imagesDir = join(this.workspacePath, ".babyclaw", "images");
     await mkdir(imagesDir, { recursive: true });
     const localPath = join(imagesDir, localName);
 

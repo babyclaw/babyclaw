@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import { AgentTurnOrchestrator } from "./orchestrator.js";
 import type { ChannelAdapter, NormalizedInboundEvent } from "../channel/types.js";
 import { ChannelRouter } from "../channel/router.js";
@@ -23,7 +23,6 @@ vi.mock("../ai/prompts.js", () => ({
   getSelfManagementSystemMessage: vi.fn(() => ({ role: "system", content: "self" })),
   getMainSessionSystemMessage: vi.fn(() => ({ role: "system", content: "main" })),
   getNonMainSessionSystemMessage: vi.fn(() => ({ role: "system", content: "non-main" })),
-  getBrowserToolsSystemMessage: vi.fn(() => ({ role: "system", content: "browser" })),
   buildScheduleFollowupSystemNote: vi.fn(() => "schedule followup"),
   buildScheduledTaskUserContent: vi.fn(() => "scheduled task"),
   getScheduledExecutionSystemMessage: vi.fn(() => ({ role: "system", content: "scheduled" })),

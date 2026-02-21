@@ -3,7 +3,6 @@ import type { Chat } from "../database/schema.js";
 import {
   buildScheduleFollowupSystemNote,
   buildScheduledTaskUserContent,
-  getBrowserToolsSystemMessage,
   getMainSessionSystemMessage,
   getNonMainSessionSystemMessage,
   getScheduledExecutionSystemMessage,
@@ -208,22 +207,6 @@ describe("getWorkspaceGuideSystemMessage", () => {
     const msg = getWorkspaceGuideSystemMessage({});
     expect(msg.role).toBe("system");
     expect(msg.content).toBe("");
-  });
-});
-
-describe("getBrowserToolsSystemMessage", () => {
-  it("returns a system message about browser tools", () => {
-    const msg = getBrowserToolsSystemMessage();
-    expect(msg.role).toBe("system");
-    expect(msg.content).toContain("browser automation");
-    expect(msg.content).toContain("browser_agent_task");
-    expect(msg.content).toContain("browser_navigate");
-  });
-
-  it("mentions limitations", () => {
-    const msg = getBrowserToolsSystemMessage();
-    expect(msg.content).toContain("headless mode");
-    expect(msg.content).toContain("File downloads are not supported");
   });
 });
 

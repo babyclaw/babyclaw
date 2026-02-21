@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, isNull, lt, not } from "drizzle-orm";
+import { asc, count, desc, eq, inArray, not } from "drizzle-orm";
 import type { ModelMessage } from "ai";
 import { buildUserContentFromMetadata } from "../agent/helpers.js";
 import type { Database } from "../database/client.js";

@@ -230,7 +230,6 @@ export class SchedulerExecutor {
   }
 
   private async generateScheduleOutput({
-    scheduleId,
     chatId,
     threadId,
     directMessagesTopicId,

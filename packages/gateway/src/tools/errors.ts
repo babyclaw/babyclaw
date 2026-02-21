@@ -60,9 +60,7 @@ export async function withToolLogging<TSuccess extends object>({
   });
 
   toolLog.info(
-    {
-      ...(input ? { input: redactToolInput({ input }) } : {}),
-    },
+    (input ? { input: redactToolInput({ input }) } : {}),
     `Tool call started: ${toolName}`,
   );
 

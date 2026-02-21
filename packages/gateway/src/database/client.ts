@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 
 const DB_DIR = ".data";
-const DB_FILENAME = "simpleclaw.db";
+const DB_FILENAME = "babyclaw.db";
 
 export function getDatabasePath({
   workspacePath,

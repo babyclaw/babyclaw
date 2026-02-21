@@ -18,7 +18,7 @@ type StateDocument = {
   value: unknown;
 };
 
-const STATE_ROOT_DIR = ".simpleclaw/state";
+const STATE_ROOT_DIR = ".babyclaw/state";
 const MAX_LIST_LIMIT = 200;
 const DEFAULT_LIST_LIMIT = 50;
 

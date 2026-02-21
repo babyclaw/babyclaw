@@ -31,8 +31,8 @@ afterEach(() => {
 });
 
 describe("loadConfig", () => {
-  it("loads a valid config from SIMPLECLAW_CONFIG_PATH", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-config-"));
+  it("loads a valid config from BABYCLAW_CONFIG_PATH", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-config-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");
@@ -52,7 +52,7 @@ describe("loadConfig", () => {
   });
 
   it("defaults shell config to allowlist mode with default commands", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-shell-default-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-shell-default-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");
@@ -72,7 +72,7 @@ describe("loadConfig", () => {
   });
 
   it("accepts full-access shell mode from config", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-shell-full-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-shell-full-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");
@@ -96,7 +96,7 @@ describe("loadConfig", () => {
   });
 
   it("accepts a custom shell allowedCommands list", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-shell-custom-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-shell-custom-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");
@@ -122,13 +122,13 @@ describe("loadConfig", () => {
   });
 
   it("loads from the default home config path when override is unset", async () => {
-    const tempHome = await mkdtemp(join(tmpdir(), "simpleclaw-home-"));
+    const tempHome = await mkdtemp(join(tmpdir(), "babyclaw-home-"));
 
     try {
       vi.stubEnv(CONFIG_PATH_ENV_VAR, "");
       vi.stubEnv("HOME", tempHome);
       const defaultPath = getDefaultConfigPath();
-      await mkdir(join(tempHome, ".simpleclaw"), { recursive: true });
+      await mkdir(join(tempHome, ".babyclaw"), { recursive: true });
 
       await writeFile(defaultPath, JSON.stringify(createValidConfig()), "utf8");
 
@@ -142,10 +142,10 @@ describe("loadConfig", () => {
   });
 
   it("auto-creates a template file when config is missing", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-missing-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-missing-"));
 
     try {
-      const configPath = join(tempDir, "nested", "simpleclaw.json");
+      const configPath = join(tempDir, "nested", "babyclaw.json");
       vi.stubEnv(CONFIG_PATH_ENV_VAR, configPath);
 
       await expect(loadConfig()).rejects.toThrow(
@@ -162,7 +162,7 @@ describe("loadConfig", () => {
   });
 
   it("fails validation for placeholder secrets", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-secret-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-secret-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");
@@ -198,7 +198,7 @@ describe("loadConfig", () => {
   });
 
   it("loads new channels.telegram config format", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-channels-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-channels-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");
@@ -233,7 +233,7 @@ describe("loadConfig", () => {
   });
 
   it("normalizes legacy telegram config into channels", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-legacy-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-legacy-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");
@@ -249,7 +249,7 @@ describe("loadConfig", () => {
   });
 
   it("accepts optional vision model in ai.models", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-vision-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-vision-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");
@@ -276,7 +276,7 @@ describe("loadConfig", () => {
   });
 
   it("defaults vision model to undefined when not provided", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-no-vision-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-no-vision-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");
@@ -292,7 +292,7 @@ describe("loadConfig", () => {
   });
 
   it("rejects unknown keys due to strict schema", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "simpleclaw-strict-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "babyclaw-strict-"));
 
     try {
       const configPath = join(tempDir, "runtime.json");

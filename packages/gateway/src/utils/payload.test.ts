@@ -50,7 +50,7 @@ describe("ensureJsonWithinLimit", () => {
   });
 
   it("throws when the serialized JSON exceeds the limit", () => {
-    const bigArray = new Array(100).fill("x".repeat(1000));
+    const bigArray = Array.from({ length: 100 }).fill("x".repeat(1000));
     expect(() =>
       ensureJsonWithinLimit({ value: bigArray, maxBytes: 50 }),
     ).toThrow("Payload exceeds 50 bytes");

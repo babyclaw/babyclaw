@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { SimpleclawConfig } from "../config/types.js";
+import type { BabyclawConfig } from "../config/types.js";
 
 export const heartbeatResultSchema = z.object({
   action: z.enum(["ok", "alert"]).describe(
@@ -13,6 +13,4 @@ export const heartbeatResultSchema = z.object({
   ),
 });
 
-type HeartbeatResult = z.infer<typeof heartbeatResultSchema>;
-
-export type HeartbeatConfig = SimpleclawConfig["heartbeat"];
+export type HeartbeatConfig = BabyclawConfig["heartbeat"];

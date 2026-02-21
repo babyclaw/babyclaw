@@ -232,37 +232,6 @@ export function getSelfManagementSystemMessage({
   };
 }
 
-export function getBrowserToolsSystemMessage(): ModelMessage {
-  return {
-    role: "system",
-    content: [
-      "You have access to browser automation tools powered by browser-use.",
-      "",
-      "Tool selection:",
-      "- For complex multi-step web tasks (e.g. fill a form, search and compare results, navigate through multiple pages), prefer browser_agent_task which delegates to an autonomous browser agent.",
-      "- For simple tasks (e.g. fetch content from a known URL), use the direct control tools: browser_navigate, browser_get_state, browser_click, browser_type, browser_scroll, browser_extract_content, browser_go_back.",
-      "",
-      "Direct control workflow:",
-      "1. browser_navigate to the target URL.",
-      "2. browser_get_state to see the page elements and their indices.",
-      "3. Interact using browser_click, browser_type, or browser_scroll as needed.",
-      "4. browser_extract_content to pull out the information you need.",
-      "5. browser_go_back if you need to return to a previous page.",
-      "",
-      "Session management:",
-      "- Browser sessions persist across tool calls within a conversation.",
-      "- Use browser_list_sessions to see active sessions.",
-      "- Use browser_close_session to clean up when you are done with a browser task.",
-      "",
-      "Limitations:",
-      "- The browser runs in headless mode (no visible window).",
-      "- File downloads are not supported.",
-      "- Authentication state (cookies, sessions) does not persist across bot restarts.",
-      "- Browser tasks can be slow; prefer direct API calls (curl via shell_exec) when you just need raw data from a public API.",
-    ].join("\n"),
-  };
-}
-
 export function getMainSessionSystemMessage({
   linkedChats,
 }: {
@@ -375,7 +344,6 @@ export function getWorkingMemorySystemMessage({
 }
 
 function buildSharedSystemPrompt({
-  workspacePath,
   personalityFiles,
 }: SharedContextInput): string {
   const basePrompt = [

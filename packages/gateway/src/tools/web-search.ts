@@ -68,7 +68,7 @@ export function createWebSearchTools({
                 code: "BRAVE_API_KEY_MISSING",
                 message: "Brave Search API key is not configured.",
                 hint:
-                  "Set tools.webSearch.braveApiKey in the Simpleclaw JSON config file.",
+                  "Set tools.webSearch.braveApiKey in the BabyClaw JSON config file.",
               });
             }
 

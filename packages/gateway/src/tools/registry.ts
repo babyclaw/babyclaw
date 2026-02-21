@@ -3,7 +3,6 @@ import type { CommandApprovalService } from "../approval/service.js";
 import type { ChannelSender } from "../channel/types.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
 import type { ToolDependencies } from "../utils/tool-deps.js";
-import { createBrowserTools } from "./browser.js";
 import { createClawhubTools } from "./clawhub.js";
 import { createMediaTools } from "./media.js";
 import { createMessagingTools } from "./messaging.js";
@@ -44,7 +43,6 @@ export function createUnifiedTools({
     enableGenericTools,
     braveSearchApiKey,
     shellConfig,
-    browserMcpClient,
     chatRegistry,
     deliveryService,
     sessionManager,
@@ -76,13 +74,6 @@ export function createUnifiedTools({
   if (!enableGenericTools) {
     return { ...schedulerTools, ...selfTools };
   }
-
-  const browserTools = browserMcpClient
-    ? createBrowserTools({
-        mcpClient: browserMcpClient,
-        context: executionContext,
-      })
-    : {};
 
   const messagingTools =
     executionContext.isMainSession && chatRegistry && channelSender && deliveryService
@@ -123,7 +114,6 @@ export function createUnifiedTools({
       context: executionContext,
       model: chatModel,
     }),
-    ...browserTools,
     ...messagingTools,
     ...mediaTools,
     ...(sessionKey

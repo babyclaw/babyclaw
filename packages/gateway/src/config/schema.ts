@@ -34,18 +34,11 @@ const modelAliasesSchema = z.record(
 
 const aiModelsSchema = z.object({
   chat: z.string().min(1),
-  browser: z.string().min(1),
   vision: z.string().min(1).optional(),
 }).strict();
 
 const toolsSchema = z.object({
   enableGenericTools: z.boolean().default(true),
-  enableBrowserTools: z.boolean().default(false),
-  browser: z.object({
-    headless: z.boolean().default(true),
-  }).strict().default({
-    headless: true,
-  }),
   shell: z.object({
     mode: z.enum(SHELL_MODES).default(DEFAULT_SHELL_MODE),
     allowedCommands: z.array(z.string().trim().min(1)).default([...DEFAULT_SHELL_ALLOWED_COMMANDS]),
@@ -60,10 +53,6 @@ const toolsSchema = z.object({
   }),
 }).strict().default({
   enableGenericTools: true,
-  enableBrowserTools: false,
-  browser: {
-    headless: true,
-  },
   shell: {
     mode: DEFAULT_SHELL_MODE,
     allowedCommands: [...DEFAULT_SHELL_ALLOWED_COMMANDS],
@@ -109,7 +98,7 @@ const loggingSchema = z.object({
   includeHostname: false,
 });
 
-export const simpleclawConfigSchema = z.object({
+export const babyclawConfigSchema = z.object({
   version: z.literal(1),
   telegram: z.object({
     botToken: z.string().min(1),

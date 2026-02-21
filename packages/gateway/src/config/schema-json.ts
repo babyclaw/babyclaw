@@ -2,21 +2,21 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { simpleclawConfigSchema } from "./schema.js";
+import { babyclawConfigSchema } from "./schema.js";
 
-export function getSimpleclawConfigJsonSchema(): Record<string, unknown> {
-  const jsonSchema = z.toJSONSchema(simpleclawConfigSchema, {
+export function getBabyclawConfigJsonSchema(): Record<string, unknown> {
+  const jsonSchema = z.toJSONSchema(babyclawConfigSchema, {
     target: "draft-7",
   });
 
   return {
     $schema: "http://json-schema.org/draft-07/schema#",
-    title: "Simpleclaw Runtime Configuration",
+    title: "BabyClaw Runtime Configuration",
     ...jsonSchema,
   };
 }
 
-export async function writeSimpleclawConfigJsonSchema({
+export async function writeBabyclawConfigJsonSchema({
   outputPath,
 }: {
   outputPath: string;
@@ -24,7 +24,7 @@ export async function writeSimpleclawConfigJsonSchema({
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(
     outputPath,
-    `${JSON.stringify(getSimpleclawConfigJsonSchema(), null, 2)}\n`,
+    `${JSON.stringify(getBabyclawConfigJsonSchema(), null, 2)}\n`,
     "utf8",
   );
 }
@@ -32,9 +32,9 @@ export async function writeSimpleclawConfigJsonSchema({
 async function runCli(): Promise<void> {
   const thisDir = dirname(fileURLToPath(import.meta.url));
   const repoRoot = resolve(thisDir, "../../../../");
-  const outputPath = resolve(repoRoot, "docs", "simpleclaw.schema.json");
+  const outputPath = resolve(repoRoot, "docs", "babyclaw.schema.json");
 
-  await writeSimpleclawConfigJsonSchema({ outputPath });
+  await writeBabyclawConfigJsonSchema({ outputPath });
   console.log(`Wrote config JSON schema to ${outputPath}`);
 }
 

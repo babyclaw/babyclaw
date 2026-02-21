@@ -1,7 +1,6 @@
 import { MessageRole } from "../database/schema.js";
 import {
   buildHeartbeatVerdictMessages,
-  getBrowserToolsSystemMessage,
   getHeartbeatSystemMessage,
   getMainSessionSystemMessage,
   getSchedulerGuidanceSystemMessage,
@@ -76,7 +75,6 @@ export class HeartbeatExecutor {
         schedulerService,
         messageLinkRepository,
         chatRegistry,
-        browserMcpClient,
         skillsConfig,
         fullConfig,
       } = this.toolDeps;
@@ -129,7 +127,6 @@ export class HeartbeatExecutor {
         getSchedulerGuidanceSystemMessage(),
         getMainSessionSystemMessage({ linkedChats }),
         getHeartbeatSystemMessage({ instructions }),
-        ...(browserMcpClient ? [getBrowserToolsSystemMessage()] : []),
         ...history,
         { role: "user" as const, content: this.heartbeatConfig.prompt },
       ];

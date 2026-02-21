@@ -30,7 +30,7 @@ function extractOpenclawMetadata({
   if (typeof metadata === "string") {
     try {
       const parsed = JSON.parse(metadata) as Record<string, unknown>;
-      return (parsed.openclaw ?? parsed.simpleclaw) as OpenClawSkillMetadata | undefined;
+      return (parsed.openclaw ?? parsed.babyclaw) as OpenClawSkillMetadata | undefined;
     } catch {
       return undefined;
     }
@@ -38,7 +38,7 @@ function extractOpenclawMetadata({
 
   if (typeof metadata === "object" && metadata !== null) {
     const obj = metadata as Record<string, unknown>;
-    return (obj.openclaw ?? obj.simpleclaw) as OpenClawSkillMetadata | undefined;
+    return (obj.openclaw ?? obj.babyclaw) as OpenClawSkillMetadata | undefined;
   }
 
   return undefined;

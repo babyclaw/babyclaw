@@ -10,7 +10,6 @@ import { AdminServer } from "./admin/server.js";
 import { getAdminSocketPath } from "./admin/paths.js";
 import { AgentTurnOrchestrator } from "./agent/orchestrator.js";
 import { CommandApprovalService } from "./approval/service.js";
-import { BrowserMcpClient } from "./browser/mcp-client.js";
 import { ChannelRouter } from "./channel/router.js";
 import { MessageLinkRepository } from "./channel/message-link.js";
 import { TelegramAdapter } from "./telegram/plugin.js";
@@ -18,7 +17,7 @@ import { CrossChatDeliveryService } from "./chat/delivery.js";
 import { ChatRegistry } from "./chat/registry.js";
 import { loadConfig } from "./config/loader.js";
 import { getConfigPath } from "./config/paths.js";
-import type { SimpleclawConfig } from "./config/types.js";
+import type { BabyclawConfig } from "./config/types.js";
 import { HeartbeatExecutor } from "./heartbeat/executor.js";
 import { HeartbeatRuntime } from "./heartbeat/runtime.js";
 import { HeartbeatService } from "./heartbeat/service.js";
@@ -47,13 +46,12 @@ export type GatewayStatus = {
 export class GatewayRuntime {
   private state: GatewayStatus["state"] = "stopped";
   private startedAt: number | null = null;
-  private config: SimpleclawConfig | null = null;
+  private config: BabyclawConfig | null = null;
   private log: Logger | null = null;
 
   private db: Database | null = null;
   private schedulerRuntime: SchedulerRuntime | null = null;
   private heartbeatRuntime: HeartbeatRuntime | null = null;
-  private browserMcpClient: BrowserMcpClient | undefined = undefined;
   private adminServer: AdminServer | null = null;
   private channelRouter: ChannelRouter | null = null;
   private memoryExtractionQueue: MemoryExtractionQueue | null = null;
@@ -111,30 +109,6 @@ export class GatewayRuntime {
         );
         log.info({ visionModel: config.ai.models.vision }, "Vision model configured");
       }
-
-      let browserMcpClient: BrowserMcpClient | undefined;
-      if (config.tools.enableBrowserTools) {
-        const browserModelRef = resolveModelRef({
-          ref: config.ai.models.browser,
-          aliases: config.ai.aliases,
-        });
-        const { providerKey, modelId: browserModelId } = parseModelRef({
-          ref: browserModelRef,
-        });
-        const browserProviderConfig = config.ai.providers[providerKey];
-        if (!browserProviderConfig) {
-          throw new Error(
-            `Browser model references provider "${providerKey}" which is not configured in ai.providers`,
-          );
-        }
-        browserMcpClient = new BrowserMcpClient({
-          llmApiKey: browserProviderConfig.apiKey,
-          llmBaseUrl: browserProviderConfig.baseUrl,
-          llmModel: browserModelId,
-          headless: config.tools.browser.headless,
-        });
-      }
-      this.browserMcpClient = browserMcpClient;
 
       const db = createDatabase({ workspacePath });
       this.db = db;
@@ -225,7 +199,6 @@ export class GatewayRuntime {
         enableGenericTools: config.tools.enableGenericTools,
         braveSearchApiKey: config.tools.webSearch.braveApiKey,
         shellConfig,
-        browserMcpClient,
         skillsConfig: config.skills,
         fullConfig: config as unknown as Record<string, unknown>,
         selfToolDeps: {
@@ -384,10 +357,6 @@ export class GatewayRuntime {
       await this.channelRouter.stopAll();
       log.debug("Channel adapters stopped");
     }
-    if (this.browserMcpClient) {
-      await this.browserMcpClient.shutdown();
-      log.debug("Browser MCP client shut down");
-    }
     if (this.db) {
       log.debug("Database connection closed");
     }
@@ -399,7 +368,6 @@ export class GatewayRuntime {
     this.db = null;
     this.schedulerRuntime = null;
     this.heartbeatRuntime = null;
-    this.browserMcpClient = undefined;
     this.adminServer = null;
     this.channelRouter = null;
     this.memoryExtractionQueue = null;
@@ -419,7 +387,7 @@ export class GatewayRuntime {
     };
   }
 
-  getConfig(): SimpleclawConfig | null {
+  getConfig(): BabyclawConfig | null {
     return this.config;
   }
 

@@ -15,7 +15,6 @@ const DEFAULT_CONFIG_TEMPLATE = {
     },
     models: {
       chat: "anthropic:claude-sonnet-4-20250514",
-      browser: "anthropic:claude-sonnet-4-20250514",
     },
     aliases: {},
   },
@@ -32,10 +31,6 @@ const DEFAULT_CONFIG_TEMPLATE = {
   },
   tools: {
     enableGenericTools: true,
-    enableBrowserTools: false,
-    browser: {
-      headless: true,
-    },
     shell: {
       mode: DEFAULT_SHELL_MODE,
       allowedCommands: [...DEFAULT_SHELL_ALLOWED_COMMANDS],

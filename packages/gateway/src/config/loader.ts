@@ -3,13 +3,13 @@ import { dirname } from "node:path";
 import type { ZodIssue } from "zod";
 import { getLogger } from "../logging/index.js";
 import { getConfigPath } from "./paths.js";
-import { simpleclawConfigSchema } from "./schema.js";
+import { babyclawConfigSchema } from "./schema.js";
 import { getDefaultConfigTemplate } from "./template.js";
-import type { SimpleclawConfig } from "./types.js";
+import type { BabyclawConfig } from "./types.js";
 
 const MISSING_SECRET_PLACEHOLDER = "REPLACE_ME";
 
-export async function loadConfig(): Promise<SimpleclawConfig> {
+export async function loadConfig(): Promise<BabyclawConfig> {
   const log = getLogger();
   const configPath = getConfigPath();
 
@@ -23,7 +23,7 @@ export async function loadConfig(): Promise<SimpleclawConfig> {
   detectLegacyConfig({ json, configPath });
   normalizeLegacyTelegramConfig({ json });
 
-  const parsed = simpleclawConfigSchema.safeParse(json);
+  const parsed = babyclawConfigSchema.safeParse(json);
   if (!parsed.success) {
     const issues = parsed.error.issues.map(formatIssue).join("\n");
     log.error({ configPath, issueCount: parsed.error.issues.length }, "Configuration validation failed");
@@ -39,7 +39,7 @@ export async function loadConfig(): Promise<SimpleclawConfig> {
   return parsed.data;
 }
 
-export async function loadConfigRaw(): Promise<SimpleclawConfig | null> {
+export async function loadConfigRaw(): Promise<BabyclawConfig | null> {
   const configPath = getConfigPath();
 
   try {
@@ -52,7 +52,7 @@ export async function loadConfigRaw(): Promise<SimpleclawConfig | null> {
   const json = parseJsonConfig({ raw, configPath });
   normalizeLegacyTelegramConfig({ json });
 
-  const parsed = simpleclawConfigSchema.safeParse(json);
+  const parsed = babyclawConfigSchema.safeParse(json);
   if (!parsed.success) {
     return null;
   }
@@ -63,7 +63,7 @@ export async function loadConfigRaw(): Promise<SimpleclawConfig | null> {
 export async function writeConfig({
   config,
 }: {
-  config: SimpleclawConfig;
+  config: BabyclawConfig;
 }): Promise<void> {
   const configPath = getConfigPath();
   await mkdir(dirname(configPath), { recursive: true });
@@ -111,7 +111,7 @@ function ensureRequiredSecrets({
   config,
   configPath,
 }: {
-  config: SimpleclawConfig;
+  config: BabyclawConfig;
   configPath: string;
 }): void {
   const missing: string[] = [];
@@ -169,7 +169,7 @@ function detectLegacyConfig({
     throw new Error(
       `Legacy configuration detected at ${configPath}.\n` +
         "The 'ai.gatewayApiKey' field has been replaced by the multi-provider 'ai.providers' structure.\n" +
-        "Run 'simpleclaw model configure' to set up providers interactively, or migrate manually.\n" +
+        "Run 'babyclaw model configure' to set up providers interactively, or migrate manually.\n" +
         "See the configuration docs for the new schema.",
     );
   }

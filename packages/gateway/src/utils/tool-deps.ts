@@ -1,5 +1,4 @@
 import type { AiAgent } from "../ai/agent.js";
-import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { MessageLinkRepository } from "../channel/message-link.js";
 import type { CrossChatDeliveryService } from "../chat/delivery.js";
 import type { ChatRegistry } from "../chat/registry.js";
@@ -31,7 +30,6 @@ export type ToolDependencies = {
   enableGenericTools: boolean;
   braveSearchApiKey: string | null;
   shellConfig: ShellConfig;
-  browserMcpClient?: BrowserMcpClient;
   skillsConfig: SkillsConfig;
   fullConfig: Record<string, unknown>;
   selfToolDeps: SelfToolDeps;

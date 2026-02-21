@@ -1,10 +1,10 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const CONFIG_PATH_ENV_VAR = "SIMPLECLAW_CONFIG_PATH";
+export const CONFIG_PATH_ENV_VAR = "BABYCLAW_CONFIG_PATH";
 
 export function getDefaultConfigPath(): string {
-  return join(homedir(), ".simpleclaw", "simpleclaw.json");
+  return join(homedir(), ".babyclaw", "babyclaw.json");
 }
 
 export function getConfigPath(): string {

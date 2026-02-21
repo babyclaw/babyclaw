@@ -5,7 +5,6 @@ import { generateText, type ImagePart, type LanguageModel, type ModelMessage, ty
 import type { CommandApprovalService } from "../approval/service.js";
 import {
   buildScheduleFollowupSystemNote,
-  getBrowserToolsSystemMessage,
   getMainSessionSystemMessage,
   getNonMainSessionSystemMessage,
   getSchedulerGuidanceSystemMessage,
@@ -294,7 +293,6 @@ export class AgentTurnOrchestrator {
       sessionManager,
       schedulerService,
       messageLinkRepository,
-      browserMcpClient,
       skillsConfig,
       fullConfig,
       selfToolDeps,
@@ -377,7 +375,7 @@ export class AgentTurnOrchestrator {
       }),
       getSchedulerGuidanceSystemMessage(),
       getSelfManagementSystemMessage({
-        configPath: selfToolDeps.getStatus().configPath ?? "~/.simpleclaw/simpleclaw.json",
+        configPath: selfToolDeps.getStatus().configPath ?? "~/.babyclaw/babyclaw.json",
         adminSocketPath: selfToolDeps.adminSocketPath,
         logOutput: selfToolDeps.logOutput,
       }),
@@ -391,7 +389,6 @@ export class AgentTurnOrchestrator {
               }),
             ]
           : []),
-      ...(browserMcpClient ? [getBrowserToolsSystemMessage()] : []),
       ...(scheduleRunContext
         ? [
             {

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ToolExecutionContext } from "../utils/tool-context.js";
 import {
-  createShellTools,
   extractCommandNames,
   normalizeAllowedCommands,
   truncateOutput,
@@ -183,13 +181,6 @@ describe("normalizeAllowedCommands", () => {
     expect(result.size).toBe(0);
   });
 });
-
-const context: ToolExecutionContext = {
-  workspaceRoot: "/tmp",
-  botTimezone: "UTC",
-  runSource: "chat",
-  isMainSession: false,
-};
 
 describe("truncateOutput", () => {
   it("returns short output unchanged", () => {

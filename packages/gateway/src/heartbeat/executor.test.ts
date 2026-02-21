@@ -9,7 +9,6 @@ vi.mock("../ai/prompts.js", () => ({
   getSchedulerGuidanceSystemMessage: vi.fn(() => ({ role: "system", content: "scheduler" })),
   getMainSessionSystemMessage: vi.fn(() => ({ role: "system", content: "main" })),
   getHeartbeatSystemMessage: vi.fn(() => ({ role: "system", content: "heartbeat" })),
-  getBrowserToolsSystemMessage: vi.fn(() => ({ role: "system", content: "browser" })),
   buildHeartbeatVerdictMessages: vi.fn(() => []),
 }));
 
