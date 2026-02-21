@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { MessageRole } from "../database/schema.js";
 import type { Chat } from "../database/schema.js";
 import { generateText, type ImagePart, type LanguageModel, type ModelMessage, type TextPart, type TextStreamPart, type ToolSet } from "ai";
-import { AiAgent } from "../ai/agent.js";
 import type { CommandApprovalService } from "../approval/service.js";
 import {
   buildScheduleFollowupSystemNote,
@@ -15,27 +14,15 @@ import {
   getSkillsSystemMessage,
   getWorkingMemorySystemMessage,
   getWorkspaceGuideSystemMessage,
-  readToolNotes,
 } from "../ai/prompts.js";
-import type { BrowserMcpClient } from "../browser/mcp-client.js";
 import type { ChannelRouter } from "../channel/router.js";
 import type { AgentStreamEvent, ImageAttachment, NormalizedInboundEvent } from "../channel/types.js";
-import type { MessageLinkRepository } from "../channel/message-link.js";
-import type { CrossChatDeliveryService } from "../chat/delivery.js";
-import type { ChatRegistry } from "../chat/registry.js";
-import type { ShellConfig } from "../config/shell-defaults.js";
 import { getLogger } from "../logging/index.js";
 import type { Logger } from "../logging/index.js";
 import {
-  hasCompletePersonalityFiles,
-  readPersonalityFiles,
-} from "../onboarding/personality.js";
-import {
   bootstrapWorkspace,
   readBootstrapGuide,
-  readWorkspaceGuide,
 } from "../workspace/bootstrap.js";
-import { SchedulerService } from "../scheduler/service.js";
 import { ActiveTurnManager } from "../session/active-turns.js";
 import { SessionManager } from "../session/manager.js";
 import type { SessionIdentity } from "../session/types.js";
@@ -48,135 +35,54 @@ import {
   isStopMessage,
   type ReplyReference,
 } from "./helpers.js";
-import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
-import type { SkillsConfig } from "../workspace/skills/types.js";
+import { loadAgentContext } from "./context.js";
 import type { MemoryExtractionQueue } from "../memory/queue.js";
 import type { SessionTitleGenerator } from "../session/title-generator.js";
-import type { GatewayStatus } from "../runtime.js";
+import type { ToolDependencies } from "../utils/tool-deps.js";
 
 type AgentTurnOrchestratorInput = {
-  workspacePath: string;
-  sessionManager: SessionManager;
-  aiAgent: AiAgent;
+  toolDeps: ToolDependencies;
   chatModel: LanguageModel;
   visionModel?: LanguageModel;
-  schedulerService: SchedulerService;
-  messageLinkRepository: MessageLinkRepository;
-  chatRegistry: ChatRegistry;
-  deliveryService: CrossChatDeliveryService;
   channelRouter: ChannelRouter;
-  syncSchedule: (args: { scheduleId: string }) => Promise<void>;
-  enableGenericTools: boolean;
-  braveSearchApiKey: string | null;
-  shellConfig: ShellConfig;
-  browserMcpClient?: BrowserMcpClient;
   commandApprovalService?: CommandApprovalService;
   useReplyChainKey: boolean;
   historyLimit: number;
-  skillsConfig: SkillsConfig;
-  fullConfig: Record<string, unknown>;
-  getStatus: () => GatewayStatus;
-  adminSocketPath: string;
-  logOutput: string;
-  logLevel: string;
-  schedulerActive: boolean;
-  heartbeatActive: boolean;
-  restartGateway: () => Promise<void>;
   memoryExtractionQueue?: MemoryExtractionQueue;
   titleGenerator?: SessionTitleGenerator;
 };
 
 export class AgentTurnOrchestrator {
-  private readonly workspacePath: string;
-  private readonly sessionManager: SessionManager;
-  private readonly aiAgent: AiAgent;
+  private readonly toolDeps: ToolDependencies;
   private readonly chatModel: LanguageModel;
   private readonly visionModel?: LanguageModel;
-  private readonly schedulerService: SchedulerService;
-  private readonly messageLinkRepository: MessageLinkRepository;
-  private readonly chatRegistry: ChatRegistry;
-  private readonly deliveryService: CrossChatDeliveryService;
   private readonly channelRouter: ChannelRouter;
-  private readonly syncSchedule: (args: { scheduleId: string }) => Promise<void>;
-  private readonly enableGenericTools: boolean;
-  private readonly braveSearchApiKey: string | null;
-  private readonly shellConfig: ShellConfig;
-  private readonly browserMcpClient?: BrowserMcpClient;
   private readonly commandApprovalService?: CommandApprovalService;
   private readonly useReplyChainKey: boolean;
   private readonly historyLimit: number;
-  private readonly skillsConfig: SkillsConfig;
-  private readonly fullConfig: Record<string, unknown>;
-  private readonly getStatus: () => GatewayStatus;
-  private readonly adminSocketPath: string;
-  private readonly logOutput: string;
-  private readonly logLevel: string;
-  private readonly schedulerActive: boolean;
-  private readonly heartbeatActive: boolean;
-  private readonly restartGateway: () => Promise<void>;
   private readonly memoryExtractionQueue?: MemoryExtractionQueue;
   private readonly titleGenerator?: SessionTitleGenerator;
   private readonly activeTurnManager = new ActiveTurnManager();
   private readonly log: Logger;
 
   constructor({
-    workspacePath,
-    sessionManager,
-    aiAgent,
+    toolDeps,
     chatModel,
     visionModel,
-    schedulerService,
-    messageLinkRepository,
-    chatRegistry,
-    deliveryService,
     channelRouter,
-    syncSchedule,
-    enableGenericTools,
-    braveSearchApiKey,
-    shellConfig,
-    browserMcpClient,
     commandApprovalService,
     useReplyChainKey,
     historyLimit,
-    skillsConfig,
-    fullConfig,
-    getStatus,
-    adminSocketPath,
-    logOutput,
-    logLevel,
-    schedulerActive,
-    heartbeatActive,
-    restartGateway,
     memoryExtractionQueue,
     titleGenerator,
   }: AgentTurnOrchestratorInput) {
-    this.workspacePath = workspacePath;
-    this.sessionManager = sessionManager;
-    this.aiAgent = aiAgent;
+    this.toolDeps = toolDeps;
     this.chatModel = chatModel;
     this.visionModel = visionModel;
-    this.schedulerService = schedulerService;
-    this.messageLinkRepository = messageLinkRepository;
-    this.chatRegistry = chatRegistry;
-    this.deliveryService = deliveryService;
     this.channelRouter = channelRouter;
-    this.syncSchedule = syncSchedule;
-    this.enableGenericTools = enableGenericTools;
-    this.braveSearchApiKey = braveSearchApiKey;
-    this.shellConfig = shellConfig;
-    this.browserMcpClient = browserMcpClient;
     this.commandApprovalService = commandApprovalService;
     this.useReplyChainKey = useReplyChainKey;
     this.historyLimit = historyLimit;
-    this.skillsConfig = skillsConfig;
-    this.fullConfig = fullConfig;
-    this.getStatus = getStatus;
-    this.adminSocketPath = adminSocketPath;
-    this.logOutput = logOutput;
-    this.logLevel = logLevel;
-    this.schedulerActive = schedulerActive;
-    this.heartbeatActive = heartbeatActive;
-    this.restartGateway = restartGateway;
     this.memoryExtractionQueue = memoryExtractionQueue;
     this.titleGenerator = titleGenerator;
     this.log = getLogger().child({ component: "orchestrator" });
@@ -232,7 +138,7 @@ export class AgentTurnOrchestrator {
   }: {
     event: NormalizedInboundEvent;
   }): Promise<void> {
-    await bootstrapWorkspace({ workspacePath: this.workspacePath });
+    await bootstrapWorkspace({ workspacePath: this.toolDeps.workspacePath });
 
     const linkedSessionIdentity = await this.resolveLinkedSession({ event });
     const sessionIdentity =
@@ -248,7 +154,7 @@ export class AgentTurnOrchestrator {
 
     const replyReference = this.extractReplyReference({ event });
     const isMainSession = await this.isMainSession({ event });
-    const linkedChats = await this.chatRegistry.listLinkedChats({
+    const linkedChats = await this.toolDeps.chatRegistry.listLinkedChats({
       platform: event.platform,
     });
 
@@ -278,7 +184,7 @@ export class AgentTurnOrchestrator {
 
     const replyReference = this.extractReplyReference({ event });
     const isMainSession = await this.isMainSession({ event });
-    const linkedChats = await this.chatRegistry.listLinkedChats({
+    const linkedChats = await this.toolDeps.chatRegistry.listLinkedChats({
       platform: event.platform,
     });
 
@@ -382,29 +288,30 @@ export class AgentTurnOrchestrator {
   }): Promise<void> {
     if (abortSignal.aborted) return;
 
+    const {
+      workspacePath,
+      aiAgent,
+      sessionManager,
+      schedulerService,
+      messageLinkRepository,
+      browserMcpClient,
+      skillsConfig,
+      fullConfig,
+      selfToolDeps,
+    } = this.toolDeps;
+
     const adapter = this.channelRouter.getAdapter({ platform: event.platform });
 
-    const [personalityFiles, toolsIndexContent, agentsContent, bootstrapContent, allSkills, workingMemory] =
+    const [agentContext, bootstrapContent, workingMemory] =
       await Promise.all([
-        readPersonalityFiles({ workspacePath: this.workspacePath }),
-        readToolNotes({ workspacePath: this.workspacePath }),
-        readWorkspaceGuide({ workspacePath: this.workspacePath }),
-        readBootstrapGuide({ workspacePath: this.workspacePath }),
-        scanWorkspaceSkills({ workspacePath: this.workspacePath }),
-        this.sessionManager.getWorkingMemory({ sessionKey: sessionIdentity.key }),
+        loadAgentContext({ workspacePath, skillsConfig, fullConfig }),
+        readBootstrapGuide({ workspacePath }),
+        sessionManager.getWorkingMemory({ sessionKey: sessionIdentity.key }),
       ]);
 
     if (abortSignal.aborted) return;
 
-    const skills = getEligibleSkills({
-      skills: allSkills,
-      skillsConfig: this.skillsConfig,
-      fullConfig: this.fullConfig,
-    });
-
-    const completePersonality = hasCompletePersonalityFiles(personalityFiles)
-      ? personalityFiles
-      : undefined;
+    const { personalityFiles: completePersonality, toolNotesContent: toolsIndexContent, agentsContent, skills } = agentContext;
 
     const hasImages = event.images && event.images.length > 0;
 
@@ -440,7 +347,7 @@ export class AgentTurnOrchestrator {
       persistImages = event.images;
     }
 
-    const history = await this.sessionManager.getMessages({
+    const history = await sessionManager.getMessages({
       identity: sessionIdentity,
       limit: this.historyLimit,
     });
@@ -448,7 +355,7 @@ export class AgentTurnOrchestrator {
     if (abortSignal.aborted) return;
 
     const scheduleRunContext =
-      await this.schedulerService.getRunContextForSessionKey({
+      await schedulerService.getRunContextForSessionKey({
         sessionKey: sessionIdentity.key,
       });
 
@@ -460,7 +367,7 @@ export class AgentTurnOrchestrator {
 
     const messages: ModelMessage[] = [
       getSharedSystemMessage({
-        workspacePath: this.workspacePath,
+        workspacePath,
         personalityFiles: completePersonality,
       }),
       getWorkspaceGuideSystemMessage({ agentsContent, bootstrapContent }),
@@ -470,9 +377,9 @@ export class AgentTurnOrchestrator {
       }),
       getSchedulerGuidanceSystemMessage(),
       getSelfManagementSystemMessage({
-        configPath: this.getStatus().configPath ?? "~/.simpleclaw/simpleclaw.json",
-        adminSocketPath: this.adminSocketPath,
-        logOutput: this.logOutput,
+        configPath: selfToolDeps.getStatus().configPath ?? "~/.simpleclaw/simpleclaw.json",
+        adminSocketPath: selfToolDeps.adminSocketPath,
+        logOutput: selfToolDeps.logOutput,
       }),
       ...(isMainSession
         ? [getMainSessionSystemMessage({ linkedChats })]
@@ -484,7 +391,7 @@ export class AgentTurnOrchestrator {
               }),
             ]
           : []),
-      ...(this.browserMcpClient ? [getBrowserToolsSystemMessage()] : []),
+      ...(browserMcpClient ? [getBrowserToolsSystemMessage()] : []),
       ...(scheduleRunContext
         ? [
             {
@@ -502,9 +409,10 @@ export class AgentTurnOrchestrator {
     ];
 
     const tools = createUnifiedTools({
+      toolDeps: this.toolDeps,
       executionContext: {
-        workspaceRoot: this.workspacePath,
-        botTimezone: this.schedulerService.getTimezone(),
+        workspaceRoot: workspacePath,
+        botTimezone: schedulerService.getTimezone(),
         platform: event.platform,
         chatId: event.chatId,
         threadId: event.threadId,
@@ -512,28 +420,12 @@ export class AgentTurnOrchestrator {
         runSource: "chat",
         isMainSession,
       },
-      schedulerService: this.schedulerService,
-      syncSchedule: this.syncSchedule,
       createdByUserId: event.senderId,
       sourceText: userMessage,
-      enableGenericTools: this.enableGenericTools,
-      braveSearchApiKey: this.braveSearchApiKey,
-      shellConfig: this.shellConfig,
-      chatModel: this.chatModel,
-      browserMcpClient: this.browserMcpClient,
-      chatRegistry: this.chatRegistry,
-      channelSender: adapter,
-      deliveryService: this.deliveryService,
-      commandApprovalService: this.commandApprovalService,
-      getStatus: this.getStatus,
-      adminSocketPath: this.adminSocketPath,
-      logOutput: this.logOutput,
-      logLevel: this.logLevel,
-      schedulerActive: this.schedulerActive,
-      heartbeatActive: this.heartbeatActive,
       getActiveTurnCount: () => this.activeTurnManager.count(),
-      restartGateway: this.restartGateway,
-      sessionManager: this.sessionManager,
+      chatModel: this.chatModel,
+      channelSender: adapter,
+      commandApprovalService: this.commandApprovalService,
       sessionKey: sessionIdentity.key,
     });
 
@@ -542,7 +434,7 @@ export class AgentTurnOrchestrator {
       "Sending messages to AI model",
     );
 
-    const streamResult = this.aiAgent.chatStreamWithTools({
+    const streamResult = aiAgent.chatStreamWithTools({
       messages,
       tools,
       maxSteps: 50,
@@ -586,7 +478,7 @@ export class AgentTurnOrchestrator {
       assistantResponse = "Done.";
     }
 
-    await this.sessionManager.appendMessages({
+    await sessionManager.appendMessages({
       identity: sessionIdentity,
       messages: [
         {
@@ -602,7 +494,7 @@ export class AgentTurnOrchestrator {
     });
 
     if (isMainSession && this.memoryExtractionQueue) {
-      await this.sessionManager.touchLastActivity({ sessionKey: sessionIdentity.key });
+      await sessionManager.touchLastActivity({ sessionKey: sessionIdentity.key });
       this.memoryExtractionQueue.enqueue({ sessionKey: sessionIdentity.key });
     }
 
@@ -614,7 +506,7 @@ export class AgentTurnOrchestrator {
       this.titleGenerator
         .generate({ userMessage: titleUserMessage })
         .then(async (title) => {
-          await this.sessionManager.setTitle({ sessionKey: titleSessionKey, title });
+          await sessionManager.setTitle({ sessionKey: titleSessionKey, title });
           await titleAdapter.setSessionTitle?.({
             chatId: titleEvent.chatId,
             threadId: titleEvent.threadId,
@@ -644,7 +536,7 @@ export class AgentTurnOrchestrator {
       "Response sent to channel",
     );
 
-    await this.messageLinkRepository.upsertMessageLink({
+    await messageLinkRepository.upsertMessageLink({
       platform: event.platform,
       platformChatId: event.chatId,
       platformMessageId,
@@ -673,7 +565,7 @@ export class AgentTurnOrchestrator {
   }): Promise<SessionIdentity | null> {
     if (!event.replyToMessageId) return null;
 
-    const link = await this.messageLinkRepository.findByChatAndMessage({
+    const link = await this.toolDeps.messageLinkRepository.findByChatAndMessage({
       platform: event.platform,
       platformChatId: event.chatId,
       platformMessageId: event.replyToMessageId,
@@ -707,7 +599,7 @@ export class AgentTurnOrchestrator {
   }: {
     event: NormalizedInboundEvent;
   }): Promise<boolean> {
-    const mainChat = await this.chatRegistry.getMainChat();
+    const mainChat = await this.toolDeps.chatRegistry.getMainChat();
     if (!mainChat) return false;
     return mainChat.platformChatId === event.chatId;
   }

@@ -1,15 +1,8 @@
 import type { LanguageModel, ToolSet } from "ai";
 import type { CommandApprovalService } from "../approval/service.js";
-import type { BrowserMcpClient } from "../browser/mcp-client.js";
-import type { ChannelRouter } from "../channel/router.js";
 import type { ChannelSender } from "../channel/types.js";
-import type { CrossChatDeliveryService } from "../chat/delivery.js";
-import type { ChatRegistry } from "../chat/registry.js";
-import type { ShellConfig } from "../config/shell-defaults.js";
-import type { GatewayStatus } from "../runtime.js";
-import { SchedulerService } from "../scheduler/service.js";
-import type { SessionManager } from "../session/manager.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
+import type { ToolDependencies } from "../utils/tool-deps.js";
 import { createBrowserTools } from "./browser.js";
 import { createClawhubTools } from "./clawhub.js";
 import { createMediaTools } from "./media.js";
@@ -23,59 +16,41 @@ import { createWorkingMemoryTools } from "./working-memory.js";
 import { createWorkspaceTools } from "./workspace.js";
 
 type CreateUnifiedToolsInput = {
+  toolDeps: ToolDependencies;
   executionContext: ToolExecutionContext;
-  schedulerService: SchedulerService;
-  syncSchedule: (args: { scheduleId: string }) => Promise<void>;
   sourceText: string;
   createdByUserId: string;
-  enableGenericTools: boolean;
-  braveSearchApiKey: string | null;
-  shellConfig: ShellConfig;
-  chatModel?: LanguageModel;
-  browserMcpClient?: BrowserMcpClient;
-  chatRegistry?: ChatRegistry;
-  channelSender?: ChannelSender;
-  channelRouter?: ChannelRouter;
-  deliveryService?: CrossChatDeliveryService;
-  commandApprovalService?: CommandApprovalService;
-  getStatus: () => GatewayStatus;
-  adminSocketPath: string;
-  logOutput: string;
-  logLevel: string;
-  schedulerActive: boolean;
-  heartbeatActive: boolean;
   getActiveTurnCount: () => number;
-  restartGateway: () => Promise<void>;
-  sessionManager?: SessionManager;
+  chatModel?: LanguageModel;
+  channelSender?: ChannelSender;
+  commandApprovalService?: CommandApprovalService;
   sessionKey?: string;
 };
 
 export function createUnifiedTools({
+  toolDeps,
   executionContext,
-  schedulerService,
-  syncSchedule,
   sourceText,
   createdByUserId,
-  enableGenericTools,
-  braveSearchApiKey,
-  shellConfig,
-  chatModel,
-  browserMcpClient,
-  chatRegistry,
-  channelSender,
-  deliveryService,
-  commandApprovalService,
-  getStatus,
-  adminSocketPath,
-  logOutput,
-  logLevel,
-  schedulerActive,
-  heartbeatActive,
   getActiveTurnCount,
-  restartGateway,
-  sessionManager,
+  chatModel,
+  channelSender,
+  commandApprovalService,
   sessionKey,
 }: CreateUnifiedToolsInput): ToolSet {
+  const {
+    schedulerService,
+    syncSchedule,
+    enableGenericTools,
+    braveSearchApiKey,
+    shellConfig,
+    browserMcpClient,
+    chatRegistry,
+    deliveryService,
+    sessionManager,
+    selfToolDeps,
+  } = toolDeps;
+
   if (!executionContext.chatId) {
     throw new Error("Tool execution context must include chatId");
   }
@@ -94,14 +69,8 @@ export function createUnifiedTools({
 
   const selfTools = createSelfTools({
     context: executionContext,
-    getStatus,
-    adminSocketPath,
-    logOutput,
-    logLevel,
-    schedulerActive,
-    heartbeatActive,
+    ...selfToolDeps,
     getActiveTurnCount,
-    restartGateway,
   });
 
   if (!enableGenericTools) {
@@ -157,7 +126,7 @@ export function createUnifiedTools({
     ...browserTools,
     ...messagingTools,
     ...mediaTools,
-    ...(sessionManager && sessionKey
+    ...(sessionKey
       ? createWorkingMemoryTools({
           sessionManager,
           sessionKey,

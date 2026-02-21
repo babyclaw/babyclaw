@@ -1,20 +1,13 @@
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import type { GatewayStatus } from "../runtime.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
-import { ToolExecutionError, withToolLogging } from "./errors.js";
+import type { SelfToolDeps } from "../utils/tool-deps.js";
+import { withToolLogging } from "./errors.js";
 
 type CreateSelfToolsInput = {
   context: ToolExecutionContext;
-  getStatus: () => GatewayStatus;
-  adminSocketPath: string;
-  logOutput: string;
-  logLevel: string;
-  schedulerActive: boolean;
-  heartbeatActive: boolean;
   getActiveTurnCount: () => number;
-  restartGateway: () => Promise<void>;
-};
+} & SelfToolDeps;
 
 export function createSelfTools({
   context,
@@ -76,14 +69,6 @@ export function createSelfTools({
           defaultCode: "SELF_RESTART_FAILED",
           input: { confirm },
           action: async () => {
-            if (!confirm) {
-              throw new ToolExecutionError({
-                code: "RESTART_NOT_CONFIRMED",
-                message: "Restart requires confirm: true",
-                hint: "Set confirm to true to proceed with the restart.",
-              });
-            }
-
             setImmediate(() => {
               void restartGateway();
             });

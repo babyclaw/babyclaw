@@ -1,5 +1,4 @@
 import { MessageRole } from "../database/schema.js";
-import type { AiAgent } from "../ai/agent.js";
 import {
   buildHeartbeatVerdictMessages,
   getBrowserToolsSystemMessage,
@@ -9,143 +8,48 @@ import {
   getSharedSystemMessage,
   getSkillsSystemMessage,
   getWorkspaceGuideSystemMessage,
-  readToolNotes,
 } from "../ai/prompts.js";
-import type { BrowserMcpClient } from "../browser/mcp-client.js";
-import type { CrossChatDeliveryService } from "../chat/delivery.js";
+import { loadAgentContext } from "../agent/context.js";
 import type { ChannelSender } from "../channel/types.js";
-import type { ChatRegistry } from "../chat/registry.js";
-import type { ShellConfig } from "../config/shell-defaults.js";
 import { getLogger } from "../logging/index.js";
 import type { Logger } from "../logging/index.js";
-import { scanWorkspaceSkills, getEligibleSkills } from "../workspace/skills/index.js";
-import type { SkillsConfig } from "../workspace/skills/types.js";
-import {
-  hasCompletePersonalityFiles,
-  readPersonalityFiles,
-} from "../onboarding/personality.js";
-import type { GatewayStatus } from "../runtime.js";
-import type { SchedulerService } from "../scheduler/service.js";
 import { SessionManager } from "../session/manager.js";
-import type { MessageLinkRepository } from "../channel/message-link.js";
 import { createUnifiedTools } from "../tools/registry.js";
 import { toErrorMessage } from "../utils/errors.js";
-import {
-  readHeartbeatInstructions,
-  readWorkspaceGuide,
-} from "../workspace/bootstrap.js";
+import type { ToolDependencies } from "../utils/tool-deps.js";
+import { readHeartbeatInstructions } from "../workspace/bootstrap.js";
 import type { HeartbeatService } from "./service.js";
 import { heartbeatResultSchema, type HeartbeatConfig } from "./types.js";
 
 type HeartbeatExecutorInput = {
-  workspacePath: string;
-  aiAgent: AiAgent;
-  sessionManager: SessionManager;
-  schedulerService: SchedulerService;
-  heartbeatService: HeartbeatService;
-  chatRegistry: ChatRegistry;
+  toolDeps: ToolDependencies;
   channelSender: ChannelSender;
-  deliveryService: CrossChatDeliveryService;
-  messageLinkRepository: MessageLinkRepository;
-  syncSchedule: (args: { scheduleId: string }) => Promise<void>;
-  enableGenericTools: boolean;
-  braveSearchApiKey: string | null;
-  shellConfig: ShellConfig;
-  browserMcpClient?: BrowserMcpClient;
+  heartbeatService: HeartbeatService;
   heartbeatConfig: HeartbeatConfig;
   historyLimit: number;
-  skillsConfig: SkillsConfig;
-  fullConfig: Record<string, unknown>;
-  getStatus: () => GatewayStatus;
-  adminSocketPath: string;
-  logOutput: string;
-  logLevel: string;
-  schedulerActive: boolean;
-  heartbeatActive: boolean;
-  restartGateway: () => Promise<void>;
 };
 
 export class HeartbeatExecutor {
-  private readonly workspacePath: string;
-  private readonly aiAgent: AiAgent;
-  private readonly sessionManager: SessionManager;
-  private readonly schedulerService: SchedulerService;
-  private readonly heartbeatService: HeartbeatService;
-  private readonly chatRegistry: ChatRegistry;
+  private readonly toolDeps: ToolDependencies;
   private readonly channelSender: ChannelSender;
-  private readonly deliveryService: CrossChatDeliveryService;
-  private readonly messageLinkRepository: MessageLinkRepository;
-  private readonly syncSchedule: (args: { scheduleId: string }) => Promise<void>;
-  private readonly enableGenericTools: boolean;
-  private readonly braveSearchApiKey: string | null;
-  private readonly shellConfig: ShellConfig;
-  private readonly browserMcpClient?: BrowserMcpClient;
+  private readonly heartbeatService: HeartbeatService;
   private readonly heartbeatConfig: HeartbeatConfig;
   private readonly historyLimit: number;
-  private readonly skillsConfig: SkillsConfig;
-  private readonly fullConfig: Record<string, unknown>;
-  private readonly getStatus: () => GatewayStatus;
-  private readonly adminSocketPath: string;
-  private readonly logOutput: string;
-  private readonly logLevel: string;
-  private readonly schedulerActive: boolean;
-  private readonly heartbeatActive: boolean;
-  private readonly restartGateway: () => Promise<void>;
   private readonly log: Logger;
   private running = false;
 
   constructor({
-    workspacePath,
-    aiAgent,
-    sessionManager,
-    schedulerService,
-    heartbeatService,
-    chatRegistry,
+    toolDeps,
     channelSender,
-    deliveryService,
-    messageLinkRepository,
-    syncSchedule,
-    enableGenericTools,
-    braveSearchApiKey,
-    shellConfig,
-    browserMcpClient,
+    heartbeatService,
     heartbeatConfig,
     historyLimit,
-    skillsConfig,
-    fullConfig,
-    getStatus,
-    adminSocketPath,
-    logOutput,
-    logLevel,
-    schedulerActive,
-    heartbeatActive,
-    restartGateway,
   }: HeartbeatExecutorInput) {
-    this.workspacePath = workspacePath;
-    this.aiAgent = aiAgent;
-    this.sessionManager = sessionManager;
-    this.schedulerService = schedulerService;
-    this.heartbeatService = heartbeatService;
-    this.chatRegistry = chatRegistry;
+    this.toolDeps = toolDeps;
     this.channelSender = channelSender;
-    this.deliveryService = deliveryService;
-    this.messageLinkRepository = messageLinkRepository;
-    this.syncSchedule = syncSchedule;
-    this.enableGenericTools = enableGenericTools;
-    this.braveSearchApiKey = braveSearchApiKey;
-    this.shellConfig = shellConfig;
-    this.browserMcpClient = browserMcpClient;
+    this.heartbeatService = heartbeatService;
     this.heartbeatConfig = heartbeatConfig;
     this.historyLimit = historyLimit;
-    this.skillsConfig = skillsConfig;
-    this.fullConfig = fullConfig;
-    this.getStatus = getStatus;
-    this.adminSocketPath = adminSocketPath;
-    this.logOutput = logOutput;
-    this.logLevel = logLevel;
-    this.schedulerActive = schedulerActive;
-    this.heartbeatActive = heartbeatActive;
-    this.restartGateway = restartGateway;
     this.log = getLogger().child({ component: "heartbeat-executor" });
   }
 
@@ -165,14 +69,26 @@ export class HeartbeatExecutor {
     this.log.info("Heartbeat execution starting");
 
     try {
-      const mainChat = await this.chatRegistry.getMainChat();
+      const {
+        workspacePath,
+        aiAgent,
+        sessionManager,
+        schedulerService,
+        messageLinkRepository,
+        chatRegistry,
+        browserMcpClient,
+        skillsConfig,
+        fullConfig,
+      } = this.toolDeps;
+
+      const mainChat = await chatRegistry.getMainChat();
       if (!mainChat) {
         this.log.warn("No main chat found, skipping heartbeat");
         return;
       }
 
       const instructions = await readHeartbeatInstructions({
-        workspacePath: this.workspacePath,
+        workspacePath,
       });
       if (!instructions) {
         await this.heartbeatService.recordRun({
@@ -191,77 +107,50 @@ export class HeartbeatExecutor {
         chatId: platformChatId,
       });
 
-      const linkedChats = await this.chatRegistry.listLinkedChats({
+      const linkedChats = await chatRegistry.listLinkedChats({
         platform: mainChat.platform,
       });
 
-      const [personalityFiles, toolNotesContent, agentsContent, allSkills] =
-        await Promise.all([
-          readPersonalityFiles({ workspacePath: this.workspacePath }),
-          readToolNotes({ workspacePath: this.workspacePath }),
-          readWorkspaceGuide({ workspacePath: this.workspacePath }),
-          scanWorkspaceSkills({ workspacePath: this.workspacePath }),
-        ]);
+      const { personalityFiles, toolNotesContent, agentsContent, skills } =
+        await loadAgentContext({ workspacePath, skillsConfig, fullConfig });
 
-      const skills = getEligibleSkills({
-        skills: allSkills,
-        skillsConfig: this.skillsConfig,
-        fullConfig: this.fullConfig,
-      });
-
-      const history = await this.sessionManager.getMessages({
+      const history = await sessionManager.getMessages({
         identity: sessionIdentity,
         limit: this.historyLimit,
       });
 
       const messages = [
         getSharedSystemMessage({
-          workspacePath: this.workspacePath,
-          personalityFiles: hasCompletePersonalityFiles(personalityFiles)
-            ? personalityFiles
-            : undefined,
+          workspacePath,
+          personalityFiles,
         }),
         getWorkspaceGuideSystemMessage({ agentsContent }),
         getSkillsSystemMessage({ skills, toolNotesContent }),
         getSchedulerGuidanceSystemMessage(),
         getMainSessionSystemMessage({ linkedChats }),
         getHeartbeatSystemMessage({ instructions }),
-        ...(this.browserMcpClient ? [getBrowserToolsSystemMessage()] : []),
+        ...(browserMcpClient ? [getBrowserToolsSystemMessage()] : []),
         ...history,
         { role: "user" as const, content: this.heartbeatConfig.prompt },
       ];
 
       const tools = createUnifiedTools({
+        toolDeps: this.toolDeps,
         executionContext: {
-          workspaceRoot: this.workspacePath,
-          botTimezone: this.schedulerService.getTimezone(),
+          workspaceRoot: workspacePath,
+          botTimezone: schedulerService.getTimezone(),
           platform: mainChat.platform,
           chatId: platformChatId,
           runSource: "heartbeat",
           isMainSession: true,
         },
-        schedulerService: this.schedulerService,
-        syncSchedule: this.syncSchedule,
         createdByUserId: platformChatId,
         sourceText: this.heartbeatConfig.prompt,
-        enableGenericTools: this.enableGenericTools,
-        braveSearchApiKey: this.braveSearchApiKey,
-        shellConfig: this.shellConfig,
-        browserMcpClient: this.browserMcpClient,
-        chatRegistry: this.chatRegistry,
-        channelSender: this.channelSender,
-        deliveryService: this.deliveryService,
-        getStatus: this.getStatus,
-        adminSocketPath: this.adminSocketPath,
-        logOutput: this.logOutput,
-        logLevel: this.logLevel,
-        schedulerActive: this.schedulerActive,
-        heartbeatActive: this.heartbeatActive,
         getActiveTurnCount: () => 0,
-        restartGateway: this.restartGateway,
+        channelSender: this.channelSender,
       });
 
-      const phase1Response = await this.aiAgent.chatWithTools({
+      const phase1Response = await aiAgent.chatWithTools({
         messages,
         tools,
         maxSteps: 50,
@@ -271,7 +160,7 @@ export class HeartbeatExecutor {
         phase1Response,
       });
 
-      const verdict = await this.aiAgent.forceToolCall({
+      const verdict = await aiAgent.forceToolCall({
         messages: verdictMessages,
         toolName: "heartbeat_result",
         description:
@@ -290,14 +179,14 @@ export class HeartbeatExecutor {
           text: verdict.message,
         });
 
-        await this.messageLinkRepository.upsertMessageLink({
+        await messageLinkRepository.upsertMessageLink({
           platform: mainChat.platform,
           platformChatId,
           platformMessageId: sendResult.platformMessageId,
           sessionKey: sessionIdentity.key,
         });
 
-        await this.sessionManager.appendMessages({
+        await sessionManager.appendMessages({
           identity: sessionIdentity,
           messages: [
             {
@@ -311,7 +200,7 @@ export class HeartbeatExecutor {
           ],
         });
       } else {
-        await this.sessionManager.appendMessages({
+        await sessionManager.appendMessages({
           identity: sessionIdentity,
           messages: [
             {

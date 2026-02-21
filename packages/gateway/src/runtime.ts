@@ -31,6 +31,7 @@ import { MemoryExtractor } from "./memory/extractor.js";
 import { MemoryExtractionQueue } from "./memory/queue.js";
 import { SessionManager } from "./session/manager.js";
 import { SessionTitleGenerator } from "./session/title-generator.js";
+import type { ToolDependencies } from "./utils/tool-deps.js";
 import { bootstrapWorkspace } from "./workspace/bootstrap.js";
 import { createDatabase, type Database } from "./database/client.js";
 import { applyMigrations } from "./database/migrate.js";
@@ -212,16 +213,32 @@ export class GatewayRuntime {
 
       const adminSocketPath = getAdminSocketPath();
 
-      const selfToolDeps = {
-        getStatus: () => this.getStatus(),
-        adminSocketPath,
-        logOutput: config.logging.output,
-        logLevel: config.logging.level,
-        schedulerActive: true,
-        heartbeatActive: config.heartbeat.enabled,
-        restartGateway: async () => {
-          await this.stop();
-          process.exit(0);
+      const toolDeps: ToolDependencies = {
+        workspacePath,
+        aiAgent,
+        sessionManager,
+        schedulerService,
+        messageLinkRepository,
+        chatRegistry,
+        deliveryService,
+        syncSchedule,
+        enableGenericTools: config.tools.enableGenericTools,
+        braveSearchApiKey: config.tools.webSearch.braveApiKey,
+        shellConfig,
+        browserMcpClient,
+        skillsConfig: config.skills,
+        fullConfig: config as unknown as Record<string, unknown>,
+        selfToolDeps: {
+          getStatus: () => this.getStatus(),
+          adminSocketPath,
+          logOutput: config.logging.output,
+          logLevel: config.logging.level,
+          schedulerActive: true,
+          heartbeatActive: config.heartbeat.enabled,
+          restartGateway: async () => {
+            await this.stop();
+            process.exit(0);
+          },
         },
       };
 
@@ -266,48 +283,20 @@ export class GatewayRuntime {
       }
 
       const orchestrator = new AgentTurnOrchestrator({
-        workspacePath,
-        sessionManager,
-        aiAgent,
+        toolDeps,
         chatModel,
         visionModel,
-        schedulerService,
-        messageLinkRepository,
-        chatRegistry,
-        deliveryService,
         channelRouter,
-        syncSchedule,
-        enableGenericTools: config.tools.enableGenericTools,
-        braveSearchApiKey: config.tools.webSearch.braveApiKey,
-        shellConfig,
-        browserMcpClient,
         commandApprovalService,
         useReplyChainKey: config.session.replyChainMode === "reply-chain",
         historyLimit: config.session.historyLimit,
-        skillsConfig: config.skills,
-        fullConfig: config as unknown as Record<string, unknown>,
         memoryExtractionQueue,
         titleGenerator,
-        ...selfToolDeps,
       });
 
       const schedulerExecutor = new SchedulerExecutor({
+        toolDeps,
         channelSender: telegramAdapter,
-        workspacePath,
-        aiAgent,
-        sessionManager,
-        schedulerService,
-        messageLinkRepository,
-        chatRegistry,
-        deliveryService,
-        syncSchedule,
-        enableGenericTools: config.tools.enableGenericTools,
-        braveSearchApiKey: config.tools.webSearch.braveApiKey,
-        shellConfig,
-        browserMcpClient,
-        skillsConfig: config.skills,
-        fullConfig: config as unknown as Record<string, unknown>,
-        ...selfToolDeps,
       });
 
       schedulerRuntime = new SchedulerRuntime({
@@ -320,25 +309,11 @@ export class GatewayRuntime {
       log.info("Scheduler runtime started");
 
       const heartbeatExecutor = new HeartbeatExecutor({
-        workspacePath,
-        aiAgent,
-        sessionManager,
-        schedulerService,
-        heartbeatService,
-        chatRegistry,
+        toolDeps,
         channelSender: telegramAdapter,
-        deliveryService,
-        messageLinkRepository,
-        syncSchedule,
-        enableGenericTools: config.tools.enableGenericTools,
-        braveSearchApiKey: config.tools.webSearch.braveApiKey,
-        shellConfig,
-        browserMcpClient,
+        heartbeatService,
         heartbeatConfig: config.heartbeat,
         historyLimit: config.session.historyLimit,
-        skillsConfig: config.skills,
-        fullConfig: config as unknown as Record<string, unknown>,
-        ...selfToolDeps,
       });
 
       heartbeatRuntime = new HeartbeatRuntime({
