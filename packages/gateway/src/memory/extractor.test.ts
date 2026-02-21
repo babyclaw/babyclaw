@@ -16,7 +16,7 @@ const SESSION_DATE_STR = "2026-02-19";
 
 function extractCall(args: {
   sessionDate?: Date;
-  messages?: Array<{ role: string; content: string }>;
+  messages: Array<{ role: string; content: string }>;
 }) {
   return { sessionDate: SESSION_DATE, ...args };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { Bot } from "grammy";
-import type { UserFromGetMe } from "grammy/types";
+import type { Update, UserFromGetMe } from "grammy/types";
 import {
   TelegramAdapter,
   getChatTitle,
@@ -248,6 +248,8 @@ const FAKE_BOT_INFO: UserFromGetMe = {
   supports_inline_queries: false,
   can_connect_to_business: false,
   has_main_web_app: false,
+  has_topics_enabled: false,
+  allows_users_to_create_topics: false,
 };
 
 const OWNER_ID = 42;
@@ -294,7 +296,7 @@ function makeTextUpdate(opts: {
       text: opts.text,
       ...(opts.entities ? { entities: opts.entities } : {}),
     },
-  };
+  } as Update;
 }
 
 function makeCommandUpdate(opts: {
@@ -332,7 +334,7 @@ function makeCallbackQueryUpdate(opts: { data: string; chatId?: number; fromId?:
       },
       data: opts.data,
     },
-  };
+  } as Update;
 }
 
 async function bootAdapter(

@@ -61,7 +61,7 @@ function makeSkillInfo(overrides: Record<string, unknown> = {}) {
 }
 
 function makeVersionDetail(
-  files = [
+  files: Array<{ path: string; size: number; sha256: string; contentType: string | null }> = [
     {
       path: "SKILL.md",
       size: 100,

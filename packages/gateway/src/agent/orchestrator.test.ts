@@ -99,9 +99,11 @@ function createMockDeps(overrides: Record<string, any> = {}) {
     adapter,
     channelRouter,
     sessionManager: {
-      getMessages: vi.fn(async () => []),
+      getMessages: vi.fn(async () => [] as Array<{ role: string; content: string }>),
       appendMessages: vi.fn(async () => {}),
       getWorkingMemory: vi.fn(async () => null),
+      setTitle: vi.fn(async () => {}),
+      touchLastActivity: vi.fn(async () => {}),
     },
     aiAgent: {
       chatStreamWithTools: vi.fn(() => ({
