@@ -29,8 +29,56 @@ describe("service adapter", () => {
 
   it("reports not installed when no service file exists", () => {
     const info = getStatus();
-    // On a clean dev machine, service should not be installed
-    // This test verifies the adapter doesn't crash when querying
     expect(typeof info.installed).toBe("boolean");
+  });
+});
+
+describe("generateSystemdUnit", async () => {
+  const os = platform();
+  const skip = os !== "linux";
+
+  // import lazily so the module-level execSync calls don't blow up on macOS
+  const { generateSystemdUnit } = skip
+    ? { generateSystemdUnit: () => "" }
+    : await import("./adapter.js");
+
+  it.skipIf(skip)("includes WorkingDirectory", () => {
+    const unit = generateSystemdUnit();
+    expect(unit).toContain("WorkingDirectory=");
+  });
+
+  it.skipIf(skip)("includes Environment PATH", () => {
+    const unit = generateSystemdUnit();
+    expect(unit).toMatch(/Environment=PATH=\S+/);
+  });
+
+  it.skipIf(skip)("includes Environment HOME", () => {
+    const unit = generateSystemdUnit();
+    expect(unit).toMatch(/Environment=HOME=\S+/);
+  });
+
+  it.skipIf(skip)("sets NODE_ENV to production", () => {
+    const unit = generateSystemdUnit();
+    expect(unit).toContain("Environment=NODE_ENV=production");
+  });
+
+  it.skipIf(skip)("configures stdout log file", () => {
+    const unit = generateSystemdUnit();
+    expect(unit).toMatch(/StandardOutput=append:.*\.babyclaw\/logs\/gateway\.stdout\.log/);
+  });
+
+  it.skipIf(skip)("configures stderr log file", () => {
+    const unit = generateSystemdUnit();
+    expect(unit).toMatch(/StandardError=append:.*\.babyclaw\/logs\/gateway\.stderr\.log/);
+  });
+
+  it.skipIf(skip)("uses absolute node path in ExecStart", () => {
+    const unit = generateSystemdUnit();
+    expect(unit).toMatch(/ExecStart=\/\S+node\s+\S+main\.js/);
+  });
+
+  it.skipIf(skip)("targets default.target for user service", () => {
+    const unit = generateSystemdUnit();
+    expect(unit).toContain("WantedBy=default.target");
   });
 });

@@ -310,6 +310,9 @@ export default command({
             const result = installService();
             client.log(c.success("  ✓ Service installed!"));
             client.log(c.muted(`    ${result.path}`));
+            for (const warning of result.warnings) {
+              client.log(c.warning(`    ⚠ ${warning}`));
+            }
 
             const startIt = await client.confirm("Start the service now?");
             if (startIt) {

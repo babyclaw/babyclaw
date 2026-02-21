@@ -32,6 +32,9 @@ export default command({
 
       client.log(c.success("✓ Service installed!"));
       client.log(c.muted(`  ${result.path}`));
+      for (const warning of result.warnings) {
+        client.log(c.warning(`  ⚠ ${warning}`));
+      }
       client.log(c.muted("  Run ") + c.info("babyclaw service start") + c.muted(" to fire it up."));
     } catch (err) {
       client.log(c.error("✗ Failed to install service"));

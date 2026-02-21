@@ -5,8 +5,6 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync, unlinkSync } from "node:fs";
-import { createRequire } from "node:module";
-
 const SERVICE_LABEL = "org.babyclaw.gateway";
 const SYSTEMD_UNIT = "babyclaw-gateway";
 
@@ -34,8 +32,7 @@ function getSystemdUnitPath(): string {
 
 function getGatewayEntryPath(): string {
   try {
-    const require = createRequire(import.meta.url);
-    return require.resolve("@babyclaw/gateway/dist/main.js");
+    return fileURLToPath(import.meta.resolve("@babyclaw/gateway/main"));
   } catch {
     const thisDir = dirname(fileURLToPath(import.meta.url));
     return join(thisDir, "..", "..", "..", "gateway", "dist", "main.js");
@@ -45,7 +42,8 @@ function getGatewayEntryPath(): string {
 function getShellPath(): string {
   const fallback = `/usr/local/bin:/usr/bin:/bin`;
   try {
-    const shell = process.env.SHELL || "/bin/zsh";
+    const defaultShell = platform() === "darwin" ? "/bin/zsh" : "/bin/bash";
+    const shell = process.env.SHELL || defaultShell;
     return execSync(`${shell} -ilc 'echo $PATH'`, {
       encoding: "utf8",
       timeout: 5000,
@@ -55,7 +53,7 @@ function getShellPath(): string {
   }
 }
 
-function generateLaunchdPlist(): string {
+export function generateLaunchdPlist(): string {
   const nodePath = execSync("which node", { encoding: "utf8" }).trim();
   const entryPath = getGatewayEntryPath();
   const logDir = join(homedir(), ".babyclaw", "logs");
@@ -92,9 +90,15 @@ function generateLaunchdPlist(): string {
 </plist>`;
 }
 
-function generateSystemdUnit(): string {
+export function generateSystemdUnit(): string {
   const nodePath = execSync("which node", { encoding: "utf8" }).trim();
   const entryPath = getGatewayEntryPath();
+  const home = homedir();
+  const logDir = join(home, ".babyclaw", "logs");
+
+  const shellPath = getShellPath();
+  const nodeDir = dirname(nodePath);
+  const envPath = shellPath.includes(nodeDir) ? shellPath : `${shellPath}:${nodeDir}`;
 
   return `[Unit]
 Description=BabyClaw Gateway
@@ -102,32 +106,69 @@ After=network.target
 
 [Service]
 Type=simple
+WorkingDirectory=${home}
 ExecStart=${nodePath} ${entryPath}
 Restart=on-failure
 RestartSec=5
+Environment=PATH=${envPath}
+Environment=HOME=${home}
+Environment=NODE_ENV=production
+StandardOutput=append:${logDir}/gateway.stdout.log
+StandardError=append:${logDir}/gateway.stderr.log
 
 [Install]
 WantedBy=default.target`;
 }
 
-export function install(): { path: string } {
+function isLingerEnabled(): boolean {
+  try {
+    const output = execSync(`loginctl show-user $(whoami) --property=Linger 2>/dev/null`, {
+      encoding: "utf8",
+    });
+    return output.trim() === "Linger=yes";
+  } catch {
+    return false;
+  }
+}
+
+function tryEnableLinger(): boolean {
+  if (isLingerEnabled()) return true;
+  try {
+    execSync("loginctl enable-linger");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function install(): { path: string; warnings: string[] } {
   const plat = detectPlatform();
+  const warnings: string[] = [];
 
   if (plat === "launchd") {
     const plistPath = getLaunchdPlistPath();
     mkdirSync(dirname(plistPath), { recursive: true });
     mkdirSync(join(homedir(), ".babyclaw", "logs"), { recursive: true });
     writeFileSync(plistPath, generateLaunchdPlist(), "utf8");
-    return { path: plistPath };
+    return { path: plistPath, warnings };
   }
 
   if (plat === "systemd") {
     const unitPath = getSystemdUnitPath();
     mkdirSync(dirname(unitPath), { recursive: true });
+    mkdirSync(join(homedir(), ".babyclaw", "logs"), { recursive: true });
     writeFileSync(unitPath, generateSystemdUnit(), "utf8");
     execSync("systemctl --user daemon-reload");
     execSync(`systemctl --user enable ${SYSTEMD_UNIT}`);
-    return { path: unitPath };
+
+    if (!tryEnableLinger()) {
+      warnings.push(
+        "Could not enable loginctl linger. The service will stop when you log out.\n" +
+          "    Run: sudo loginctl enable-linger $(whoami)",
+      );
+    }
+
+    return { path: unitPath, warnings };
   }
 
   throw new Error("Unsupported platform for service installation");
