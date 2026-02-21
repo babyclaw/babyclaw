@@ -11,6 +11,7 @@ import {
 
 const SHELL_MODES = ["allowlist", "full-access"] as const;
 import { c, getRandomBanner } from "../ui/theme.js";
+import { promptForModel } from "../ui/model-prompt.js";
 import {
   detectPlatform,
   install as installService,
@@ -172,41 +173,13 @@ export default command({
     }
 
     // ── 4. Model Selection ──────────────────────────────────────────────
-    const knownModels = providers.flatMap((p) => {
-      const meta = SUPPORTED_PROVIDERS.find((m) => m.id === p.id);
-      return (meta?.exampleModels ?? []).map((m) => `${p.id}:${m}`);
-    });
-
     let chatModel = baseConfig.ai.models.chat;
 
     client.log("");
     client.log(c.bold("  Step 3 · Model Selection"));
-    client.log(c.muted("  Format: provider:model-id\n"));
+    client.log(c.muted("  Format: provider:model-id — type to search or enter any model\n"));
 
-    if (knownModels.length > 0) {
-      const modelChoices = knownModels.map((m) => ({ title: m, value: m }));
-
-      const suggestModel = (input: string, choices: { title: string; value?: string }[]) =>
-        Promise.resolve(
-          input
-            ? choices.filter((ch) => ch.title.toLowerCase().includes(input.toLowerCase()))
-            : choices,
-        );
-
-      chatModel = (await client.prompt({
-        type: "autocomplete",
-        message: "Chat model",
-        choices: modelChoices,
-        initial: chatModel,
-        suggest: suggestModel,
-      })) as string;
-    } else {
-      chatModel = (await client.prompt({
-        type: "text",
-        message: "Chat model (provider:model-id)",
-        initial: chatModel,
-      })) as string;
-    }
+    chatModel = await promptForModel({ client, providers, initial: chatModel });
 
     // ── 5. Timezone ─────────────────────────────────────────────────────
     client.log("");

@@ -9,6 +9,7 @@ import {
   type BabyclawConfig,
 } from "@babyclaw/gateway";
 import { c } from "../../ui/theme.js";
+import { promptForModel } from "../../ui/model-prompt.js";
 
 type ProviderEntry = {
   id: string;
@@ -106,39 +107,11 @@ export default command({
       }
     }
 
-    const knownModels = providers.flatMap((p) => {
-      const meta = SUPPORTED_PROVIDERS.find((m) => m.id === p.id);
-      return (meta?.exampleModels ?? []).map((m) => `${p.id}:${m}`);
-    });
-
     client.log("");
     client.log(c.bold(" Model Selection"));
     client.log(c.muted("  Type to search or enter a custom provider:model-id"));
 
-    if (knownModels.length > 0) {
-      const modelChoices = knownModels.map((m) => ({ title: m, value: m }));
-
-      const suggestModel = (input: string, choices: { title: string; value?: string }[]) =>
-        Promise.resolve(
-          input
-            ? choices.filter((ch) => ch.title.toLowerCase().includes(input.toLowerCase()))
-            : choices,
-        );
-
-      chatModel = (await client.prompt({
-        type: "autocomplete",
-        message: "Chat model",
-        choices: modelChoices,
-        initial: chatModel,
-        suggest: suggestModel,
-      })) as string;
-    } else {
-      chatModel = (await client.prompt({
-        type: "text",
-        message: "Chat model (provider:model-id)",
-        initial: chatModel,
-      })) as string;
-    }
+    chatModel = await promptForModel({ client, providers, initial: chatModel });
 
     client.log("");
     client.log(c.bold(" Review Configuration"));
