@@ -12,12 +12,21 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r --filter=!docs lint",
     "format": "oxfmt --write . '!apps/docs/content/**/*.md'",
-    "format:check": "oxfmt --check . '!apps/docs/content/**/*.md'"
+    "format:check": "oxfmt --check . '!apps/docs/content/**/*.md'",
+    "prepare": "simple-git-hooks"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
+    "lint-staged": "^16.2.7",
     "oxfmt": "^0.34.0",
+    "simple-git-hooks": "^2.13.1",
     "wrangler": "^4.67.0"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,css,md}": "oxfmt --write"
   },
   "packageManager": "pnpm@10.12.3",
   "pnpm": {
