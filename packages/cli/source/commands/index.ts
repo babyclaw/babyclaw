@@ -28,6 +28,7 @@ export default command({
       ["skill install", "Install a skill from ClawHub"],
       ["skill search", "Search for skills on ClawHub"],
       ["doctor", "Run diagnostics on your setup"],
+      ["update", "Update babyclaw to the latest version"],
     ] as const;
 
     client.log("");
