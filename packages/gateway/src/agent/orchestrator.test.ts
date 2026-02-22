@@ -34,6 +34,10 @@ vi.mock("../workspace/skills/index.js", () => ({
   getEligibleSkills: vi.fn(({ skills }: any) => skills),
 }));
 
+vi.mock("../bundled-skills/index.js", () => ({
+  getEnabledBundledSkills: vi.fn(() => []),
+}));
+
 vi.mock("ai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("ai")>();
   return {
