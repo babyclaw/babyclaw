@@ -158,11 +158,11 @@ export const babyclawConfigSchema = z
       }),
     workspace: z
       .object({
-        root: z.string().min(1).default("."),
+        root: z.string().min(1).default("~/babyclaw"),
       })
       .strict()
       .default({
-        root: ".",
+        root: "~/babyclaw",
       }),
     session: z
       .object({

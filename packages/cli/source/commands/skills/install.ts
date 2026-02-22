@@ -1,10 +1,10 @@
 import { command } from "@gud/cli";
-import { resolve } from "node:path";
 import {
   loadConfigRaw,
   installSkillFromClawHub,
   runSkillSetup,
   resolveLanguageModel,
+  resolveWorkspaceRoot,
   SkillAlreadyInstalledError,
   ClawHubError,
 } from "@babyclaw/gateway";
@@ -39,7 +39,9 @@ export default command({
 
     try {
       const config = await loadConfigRaw();
-      const workspacePath = resolve(process.cwd(), config?.workspace?.root ?? ".");
+      const workspacePath = resolveWorkspaceRoot({
+        configRoot: config?.workspace?.root ?? "~/babyclaw",
+      });
 
       const installResult = await installSkillFromClawHub({
         slug,

@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { LanguageModel } from "ai";
 import { AiAgent } from "./ai/agent.js";
@@ -12,7 +13,7 @@ import { TelegramAdapter } from "./telegram/plugin.js";
 import { CrossChatDeliveryService } from "./chat/delivery.js";
 import { ChatRegistry } from "./chat/registry.js";
 import { loadConfig } from "./config/loader.js";
-import { getConfigPath } from "./config/paths.js";
+import { getConfigPath, resolveWorkspaceRoot } from "./config/paths.js";
 import type { BabyclawConfig } from "./config/types.js";
 import { HeartbeatExecutor } from "./heartbeat/executor.js";
 import { HeartbeatRuntime } from "./heartbeat/runtime.js";
@@ -79,7 +80,8 @@ export class GatewayRuntime {
         "Gateway configuration summary",
       );
 
-      const workspacePath = resolve(process.cwd(), config.workspace.root);
+      const workspacePath = resolveWorkspaceRoot({ configRoot: config.workspace.root });
+      mkdirSync(workspacePath, { recursive: true });
 
       log.info("Applying database migrations...");
       applyMigrations({ workspacePath });
