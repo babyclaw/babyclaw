@@ -2,18 +2,7 @@
 name: browser-use
 description: Automates browser interactions for web testing, form filling, screenshots, and data extraction. Use when the user needs to navigate websites, interact with web pages, fill forms, take screenshots, or extract information from web pages.
 homepage: https://github.com/browser-use/browser-use
-metadata:
-  openclaw:
-    emoji: "🌐"
-    homepage: https://github.com/browser-use/browser-use
-    requires:
-      bins:
-        - browser-use
-    install:
-      - kind: uv
-        package: browser-use
-        bins:
-          - browser-use
+metadata: '{"openclaw":{"emoji":"🌐","homepage":"https://github.com/browser-use/browser-use","requires":{"bins":["browser-use"]},"install":[{"kind":"uv","package":"browser-use","bins":["browser-use"]}]}}'
 ---
 
 # Browser Automation with browser-use CLI
