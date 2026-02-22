@@ -6,9 +6,14 @@ export default command({
   description: "List available bundled skills",
   handler: async ({ client }) => {
     const config = await loadConfigRaw();
+    if (!config) {
+      client.log(c.error("✗ No configuration found. Run babyclaw setup first."));
+      process.exitCode = 1;
+      return;
+    }
 
-    const skillsConfig = config?.skills ?? { entries: {} };
-    const fullConfig = (config ?? {}) as Record<string, unknown>;
+    const skillsConfig = config.skills ?? { entries: {} };
+    const fullConfig = config as unknown as Record<string, unknown>;
 
     const skills = listBundledSkills({ skillsConfig, fullConfig });
 

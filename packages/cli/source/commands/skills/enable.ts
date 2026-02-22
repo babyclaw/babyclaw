@@ -7,6 +7,9 @@ import {
   runSkillSetup,
   resolveLanguageModel,
   resolveWorkspaceRoot,
+  getSkillKey,
+  AdminClient,
+  getAdminSocketPath,
   type BabyclawConfig,
 } from "@babyclaw/gateway";
 import { c } from "../../ui/theme.js";
@@ -17,7 +20,6 @@ export default command({
     slug: {
       type: "string",
       description: "Bundled skill slug to enable",
-      required: true,
     },
     "skip-setup": {
       type: "boolean",
@@ -25,7 +27,6 @@ export default command({
     },
   },
   handler: async ({ options, client }) => {
-    const slug = await options.slug({ prompt: "Bundled skill slug" });
     const skipSetup = await options["skip-setup"]();
 
     const config = await loadConfigRaw();
@@ -43,6 +44,32 @@ export default command({
     const fullConfig = config as unknown as Record<string, unknown>;
 
     const bundled = listBundledSkills({ skillsConfig, fullConfig });
+
+    let slug = await options.slug();
+
+    if (!slug) {
+      const enableable = bundled.filter((s) => s.eligible && !s.enabled);
+      if (enableable.length === 0) {
+        client.log(c.muted("  No skills available to enable."));
+        return;
+      }
+
+      const choices = enableable.map((s) => ({
+        title: `${s.frontmatter?.name ?? s.slug} ${c.muted("—")} ${c.muted(s.frontmatter?.description ?? "")}`,
+        value: s.slug,
+      }));
+      choices.push({ title: c.muted("Cancel"), value: "__cancel__" });
+
+      const selected = await client.prompt({
+        type: "select",
+        message: "Select a skill to enable",
+        choices,
+      });
+
+      if (selected === "__cancel__") return;
+      slug = selected as string;
+    }
+
     const skill = bundled.find((s) => s.slug === slug);
 
     if (!skill) {
@@ -69,7 +96,7 @@ export default command({
     }
 
     try {
-      const skillKey = skill.frontmatter?.openclaw?.skillKey ?? skill.frontmatter?.name ?? slug;
+      const skillKey = getSkillKey({ frontmatter: skill.frontmatter, slug });
       const updatedConfig: BabyclawConfig = {
         ...config,
         skills: {
@@ -84,6 +111,13 @@ export default command({
         },
       };
       await writeConfig({ config: updatedConfig });
+
+      try {
+        const admin = new AdminClient({ socketPath: getAdminSocketPath() });
+        await admin.reloadSkills();
+      } catch {
+        // Gateway may not be running -- that's fine, config is saved
+      }
 
       let setupResult = null;
       let setupError: string | null = null;
@@ -114,7 +148,7 @@ export default command({
         client.log(c.muted(`    ${setupError}`));
       }
 
-      client.log(c.muted("  The skill will be available on the next agent session."));
+      client.log(c.muted("  The skill is now available."));
     } catch (error) {
       client.log(c.error(`✗ Failed to enable skill "${slug}"`));
       client.log(c.muted(`  ${error instanceof Error ? error.message : String(error)}`));
