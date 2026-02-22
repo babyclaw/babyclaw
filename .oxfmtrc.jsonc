@@ -3,4 +3,5 @@
   "singleQuote": false,
   "semi": true,
   "trailingComma": "all",
+  "ignorePatterns": ["apps/docs/content/**/*.md", "packages/*/dist/**", "CHANGELOG.md"],
 }
