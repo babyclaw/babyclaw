@@ -2,7 +2,13 @@ import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/p
 import { dirname, join, relative, resolve } from "node:path";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import { normalizeSeparators, pathExists, resolveWorkspacePath } from "../utils/path.js";
+import {
+  BUNDLED_SKILLS_PREFIX,
+  normalizeSeparators,
+  pathExists,
+  resolveBundledSkillPath,
+  resolveWorkspacePath,
+} from "../utils/path.js";
 import {
   ensureJsonWithinLimit,
   ensurePayloadWithinLimit,
@@ -33,10 +39,26 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
           defaultCode: "WORKSPACE_READ_FAILED",
           input: { path, format },
           action: async () => {
-            const absolutePath = resolveWorkspacePath({
-              workspaceRoot: context.workspaceRoot,
-              requestedPath: path,
-            });
+            const isBundled = path.startsWith(BUNDLED_SKILLS_PREFIX);
+            let absolutePath: string;
+
+            if (isBundled) {
+              if (!context.bundledSkillsDir) {
+                throw new ToolExecutionError({
+                  code: "BUNDLED_SKILLS_UNAVAILABLE",
+                  message: "Bundled skills directory is not configured",
+                });
+              }
+              absolutePath = resolveBundledSkillPath({
+                bundledSkillsDir: context.bundledSkillsDir,
+                requestedPath: path,
+              });
+            } else {
+              absolutePath = resolveWorkspacePath({
+                workspaceRoot: context.workspaceRoot,
+                requestedPath: path,
+              });
+            }
 
             const raw = await readFile(absolutePath, "utf8");
             ensurePayloadWithinLimit({

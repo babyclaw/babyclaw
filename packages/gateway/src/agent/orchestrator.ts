@@ -282,6 +282,7 @@ export class AgentTurnOrchestrator {
 
     const {
       workspacePath,
+      bundledSkillsDir,
       aiAgent,
       sessionManager,
       schedulerService,
@@ -403,6 +404,7 @@ export class AgentTurnOrchestrator {
       toolDeps: this.toolDeps,
       executionContext: {
         workspaceRoot: workspacePath,
+        bundledSkillsDir,
         botTimezone: schedulerService.getTimezone(),
         platform: event.platform,
         chatId: event.chatId,

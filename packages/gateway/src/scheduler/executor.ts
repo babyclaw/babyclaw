@@ -273,6 +273,7 @@ export class SchedulerExecutor {
       toolDeps: this.toolDeps,
       executionContext: {
         workspaceRoot: workspacePath,
+        bundledSkillsDir: this.toolDeps.bundledSkillsDir,
         botTimezone: schedulerService.getTimezone(),
         platform: this.channelSender.platform,
         chatId: chatIdStr,

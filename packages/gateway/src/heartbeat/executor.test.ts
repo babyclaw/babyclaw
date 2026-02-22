@@ -91,6 +91,7 @@ function createExecutor(overrides: Record<string, any> = {}) {
   return new HeartbeatExecutor({
     toolDeps: {
       workspacePath: "/tmp/test",
+      bundledSkillsDir: "/tmp/test-bundled-skills",
       aiAgent,
       sessionManager,
       schedulerService: {

@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { LanguageModel } from "ai";
+import { getBundledSkillsDir } from "@babyclaw/skills";
 import { AiAgent } from "./ai/agent.js";
 import { buildProviderRegistry, resolveModelRef } from "./ai/provider-registry.js";
 import { AdminServer } from "./admin/server.js";
@@ -187,6 +188,7 @@ export class GatewayRuntime {
 
       const toolDeps: ToolDependencies = {
         workspacePath,
+        bundledSkillsDir: getBundledSkillsDir(),
         aiAgent,
         sessionManager,
         schedulerService,

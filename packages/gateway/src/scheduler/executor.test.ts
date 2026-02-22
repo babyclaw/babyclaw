@@ -59,6 +59,7 @@ function createExecutor(overrides: Record<string, any> = {}) {
   return new SchedulerExecutor({
     toolDeps: {
       workspacePath: "/tmp/test",
+      bundledSkillsDir: "/tmp/test-bundled-skills",
       aiAgent: overrides.aiAgent ?? createMockAiAgent(),
       sessionManager: overrides.sessionManager ?? createMockSessionManager(),
       schedulerService: overrides.schedulerService ?? createMockSchedulerService(),

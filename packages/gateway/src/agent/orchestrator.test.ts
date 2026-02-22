@@ -161,6 +161,7 @@ function createOrchestrator(
   return new AgentTurnOrchestrator({
     toolDeps: {
       workspacePath: "/tmp/test-workspace",
+      bundledSkillsDir: "/tmp/test-bundled-skills",
       aiAgent: deps.aiAgent as any,
       sessionManager: deps.sessionManager as any,
       schedulerService: deps.schedulerService as any,

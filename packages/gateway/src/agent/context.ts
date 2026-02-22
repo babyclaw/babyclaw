@@ -1,4 +1,5 @@
 import { readToolNotes } from "../ai/prompts.js";
+import { getEnabledBundledSkills } from "../bundled-skills/index.js";
 import {
   hasCompletePersonalityFiles,
   readPersonalityFiles,
@@ -31,7 +32,12 @@ export async function loadAgentContext({
     scanWorkspaceSkills({ workspacePath }),
   ]);
 
-  const skills = getEligibleSkills({ skills: allSkills, skillsConfig, fullConfig });
+  const workspaceSkills = getEligibleSkills({ skills: allSkills, skillsConfig, fullConfig });
+  const bundledSkills = getEnabledBundledSkills({ skillsConfig, fullConfig });
+
+  const workspaceSlugs = new Set(workspaceSkills.map((s) => s.slug));
+  const dedupedBundled = bundledSkills.filter((s) => !workspaceSlugs.has(s.slug));
+  const skills = [...workspaceSkills, ...dedupedBundled];
 
   const personalityFiles = hasCompletePersonalityFiles(rawPersonalityFiles)
     ? rawPersonalityFiles

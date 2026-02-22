@@ -27,6 +27,8 @@ export default command({
       ["gateway reload", "Check gateway health / signal a reload"],
       ["skill install", "Install a skill from ClawHub"],
       ["skill search", "Search for skills on ClawHub"],
+      ["skill bundled", "List available bundled skills"],
+      ["skill enable", "Enable a bundled skill"],
       ["doctor", "Run diagnostics on your setup"],
       ["update", "Update babyclaw to the latest version"],
     ] as const;

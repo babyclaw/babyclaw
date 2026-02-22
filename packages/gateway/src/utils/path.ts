@@ -1,8 +1,32 @@
 import { resolve, sep } from "node:path";
 import { stat } from "node:fs/promises";
 
+export const BUNDLED_SKILLS_PREFIX = "bundled-skills/";
+
 export function normalizeSeparators({ path }: { path: string }): string {
   return path.replaceAll("\\", "/");
+}
+
+export function resolveBundledSkillPath({
+  bundledSkillsDir,
+  requestedPath,
+}: {
+  bundledSkillsDir: string;
+  requestedPath: string;
+}): string {
+  const relative = requestedPath.slice(BUNDLED_SKILLS_PREFIX.length);
+  const normalized = normalizeSeparators({ path: relative }).trim();
+  if (normalized.length === 0) {
+    throw new Error("Path is required");
+  }
+
+  const absoluteRoot = resolve(bundledSkillsDir);
+  const absoluteTarget = resolve(absoluteRoot, normalized);
+  if (!isSubPath({ parent: absoluteRoot, child: absoluteTarget })) {
+    throw new Error("Path escapes bundled skills root");
+  }
+
+  return absoluteTarget;
 }
 
 export function resolveWorkspacePath({
