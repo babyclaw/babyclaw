@@ -1,9 +1,15 @@
 import { readdirSync, readFileSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const PACKAGE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SKILLS_DIR = join(PACKAGE_DIR, "skills");
+
+function resolveSkillDir({ slug }: { slug: string }): string | null {
+  const resolved = resolve(SKILLS_DIR, slug);
+  if (!resolved.startsWith(SKILLS_DIR + "/")) return null;
+  return resolved;
+}
 
 export type BundledSkillInfo = {
   slug: string;
@@ -28,7 +34,9 @@ export function listBundledSlugs(): string[] {
 }
 
 export function getBundledSkillInfo({ slug }: { slug: string }): BundledSkillInfo | null {
-  const skillDir = join(SKILLS_DIR, slug);
+  const skillDir = resolveSkillDir({ slug });
+  if (!skillDir) return null;
+
   const skillFilePath = join(skillDir, "SKILL.md");
   if (!existsSync(skillFilePath)) return null;
 

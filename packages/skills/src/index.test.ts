@@ -78,6 +78,13 @@ describe("getBundledSkillInfo", () => {
     const { getBundledSkillInfo } = await import("./index.js");
     expect(getBundledSkillInfo({ slug: "no-skill" })).toBeNull();
   });
+
+  it("returns null for path traversal attempts", async () => {
+    const { getBundledSkillInfo } = await import("./index.js");
+    expect(getBundledSkillInfo({ slug: "../../etc" })).toBeNull();
+    expect(getBundledSkillInfo({ slug: "../.." })).toBeNull();
+    expect(getBundledSkillInfo({ slug: ".." })).toBeNull();
+  });
 });
 
 describe("readBundledSkillContent", () => {
@@ -105,5 +112,11 @@ describe("listBundledSkillFiles", () => {
   it("returns empty array for nonexistent skill", async () => {
     const { listBundledSkillFiles } = await import("./index.js");
     expect(listBundledSkillFiles({ slug: "nope" })).toEqual([]);
+  });
+
+  it("returns empty array for path traversal attempts", async () => {
+    const { listBundledSkillFiles } = await import("./index.js");
+    expect(listBundledSkillFiles({ slug: "../../etc" })).toEqual([]);
+    expect(listBundledSkillFiles({ slug: ".." })).toEqual([]);
   });
 });
