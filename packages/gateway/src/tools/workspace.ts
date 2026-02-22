@@ -290,6 +290,13 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
           defaultCode: "WORKSPACE_DELETE_FAILED",
           input: { path, recursive },
           action: async () => {
+            if (path.startsWith(BUNDLED_SKILLS_PREFIX)) {
+              throw new ToolExecutionError({
+                code: "BUNDLED_SKILLS_READONLY",
+                message: "Bundled skills are read-only and cannot be deleted",
+              });
+            }
+
             const absolutePath = resolveWorkspacePath({
               workspaceRoot: context.workspaceRoot,
               requestedPath: path,
@@ -330,6 +337,16 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
           defaultCode: "WORKSPACE_MOVE_FAILED",
           input: { from_path, to_path, overwrite },
           action: async () => {
+            if (
+              from_path.startsWith(BUNDLED_SKILLS_PREFIX) ||
+              to_path.startsWith(BUNDLED_SKILLS_PREFIX)
+            ) {
+              throw new ToolExecutionError({
+                code: "BUNDLED_SKILLS_READONLY",
+                message: "Bundled skills are read-only and cannot be moved",
+              });
+            }
+
             const fromAbsolute = resolveWorkspacePath({
               workspaceRoot: context.workspaceRoot,
               requestedPath: from_path,

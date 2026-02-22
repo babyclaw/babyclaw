@@ -73,6 +73,38 @@ describe("workspace_read", () => {
     expect(result.ok).toBe(false);
     expect(result.error.code).toBe("WORKSPACE_READ_FAILED");
   });
+
+  it("reads a file from bundled-skills/ prefix when bundledSkillsDir is set", async () => {
+    const bundledDir = join(workspaceRoot, "__bundled__");
+    await mkdir(join(bundledDir, "weather"), { recursive: true });
+    await writeFile(join(bundledDir, "weather", "SKILL.md"), "bundled content");
+
+    const bundledContext: ToolExecutionContext = {
+      workspaceRoot,
+      bundledSkillsDir: bundledDir,
+      botTimezone: "UTC",
+      runSource: "chat",
+      isMainSession: false,
+    };
+    const bundledTools = createWorkspaceTools({ context: bundledContext });
+    const result: any = await bundledTools.workspace_read.execute!(
+      { path: "bundled-skills/weather/SKILL.md", format: "text" } as any,
+      toolOpts as any,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.content).toBe("bundled content");
+  });
+
+  it("returns error for bundled-skills/ when bundledSkillsDir is not configured", async () => {
+    const result: any = await exec("workspace_read", {
+      path: "bundled-skills/weather/SKILL.md",
+      format: "text",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error.code).toBe("BUNDLED_SKILLS_UNAVAILABLE");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -362,6 +394,16 @@ describe("workspace_delete", () => {
     expect(result.ok).toBe(false);
     expect(result.error.code).toBe("WORKSPACE_DELETE_FAILED");
   });
+
+  it("rejects deletes targeting bundled-skills/ prefix", async () => {
+    const result: any = await exec("workspace_delete", {
+      path: "bundled-skills/weather/SKILL.md",
+      recursive: false,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error.code).toBe("BUNDLED_SKILLS_READONLY");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -433,5 +475,29 @@ describe("workspace_move", () => {
     expect(result.ok).toBe(true);
     expect(result.overwritten).toBe(true);
     expect(await readFile(join(workspaceRoot, "b.txt"), "utf8")).toBe("new");
+  });
+
+  it("rejects moves from bundled-skills/ prefix", async () => {
+    const result: any = await exec("workspace_move", {
+      from_path: "bundled-skills/weather/SKILL.md",
+      to_path: "skills/weather.md",
+      overwrite: false,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error.code).toBe("BUNDLED_SKILLS_READONLY");
+  });
+
+  it("rejects moves into bundled-skills/ prefix", async () => {
+    await writeFile(join(workspaceRoot, "evil.md"), "hacked");
+
+    const result: any = await exec("workspace_move", {
+      from_path: "evil.md",
+      to_path: "bundled-skills/evil/SKILL.md",
+      overwrite: false,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error.code).toBe("BUNDLED_SKILLS_READONLY");
   });
 });
