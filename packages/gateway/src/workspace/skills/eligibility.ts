@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
-import type { SkillEntry, SkillsConfig } from "./types.js";
+import type { SkillEntry, SkillFrontmatter, SkillsConfig } from "./types.js";
+
+export type EligibilityResult = { eligible: boolean; reason: string | null };
 
 type EligibilityInput = {
   skills: SkillEntry[];
@@ -12,62 +14,89 @@ export function getEligibleSkills({
   skillsConfig,
   fullConfig,
 }: EligibilityInput): SkillEntry[] {
-  return skills.filter((skill) => shouldIncludeSkill({ skill, skillsConfig, fullConfig }));
+  return skills.filter((skill) => {
+    const { frontmatter } = skill;
+    const openclaw = frontmatter.openclaw;
+    const skillKey = openclaw?.skillKey ?? frontmatter.name;
+    const entry = skillsConfig.entries[skillKey];
+
+    if (entry?.enabled === false) return false;
+
+    return checkSkillEligibility({ frontmatter, skillsConfig, fullConfig }).eligible;
+  });
 }
 
-function shouldIncludeSkill({
-  skill,
+export function checkSkillEligibility({
+  frontmatter,
   skillsConfig,
   fullConfig,
 }: {
-  skill: SkillEntry;
+  frontmatter: SkillFrontmatter;
   skillsConfig: SkillsConfig;
   fullConfig: Record<string, unknown>;
-}): boolean {
-  const { frontmatter } = skill;
-  const openclaw = frontmatter.openclaw;
-  const skillKey = openclaw?.skillKey ?? frontmatter.name;
-  const entry = skillsConfig.entries[skillKey];
-
-  if (entry?.enabled === false) return false;
-
-  if (frontmatter.disableModelInvocation) return false;
-
-  if (openclaw?.os && openclaw.os.length > 0) {
-    if (!openclaw.os.includes(process.platform)) return false;
+}): EligibilityResult {
+  if (frontmatter.disableModelInvocation) {
+    return { eligible: false, reason: "Model invocation disabled" };
   }
 
-  if (openclaw?.always) return true;
+  const openclaw = frontmatter.openclaw;
+
+  if (openclaw?.os && openclaw.os.length > 0) {
+    if (!openclaw.os.includes(process.platform)) {
+      return {
+        eligible: false,
+        reason: `Requires OS: ${openclaw.os.join(", ")} (current: ${process.platform})`,
+      };
+    }
+  }
+
+  if (openclaw?.always) {
+    return { eligible: true, reason: null };
+  }
 
   const requires = openclaw?.requires;
-  if (!requires) return true;
+  if (!requires) {
+    return { eligible: true, reason: null };
+  }
 
   if (requires.bins && requires.bins.length > 0) {
-    if (!requires.bins.every((bin) => binaryExists({ name: bin }))) return false;
+    const missing = requires.bins.filter((bin) => !binaryExists({ name: bin }));
+    if (missing.length > 0) {
+      return { eligible: false, reason: `Missing binaries: ${missing.join(", ")}` };
+    }
   }
 
   if (requires.anyBins && requires.anyBins.length > 0) {
-    if (!requires.anyBins.some((bin) => binaryExists({ name: bin }))) return false;
+    if (!requires.anyBins.some((bin) => binaryExists({ name: bin }))) {
+      return {
+        eligible: false,
+        reason: `Requires at least one of: ${requires.anyBins.join(", ")}`,
+      };
+    }
   }
 
   if (requires.env && requires.env.length > 0) {
+    const skillKey = openclaw?.skillKey ?? frontmatter.name;
+    const entry = skillsConfig.entries[skillKey];
     const primaryEnv = openclaw?.primaryEnv;
     const hasApiKeyInConfig = Boolean(entry?.apiKey);
 
     for (const envVar of requires.env) {
       if (process.env[envVar]) continue;
       if (primaryEnv === envVar && hasApiKeyInConfig) continue;
-      return false;
+      return { eligible: false, reason: `Missing environment variable: ${envVar}` };
     }
   }
 
   if (requires.config && requires.config.length > 0) {
     for (const configPath of requires.config) {
-      if (!getConfigValue({ config: fullConfig, path: configPath })) return false;
+      if (!getConfigValue({ config: fullConfig, path: configPath })) {
+        return { eligible: false, reason: `Missing config value: ${configPath}` };
+      }
     }
   }
 
-  return true;
+  return { eligible: true, reason: null };
 }
 
 export function binaryExists({ name }: { name: string }): boolean {

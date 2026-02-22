@@ -29,6 +29,7 @@ export default command({
       ["skill search", "Search for skills on ClawHub"],
       ["skill bundled", "List available bundled skills"],
       ["skill enable", "Enable a bundled skill"],
+      ["skill disable", "Disable a bundled skill"],
       ["doctor", "Run diagnostics on your setup"],
       ["update", "Update babyclaw to the latest version"],
     ] as const;

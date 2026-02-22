@@ -1,30 +1,38 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SkillsConfig } from "../workspace/skills/types.js";
 
+const MOCK_SLUGS = ["weather", "git-helper", "internal-only"];
+const MOCK_SKILLS: Record<string, string> = {
+  weather: [
+    "---",
+    "name: weather",
+    "description: Get weather forecasts",
+    'metadata: \'{"openclaw": {"requires": {"bins": ["curl"]}}}\'',
+    "---",
+    "Use curl to fetch weather.",
+  ].join("\n"),
+  "git-helper": [
+    "---",
+    "name: git-helper",
+    "description: Git utilities",
+    "---",
+    "Use git commands.",
+  ].join("\n"),
+  "internal-only": [
+    "---",
+    "name: internal-only",
+    "description: Internal dispatch skill",
+    "disable-model-invocation: true",
+    "---",
+    "Internal use only.",
+  ].join("\n"),
+};
+
 vi.mock("@babyclaw/skills", () => ({
-  listBundledSlugs: () => ["weather", "git-helper"],
-  readBundledSkillContent: ({ slug }: { slug: string }) => {
-    const skills: Record<string, string> = {
-      weather: [
-        "---",
-        "name: weather",
-        "description: Get weather forecasts",
-        'metadata: { "openclaw": { "requires": { "bins": ["curl"] } } }',
-        "---",
-        "Use curl to fetch weather.",
-      ].join("\n"),
-      "git-helper": [
-        "---",
-        "name: git-helper",
-        "description: Git utilities",
-        "---",
-        "Use git commands.",
-      ].join("\n"),
-    };
-    return skills[slug] ?? null;
-  },
+  listBundledSlugs: () => MOCK_SLUGS,
+  readBundledSkillContent: ({ slug }: { slug: string }) => MOCK_SKILLS[slug] ?? null,
   getBundledSkillInfo: ({ slug }: { slug: string }) => {
-    if (slug === "weather" || slug === "git-helper") {
+    if (MOCK_SLUGS.includes(slug)) {
       return {
         slug,
         skillDir: `/pkg/skills/${slug}`,
@@ -53,8 +61,8 @@ afterEach(() => {
 describe("listBundledSkills", () => {
   it("returns all bundled skills with correct metadata", () => {
     const result = listBundledSkills({ skillsConfig: emptyConfig, fullConfig: emptyFullConfig });
-    expect(result).toHaveLength(2);
-    expect(result.map((s) => s.slug)).toEqual(["weather", "git-helper"]);
+    expect(result).toHaveLength(3);
+    expect(result.map((s) => s.slug)).toEqual(["weather", "git-helper", "internal-only"]);
   });
 
   it("marks skills as disabled by default", () => {
@@ -84,6 +92,13 @@ describe("listBundledSkills", () => {
     const git = result.find((s) => s.slug === "git-helper")!;
     expect(git.eligible).toBe(true);
     expect(git.ineligibilityReason).toBeNull();
+  });
+
+  it("marks skill as ineligible when disableModelInvocation is true", () => {
+    const result = listBundledSkills({ skillsConfig: emptyConfig, fullConfig: emptyFullConfig });
+    const internal = result.find((s) => s.slug === "internal-only")!;
+    expect(internal.eligible).toBe(false);
+    expect(internal.ineligibilityReason).toContain("Model invocation disabled");
   });
 });
 

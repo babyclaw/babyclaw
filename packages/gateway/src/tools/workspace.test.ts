@@ -217,6 +217,18 @@ describe("workspace_write", () => {
     expect(result.ok).toBe(false);
     expect(result.error.code).toBe("INVALID_INPUT");
   });
+
+  it("rejects writes to bundled-skills/ prefix", async () => {
+    const result: any = await exec("workspace_write", {
+      path: "bundled-skills/weather/SKILL.md",
+      format: "text",
+      mode: "create",
+      content: "hacked",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error.code).toBe("BUNDLED_SKILLS_READONLY");
+  });
 });
 
 // ---------------------------------------------------------------------------

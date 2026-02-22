@@ -122,6 +122,13 @@ export function createWorkspaceTools({ context }: CreateWorkspaceToolsInput): To
             hasValue: value !== undefined,
           },
           action: async () => {
+            if (path.startsWith(BUNDLED_SKILLS_PREFIX)) {
+              throw new ToolExecutionError({
+                code: "BUNDLED_SKILLS_READONLY",
+                message: "Bundled skills are read-only and cannot be written to",
+              });
+            }
+
             const absolutePath = resolveWorkspacePath({
               workspaceRoot: context.workspaceRoot,
               requestedPath: path,
