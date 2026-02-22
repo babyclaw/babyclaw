@@ -1,6 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { binaryExists, getConfigValue, getEligibleSkills } from "./eligibility.js";
+import {
+  binaryExists,
+  clearBinaryExistsCache,
+  getConfigValue,
+  getEligibleSkills,
+} from "./eligibility.js";
 import type { SkillEntry, SkillsConfig } from "./types.js";
 
 vi.mock("node:child_process", () => ({
@@ -29,6 +34,7 @@ const emptyFullConfig: Record<string, unknown> = {};
 describe("getEligibleSkills", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    clearBinaryExistsCache();
   });
 
   it("returns all skills when none are filtered out", () => {
@@ -72,6 +78,7 @@ describe("getEligibleSkills", () => {
 describe("shouldIncludeSkill (via getEligibleSkills)", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    clearBinaryExistsCache();
   });
 
   it("excludes skill when entry.enabled is false", () => {
@@ -463,6 +470,7 @@ describe("shouldIncludeSkill (via getEligibleSkills)", () => {
 describe("binaryExists", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    clearBinaryExistsCache();
   });
 
   it("returns true when 'which' succeeds", () => {

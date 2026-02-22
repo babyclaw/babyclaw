@@ -1,6 +1,11 @@
 import { listBundledSlugs, readBundledSkillContent, getBundledSkillInfo } from "@babyclaw/skills";
 import { parseFrontmatter, buildFrontmatter } from "../workspace/skills/scanner.js";
-import type { SkillEntry, SkillFrontmatter, SkillsConfig } from "../workspace/skills/types.js";
+import {
+  getSkillKey,
+  type SkillEntry,
+  type SkillFrontmatter,
+  type SkillsConfig,
+} from "../workspace/skills/types.js";
 import { checkSkillEligibility } from "../workspace/skills/eligibility.js";
 
 export type BundledSkillStatus = {
@@ -35,8 +40,9 @@ export function listBundledSkills({
     const raw = parseFrontmatter({ content });
     const frontmatter = raw ? buildFrontmatter({ raw }) : null;
 
-    const skillKey = frontmatter?.openclaw?.skillKey ?? frontmatter?.name ?? slug;
+    const skillKey = getSkillKey({ frontmatter, slug });
     const entry = skillsConfig.entries[skillKey];
+    // Bundled skills are opt-in: disabled by default, enabled only when explicitly set to true.
     const enabled = entry?.enabled === true;
 
     const { eligible, reason } = frontmatter

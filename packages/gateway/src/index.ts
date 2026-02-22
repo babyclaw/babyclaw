@@ -25,5 +25,6 @@ export {
   getBundledSkillPath,
 } from "./bundled-skills/index.js";
 export type { BundledSkillStatus } from "./bundled-skills/index.js";
+export { getSkillKey } from "./workspace/skills/types.js";
 export { createLogger, getLogger, createChildLogger } from "./logging/index.js";
 export type { Logger, LoggingConfig, LogLevel, LogFormat } from "./logging/index.js";

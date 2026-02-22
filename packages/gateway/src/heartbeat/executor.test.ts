@@ -22,6 +22,10 @@ vi.mock("../workspace/skills/index.js", () => ({
   getEligibleSkills: vi.fn(({ skills }: any) => skills),
 }));
 
+vi.mock("../bundled-skills/index.js", () => ({
+  getEnabledBundledSkills: vi.fn(() => []),
+}));
+
 vi.mock("../workspace/bootstrap.js", () => ({
   readHeartbeatInstructions: vi.fn(async () => "Check things"),
   readWorkspaceGuide: vi.fn(async () => null),

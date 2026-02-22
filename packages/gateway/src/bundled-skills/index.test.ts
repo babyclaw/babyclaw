@@ -49,6 +49,7 @@ vi.mock("node:child_process", () => ({
 
 import { execFileSync } from "node:child_process";
 import { listBundledSkills, getEnabledBundledSkills, getBundledSkillPath } from "./index.js";
+import { clearBinaryExistsCache } from "../workspace/skills/eligibility.js";
 
 const mockedExecFileSync = vi.mocked(execFileSync);
 const emptyConfig: SkillsConfig = { entries: {} };
@@ -56,6 +57,7 @@ const emptyFullConfig: Record<string, unknown> = {};
 
 afterEach(() => {
   vi.restoreAllMocks();
+  clearBinaryExistsCache();
 });
 
 describe("listBundledSkills", () => {

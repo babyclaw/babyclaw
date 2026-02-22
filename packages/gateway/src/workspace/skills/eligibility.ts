@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import type { SkillEntry, SkillFrontmatter, SkillsConfig } from "./types.js";
+import { getSkillKey, type SkillEntry, type SkillFrontmatter, type SkillsConfig } from "./types.js";
 
 export type EligibilityResult = { eligible: boolean; reason: string | null };
 
@@ -15,11 +15,10 @@ export function getEligibleSkills({
   fullConfig,
 }: EligibilityInput): SkillEntry[] {
   return skills.filter((skill) => {
-    const { frontmatter } = skill;
-    const openclaw = frontmatter.openclaw;
-    const skillKey = openclaw?.skillKey ?? frontmatter.name;
-    const entry = skillsConfig.entries[skillKey];
+    const { frontmatter, slug } = skill;
+    const entry = skillsConfig.entries[getSkillKey({ frontmatter, slug })];
 
+    // Workspace skills are opt-out: enabled by default, disabled only when explicitly set to false.
     if (entry?.enabled === false) return false;
 
     return checkSkillEligibility({ frontmatter, skillsConfig, fullConfig }).eligible;
@@ -99,13 +98,26 @@ export function checkSkillEligibility({
   return { eligible: true, reason: null };
 }
 
+const binaryExistsCache = new Map<string, boolean>();
+
+export function clearBinaryExistsCache(): void {
+  binaryExistsCache.clear();
+}
+
 export function binaryExists({ name }: { name: string }): boolean {
+  const cached = binaryExistsCache.get(name);
+  if (cached !== undefined) return cached;
+
+  let exists: boolean;
   try {
     execFileSync("which", [name], { stdio: "ignore" });
-    return true;
+    exists = true;
   } catch {
-    return false;
+    exists = false;
   }
+
+  binaryExistsCache.set(name, exists);
+  return exists;
 }
 
 export function getConfigValue({

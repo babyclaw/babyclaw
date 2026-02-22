@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SkillEntry, SkillsConfig } from "../workspace/skills/types.js";
 
 vi.mock("../ai/prompts.js", () => ({
@@ -31,6 +31,11 @@ import { loadAgentContext } from "./context.js";
 const emptyConfig: SkillsConfig = { entries: {} };
 const emptyFullConfig: Record<string, unknown> = {};
 
+afterEach(() => {
+  mockWorkspaceSkills.length = 0;
+  mockBundledSkills.length = 0;
+});
+
 function makeSkill(overrides: { slug: string; name?: string; relativePath?: string }): SkillEntry {
   return {
     slug: overrides.slug,
@@ -46,8 +51,6 @@ function makeSkill(overrides: { slug: string; name?: string; relativePath?: stri
 
 describe("loadAgentContext", () => {
   it("returns workspace skills when no bundled skills exist", async () => {
-    mockWorkspaceSkills.length = 0;
-    mockBundledSkills.length = 0;
     const ws = makeSkill({ slug: "weather" });
     mockWorkspaceSkills.push(ws);
 
@@ -59,13 +62,9 @@ describe("loadAgentContext", () => {
 
     expect(result.skills).toHaveLength(1);
     expect(result.skills[0].slug).toBe("weather");
-
-    mockWorkspaceSkills.length = 0;
   });
 
   it("returns bundled skills when no workspace skills exist", async () => {
-    mockWorkspaceSkills.length = 0;
-    mockBundledSkills.length = 0;
     const bundled = makeSkill({
       slug: "browser-use",
       relativePath: "bundled-skills/browser-use/SKILL.md",
@@ -80,14 +79,9 @@ describe("loadAgentContext", () => {
 
     expect(result.skills).toHaveLength(1);
     expect(result.skills[0].slug).toBe("browser-use");
-
-    mockBundledSkills.length = 0;
   });
 
   it("workspace skills take precedence over bundled skills with same slug", async () => {
-    mockWorkspaceSkills.length = 0;
-    mockBundledSkills.length = 0;
-
     const wsSkill = makeSkill({
       slug: "weather",
       name: "weather-workspace",
@@ -110,15 +104,9 @@ describe("loadAgentContext", () => {
     expect(result.skills).toHaveLength(1);
     expect(result.skills[0].frontmatter.name).toBe("weather-workspace");
     expect(result.skills[0].relativePath).toBe("skills/weather/SKILL.md");
-
-    mockWorkspaceSkills.length = 0;
-    mockBundledSkills.length = 0;
   });
 
   it("includes non-overlapping bundled skills alongside workspace skills", async () => {
-    mockWorkspaceSkills.length = 0;
-    mockBundledSkills.length = 0;
-
     mockWorkspaceSkills.push(makeSkill({ slug: "weather" }));
     mockBundledSkills.push(
       makeSkill({
@@ -137,15 +125,9 @@ describe("loadAgentContext", () => {
     const slugs = result.skills.map((s) => s.slug);
     expect(slugs).toContain("weather");
     expect(slugs).toContain("browser-use");
-
-    mockWorkspaceSkills.length = 0;
-    mockBundledSkills.length = 0;
   });
 
   it("workspace skills appear before bundled skills in the list", async () => {
-    mockWorkspaceSkills.length = 0;
-    mockBundledSkills.length = 0;
-
     mockWorkspaceSkills.push(makeSkill({ slug: "ws-skill" }));
     mockBundledSkills.push(
       makeSkill({ slug: "bundled-skill", relativePath: "bundled-skills/bundled-skill/SKILL.md" }),
@@ -159,8 +141,5 @@ describe("loadAgentContext", () => {
 
     expect(result.skills[0].slug).toBe("ws-skill");
     expect(result.skills[1].slug).toBe("bundled-skill");
-
-    mockWorkspaceSkills.length = 0;
-    mockBundledSkills.length = 0;
   });
 });

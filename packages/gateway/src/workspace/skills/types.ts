@@ -48,6 +48,16 @@ export type SkillEntry = {
   relativePath: string;
 };
 
+export function getSkillKey({
+  frontmatter,
+  slug,
+}: {
+  frontmatter: SkillFrontmatter | null;
+  slug: string;
+}): string {
+  return frontmatter?.openclaw?.skillKey ?? frontmatter?.name ?? slug;
+}
+
 export type SkillsConfig = {
   entries: Record<
     string,
