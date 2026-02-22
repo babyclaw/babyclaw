@@ -7,7 +7,7 @@
   "license": "ISC",
   "author": "",
   "scripts": {
-    "build": "pnpm -r build",
+    "build": "pnpm -r -F '!docs' build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r --filter=!docs lint",
