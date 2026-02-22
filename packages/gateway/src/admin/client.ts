@@ -32,6 +32,10 @@ export class AdminClient {
     return this.get({ path: "/shutdown" });
   }
 
+  async reloadSkills(): Promise<{ ok: boolean }> {
+    return this.get({ path: "/reload-skills" });
+  }
+
   private get<T>({ path }: AdminRequestInput): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const req = request(

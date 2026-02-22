@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { LanguageModel } from "ai";
+import { getBundledSkillsDir } from "@babyclaw/skills";
 import { AiAgent } from "./ai/agent.js";
 import { buildProviderRegistry, resolveModelRef } from "./ai/provider-registry.js";
 import { AdminServer } from "./admin/server.js";
@@ -12,7 +13,7 @@ import { MessageLinkRepository } from "./channel/message-link.js";
 import { TelegramAdapter } from "./telegram/plugin.js";
 import { CrossChatDeliveryService } from "./chat/delivery.js";
 import { ChatRegistry } from "./chat/registry.js";
-import { loadConfig } from "./config/loader.js";
+import { loadConfig, loadConfigRaw } from "./config/loader.js";
 import { getConfigPath, resolveWorkspaceRoot } from "./config/paths.js";
 import type { BabyclawConfig } from "./config/types.js";
 import { HeartbeatExecutor } from "./heartbeat/executor.js";
@@ -187,6 +188,7 @@ export class GatewayRuntime {
 
       const toolDeps: ToolDependencies = {
         workspacePath,
+        bundledSkillsDir: getBundledSkillsDir(),
         aiAgent,
         sessionManager,
         schedulerService,
@@ -305,6 +307,16 @@ export class GatewayRuntime {
             setImmediate(() => {
               void this.stop().then(() => process.exit(0));
             });
+            return { ok: true };
+          },
+          "/reload-skills": async () => {
+            const freshConfig = await loadConfigRaw();
+            if (!freshConfig) {
+              return { ok: false, error: "config_not_found" };
+            }
+            toolDeps.skillsConfig = freshConfig.skills;
+            toolDeps.fullConfig = freshConfig as unknown as Record<string, unknown>;
+            log.info("Skills configuration reloaded via admin socket");
             return { ok: true };
           },
         },

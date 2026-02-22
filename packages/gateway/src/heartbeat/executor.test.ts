@@ -22,6 +22,10 @@ vi.mock("../workspace/skills/index.js", () => ({
   getEligibleSkills: vi.fn(({ skills }: any) => skills),
 }));
 
+vi.mock("../bundled-skills/index.js", () => ({
+  getEnabledBundledSkills: vi.fn(() => []),
+}));
+
 vi.mock("../workspace/bootstrap.js", () => ({
   readHeartbeatInstructions: vi.fn(async () => "Check things"),
   readWorkspaceGuide: vi.fn(async () => null),
@@ -91,6 +95,7 @@ function createExecutor(overrides: Record<string, any> = {}) {
   return new HeartbeatExecutor({
     toolDeps: {
       workspacePath: "/tmp/test",
+      bundledSkillsDir: "/tmp/test-bundled-skills",
       aiAgent,
       sessionManager,
       schedulerService: {

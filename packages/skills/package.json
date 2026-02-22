@@ -1,0 +1,44 @@
+{
+  "name": "@babyclaw/skills",
+  "version": "0.0.1",
+  "description": "Bundled skills for babyclaw",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babyclaw/babyclaw",
+    "directory": "packages/skills"
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "oxlint": "^1.49.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -2,7 +2,13 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
-import { isSubPath, normalizeSeparators, pathExists, resolveWorkspacePath } from "./path.js";
+import {
+  isSubPath,
+  normalizeSeparators,
+  pathExists,
+  resolveBundledSkillPath,
+  resolveWorkspacePath,
+} from "./path.js";
 
 const WORKSPACE = "/tmp/test-workspace";
 
@@ -107,6 +113,36 @@ describe("isSubPath", () => {
 
   it("handles parent with trailing separator", () => {
     expect(isSubPath({ parent: `/a/b${sep}`, child: `/a/b${sep}c` })).toBe(true);
+  });
+});
+
+const BUNDLED_DIR = "/tmp/test-bundled-skills";
+
+describe("resolveBundledSkillPath", () => {
+  it("resolves a valid bundled skill path", () => {
+    const result = resolveBundledSkillPath({
+      bundledSkillsDir: BUNDLED_DIR,
+      requestedPath: "bundled-skills/weather/SKILL.md",
+    });
+    expect(result).toBe(resolve(BUNDLED_DIR, "weather/SKILL.md"));
+  });
+
+  it("throws on path traversal", () => {
+    expect(() =>
+      resolveBundledSkillPath({
+        bundledSkillsDir: BUNDLED_DIR,
+        requestedPath: "bundled-skills/../../etc/passwd",
+      }),
+    ).toThrow("Path escapes bundled skills root");
+  });
+
+  it("throws on empty relative path after prefix", () => {
+    expect(() =>
+      resolveBundledSkillPath({
+        bundledSkillsDir: BUNDLED_DIR,
+        requestedPath: "bundled-skills/",
+      }),
+    ).toThrow("Path is required");
   });
 });
 

@@ -2,6 +2,10 @@ import { ScheduleRunStatus, ScheduleType } from "../database/schema.js";
 import { describe, expect, it, vi } from "vitest";
 import { SchedulerExecutor } from "./executor.js";
 
+vi.mock("../bundled-skills/index.js", () => ({
+  getEnabledBundledSkills: vi.fn(() => []),
+}));
+
 function createMockChannelSender(): any {
   return {
     platform: "telegram",
@@ -59,6 +63,7 @@ function createExecutor(overrides: Record<string, any> = {}) {
   return new SchedulerExecutor({
     toolDeps: {
       workspacePath: "/tmp/test",
+      bundledSkillsDir: "/tmp/test-bundled-skills",
       aiAgent: overrides.aiAgent ?? createMockAiAgent(),
       sessionManager: overrides.sessionManager ?? createMockSessionManager(),
       schedulerService: overrides.schedulerService ?? createMockSchedulerService(),

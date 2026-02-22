@@ -138,6 +138,7 @@ export class HeartbeatExecutor {
         toolDeps: this.toolDeps,
         executionContext: {
           workspaceRoot: workspacePath,
+          bundledSkillsDir: this.toolDeps.bundledSkillsDir,
           botTimezone: schedulerService.getTimezone(),
           platform: mainChat.platform,
           chatId: platformChatId,

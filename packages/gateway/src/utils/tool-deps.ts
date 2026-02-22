@@ -20,6 +20,7 @@ export type SelfToolDeps = {
 
 export type ToolDependencies = {
   workspacePath: string;
+  bundledSkillsDir: string;
   aiAgent: AiAgent;
   sessionManager: SessionManager;
   schedulerService: SchedulerService;

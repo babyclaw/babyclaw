@@ -19,5 +19,12 @@ export { ClawHubError } from "./clawhub/client.js";
 export { runSkillSetup } from "./clawhub/skill-setup.js";
 export type { SkillSetupResult } from "./clawhub/skill-setup.js";
 export { SUPPORTED_PROVIDERS, resolveLanguageModel } from "./ai/provider-registry.js";
+export {
+  listBundledSkills,
+  getEnabledBundledSkills,
+  getBundledSkillPath,
+} from "./bundled-skills/index.js";
+export type { BundledSkillStatus } from "./bundled-skills/index.js";
+export { getSkillKey } from "./workspace/skills/types.js";
 export { createLogger, getLogger, createChildLogger } from "./logging/index.js";
 export type { Logger, LoggingConfig, LogLevel, LogFormat } from "./logging/index.js";
