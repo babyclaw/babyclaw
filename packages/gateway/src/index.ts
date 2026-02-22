@@ -3,7 +3,13 @@ export type { GatewayStatus } from "./runtime.js";
 export { AdminClient } from "./admin/client.js";
 export { getAdminSocketPath } from "./admin/paths.js";
 export { loadConfig, loadConfigRaw, writeConfig } from "./config/loader.js";
-export { getConfigPath, getDefaultConfigPath, CONFIG_PATH_ENV_VAR } from "./config/paths.js";
+export {
+  getConfigPath,
+  getDefaultConfigPath,
+  resolveWorkspaceRoot,
+  CONFIG_PATH_ENV_VAR,
+  DEFAULT_WORKSPACE_ROOT,
+} from "./config/paths.js";
 export { babyclawConfigSchema } from "./config/schema.js";
 export { getDefaultConfigTemplate } from "./config/template.js";
 export type { BabyclawConfig } from "./config/types.js";

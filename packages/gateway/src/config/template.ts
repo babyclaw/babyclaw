@@ -22,7 +22,7 @@ const DEFAULT_CONFIG_TEMPLATE = {
     timezone: "UTC",
   },
   workspace: {
-    root: ".",
+    root: "~/babyclaw",
   },
   session: {
     maxMessagesPerSession: 120,
