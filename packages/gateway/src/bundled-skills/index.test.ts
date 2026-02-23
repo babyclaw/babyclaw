@@ -7,7 +7,7 @@ const MOCK_SKILLS: Record<string, string> = {
     "---",
     "name: weather",
     "description: Get weather forecasts",
-    'metadata: \'{"openclaw": {"requires": {"bins": ["curl"]}}}\'',
+    'metadata: \'{"openclaw": {"requires": {"bins": ["curl"]}, "install": [{"kind": "brew", "formula": "curl", "bins": ["curl"]}]}}\'',
     "---",
     "Use curl to fetch weather.",
   ].join("\n"),
@@ -101,6 +101,18 @@ describe("listBundledSkills", () => {
     const internal = result.find((s) => s.slug === "internal-only")!;
     expect(internal.eligible).toBe(false);
     expect(internal.ineligibilityReason).toContain("Model invocation disabled");
+  });
+
+  it("sets hasInstallSpecs true when skill has install metadata", () => {
+    const result = listBundledSkills({ skillsConfig: emptyConfig, fullConfig: emptyFullConfig });
+    const weather = result.find((s) => s.slug === "weather")!;
+    expect(weather.hasInstallSpecs).toBe(true);
+  });
+
+  it("sets hasInstallSpecs false when skill has no install metadata", () => {
+    const result = listBundledSkills({ skillsConfig: emptyConfig, fullConfig: emptyFullConfig });
+    const git = result.find((s) => s.slug === "git-helper")!;
+    expect(git.hasInstallSpecs).toBe(false);
   });
 });
 
