@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync, unlinkSync } from "node:fs";
+import { buildAugmentedPath } from "@babyclaw/gateway";
 const SERVICE_LABEL = "org.babyclaw.gateway";
 const SYSTEMD_UNIT = "babyclaw-gateway";
 
@@ -60,7 +61,8 @@ export function generateLaunchdPlist(): string {
 
   const shellPath = getShellPath();
   const nodeDir = dirname(nodePath);
-  const path = shellPath.includes(nodeDir) ? shellPath : `${shellPath}:${nodeDir}`;
+  const augmented = buildAugmentedPath({ basePath: shellPath });
+  const path = augmented.includes(nodeDir) ? augmented : `${augmented}:${nodeDir}`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -98,7 +100,8 @@ export function generateSystemdUnit(): string {
 
   const shellPath = getShellPath();
   const nodeDir = dirname(nodePath);
-  const envPath = shellPath.includes(nodeDir) ? shellPath : `${shellPath}:${nodeDir}`;
+  const augmented = buildAugmentedPath({ basePath: shellPath });
+  const envPath = augmented.includes(nodeDir) ? augmented : `${augmented}:${nodeDir}`;
 
   return `[Unit]
 Description=BabyClaw Gateway

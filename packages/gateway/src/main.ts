@@ -1,5 +1,8 @@
 import { getLogger } from "./logging/index.js";
 import { GatewayRuntime } from "./runtime.js";
+import { augmentProcessPath } from "./utils/env-path.js";
+
+augmentProcessPath();
 
 const runtime = new GatewayRuntime();
 

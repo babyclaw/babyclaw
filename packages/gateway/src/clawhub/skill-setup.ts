@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { generateText, stepCountIs, type LanguageModel } from "ai";
 import { createShellTools } from "../tools/shell.js";
 import type { ToolExecutionContext } from "../utils/tool-context.js";
+import { augmentProcessPath, resetToolBinDirsCache } from "../utils/env-path.js";
 import type { SkillInstallSpec } from "../workspace/skills/types.js";
 import { parseFrontmatter, buildFrontmatter, FRONTMATTER_RE } from "../workspace/skills/scanner.js";
 import { getLogger } from "../logging/index.js";
@@ -207,6 +208,9 @@ export async function runSkillSetup({
     },
     "Skill setup agent completed",
   );
+
+  resetToolBinDirsCache();
+  augmentProcessPath();
 
   return {
     skipped: false,
