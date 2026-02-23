@@ -6,6 +6,7 @@ import {
   getSchedulerGuidanceSystemMessage,
   getSharedSystemMessage,
   getSkillsSystemMessage,
+  getVaultSystemMessage,
   getWorkspaceGuideSystemMessage,
 } from "../ai/prompts.js";
 import { loadAgentContext } from "../agent/context.js";
@@ -128,6 +129,7 @@ export class HeartbeatExecutor {
         getWorkspaceGuideSystemMessage({ agentsContent }),
         getSkillsSystemMessage({ skills, toolNotesContent }),
         getSchedulerGuidanceSystemMessage(),
+        getVaultSystemMessage(),
         getMainSessionSystemMessage({ linkedChats }),
         getHeartbeatSystemMessage({ instructions }),
         ...history,

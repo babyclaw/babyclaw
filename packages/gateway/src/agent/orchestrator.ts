@@ -19,6 +19,7 @@ import {
   getSelfManagementSystemMessage,
   getSharedSystemMessage,
   getSkillsSystemMessage,
+  getVaultSystemMessage,
   getWorkingMemorySystemMessage,
   getWorkspaceGuideSystemMessage,
 } from "../ai/prompts.js";
@@ -369,6 +370,7 @@ export class AgentTurnOrchestrator {
         toolNotesContent: toolsIndexContent,
       }),
       getSchedulerGuidanceSystemMessage(),
+      getVaultSystemMessage(),
       getSelfManagementSystemMessage({
         configPath: selfToolDeps.getStatus().configPath ?? "~/.babyclaw/babyclaw.json",
         adminSocketPath: selfToolDeps.adminSocketPath,
