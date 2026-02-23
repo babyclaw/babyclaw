@@ -14,6 +14,7 @@ export type BundledSkillStatus = {
   enabled: boolean;
   eligible: boolean;
   ineligibilityReason: string | null;
+  hasInstallSpecs: boolean;
 };
 
 export function listBundledSkills({
@@ -34,6 +35,7 @@ export function listBundledSkills({
         enabled: false,
         eligible: false,
         ineligibilityReason: "Could not read SKILL.md",
+        hasInstallSpecs: false,
       };
     }
 
@@ -49,12 +51,15 @@ export function listBundledSkills({
       ? checkSkillEligibility({ frontmatter, skillsConfig, fullConfig })
       : { eligible: false, reason: "Invalid frontmatter" };
 
+    const hasInstallSpecs = (frontmatter?.openclaw?.install?.length ?? 0) > 0;
+
     return {
       slug,
       frontmatter,
       enabled,
       eligible,
       ineligibilityReason: reason,
+      hasInstallSpecs,
     };
   });
 }

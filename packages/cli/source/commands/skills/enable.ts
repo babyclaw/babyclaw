@@ -48,16 +48,21 @@ export default command({
     let slug = await options.slug();
 
     if (!slug) {
-      const enableable = bundled.filter((s) => s.eligible && !s.enabled);
+      const enableable = bundled.filter((s) => !s.enabled && (s.eligible || s.hasInstallSpecs));
       if (enableable.length === 0) {
         client.log(c.muted("  No skills available to enable."));
         return;
       }
 
-      const choices = enableable.map((s) => ({
-        title: `${s.frontmatter?.name ?? s.slug} ${c.muted("—")} ${c.muted(s.frontmatter?.description ?? "")}`,
-        value: s.slug,
-      }));
+      const choices = enableable.map((s) => {
+        const name = s.frontmatter?.name ?? s.slug;
+        const desc = s.frontmatter?.description ?? "";
+        const suffix = !s.eligible ? ` ${c.warning("(requires setup)")}` : "";
+        return {
+          title: `${name} ${c.muted("—")} ${c.muted(desc)}${suffix}`,
+          value: s.slug,
+        };
+      });
       choices.push({ title: c.muted("Cancel"), value: "__cancel__" });
 
       const selected = await client.prompt({
@@ -81,7 +86,7 @@ export default command({
       return;
     }
 
-    if (!skill.eligible) {
+    if (!skill.eligible && !skill.hasInstallSpecs) {
       client.log(c.error(`✗ Skill "${slug}" is not eligible on this system.`));
       if (skill.ineligibilityReason) {
         client.log(c.muted(`  ${skill.ineligibilityReason}`));
