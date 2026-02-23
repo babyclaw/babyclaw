@@ -200,6 +200,19 @@ export const heartbeatRuns = sqliteTable(
   (table) => [index("HeartbeatRun_createdAt_idx").on(table.createdAt)],
 );
 
+export const secrets = sqliteTable("Secret", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  label: text("label"),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdateFn(() => new Date()),
+});
+
 export const channelMessageLinks = sqliteTable(
   "ChannelMessageLink",
   {
@@ -295,3 +308,6 @@ export type NewHeartbeatRun = typeof heartbeatRuns.$inferInsert;
 
 export type ChannelMessageLink = typeof channelMessageLinks.$inferSelect;
 export type NewChannelMessageLink = typeof channelMessageLinks.$inferInsert;
+
+export type Secret = typeof secrets.$inferSelect;
+export type NewSecret = typeof secrets.$inferInsert;

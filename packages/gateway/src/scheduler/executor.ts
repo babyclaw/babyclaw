@@ -5,6 +5,7 @@ import {
   getScheduledExecutionSystemMessage,
   getSharedSystemMessage,
   getSkillsSystemMessage,
+  getVaultSystemMessage,
   getWorkspaceGuideSystemMessage,
 } from "../ai/prompts.js";
 import { loadAgentContext } from "../agent/context.js";
@@ -293,6 +294,7 @@ export class SchedulerExecutor {
         sharedSystemMessage,
         workspaceGuideMessage,
         getSkillsSystemMessage({ skills, toolNotesContent }),
+        getVaultSystemMessage(),
         getScheduledExecutionSystemMessage(),
         {
           role: "user",

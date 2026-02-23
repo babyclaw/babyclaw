@@ -10,6 +10,7 @@ import { createSchedulerTools } from "./scheduler.js";
 import { createSelfTools } from "./self.js";
 import { createShellTools } from "./shell.js";
 import { createStateTools } from "./state.js";
+import { createVaultTools } from "./vault.js";
 import { createWebSearchTools } from "./web-search.js";
 import { createWorkingMemoryTools } from "./working-memory.js";
 import { createWorkspaceTools } from "./workspace.js";
@@ -47,6 +48,7 @@ export function createUnifiedTools({
     deliveryService,
     sessionManager,
     selfToolDeps,
+    vaultRepository,
   } = toolDeps;
 
   if (!executionContext.chatId) {
@@ -97,6 +99,10 @@ export function createUnifiedTools({
     ...selfTools,
     ...createStateTools({
       context: executionContext,
+    }),
+    ...createVaultTools({
+      context: executionContext,
+      vaultRepository,
     }),
     ...createWorkspaceTools({
       context: executionContext,

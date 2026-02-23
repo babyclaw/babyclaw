@@ -6,6 +6,7 @@ import type { ShellConfig } from "../config/shell-defaults.js";
 import type { GatewayStatus } from "../runtime.js";
 import type { SchedulerService } from "../scheduler/service.js";
 import type { SessionManager } from "../session/manager.js";
+import type { VaultRepository } from "../vault/repository.js";
 import type { SkillsConfig } from "../workspace/skills/types.js";
 
 export type SelfToolDeps = {
@@ -34,4 +35,5 @@ export type ToolDependencies = {
   skillsConfig: SkillsConfig;
   fullConfig: Record<string, unknown>;
   selfToolDeps: SelfToolDeps;
+  vaultRepository: VaultRepository;
 };

@@ -91,6 +91,12 @@ function createExecutor(overrides: Record<string, any> = {}) {
         heartbeatActive: false,
         restartGateway: vi.fn(async () => {}),
       },
+      vaultRepository: {
+        get: vi.fn(async () => null),
+        set: vi.fn(async () => ({ created: true })),
+        delete: vi.fn(async () => ({ deleted: false })),
+        list: vi.fn(async () => []),
+      } as any,
     },
     channelSender: overrides.channelSender ?? createMockChannelSender(),
   });

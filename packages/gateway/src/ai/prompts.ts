@@ -169,6 +169,29 @@ function escapeXmlText(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+export function getVaultSystemMessage(): ModelMessage {
+  return {
+    role: "system",
+    content: [
+      "<vault_guide>",
+      "You have a secure credential vault for storing API keys, tokens, passwords, and other secrets.",
+      'Use the vault tool with the appropriate action: "get", "set", "delete", or "list".',
+      "",
+      "MANDATORY RULES:",
+      '1. ALWAYS store credentials using vault(action: "set"). NEVER write secrets to files (TOOLS.md, memory files, state documents, .env, or any workspace file).',
+      "2. When a user provides any credential, store it in the vault IMMEDIATELY before doing anything else.",
+      '3. Before using a credential, retrieve it with vault(action: "get"). Do not assume or guess values.',
+      "4. NEVER include secret values in your messages to the user. Refer to credentials by their vault key name.",
+      "5. Do not store vault secret values in working memory.",
+      "6. When a skill requires a credential, check the vault first.",
+      "",
+      'Key naming: Use "service/type" format (e.g., "elevenlabs/api-key", "github/token", "openai/api-key").',
+      'Use vault(action: "list") to discover what credentials are stored.',
+      "</vault_guide>",
+    ].join("\n"),
+  };
+}
+
 export function getWorkspaceGuideSystemMessage({
   agentsContent,
   bootstrapContent,

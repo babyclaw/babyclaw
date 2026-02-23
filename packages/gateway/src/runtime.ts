@@ -29,6 +29,7 @@ import { MemoryExtractionQueue } from "./memory/queue.js";
 import { SessionManager } from "./session/manager.js";
 import { SessionTitleGenerator } from "./session/title-generator.js";
 import type { ToolDependencies } from "./utils/tool-deps.js";
+import { VaultRepository } from "./vault/repository.js";
 import { bootstrapWorkspace } from "./workspace/bootstrap.js";
 import { createDatabase, type Database } from "./database/client.js";
 import { applyMigrations } from "./database/migrate.js";
@@ -186,6 +187,8 @@ export class GatewayRuntime {
 
       const adminSocketPath = getAdminSocketPath();
 
+      const vaultRepository = new VaultRepository({ db });
+
       const toolDeps: ToolDependencies = {
         workspacePath,
         bundledSkillsDir: getBundledSkillsDir(),
@@ -201,6 +204,7 @@ export class GatewayRuntime {
         shellConfig,
         skillsConfig: config.skills,
         fullConfig: config as unknown as Record<string, unknown>,
+        vaultRepository,
         selfToolDeps: {
           getStatus: () => this.getStatus(),
           adminSocketPath,
